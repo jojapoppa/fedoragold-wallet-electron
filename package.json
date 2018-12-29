@@ -1,62 +1,73 @@
 {
-  "name": "walletshell",
-  "productName": "WalletShell",
-  "description": "TurtleCoin GUI Wallet",
-  "version": "v0.3.2",
+  "name": "FedoraGoldWallet",
+  "productName": "FedoraGoldWallet",
+  "description": "FedoraGold (FED) GUI Wallet",
+  "version": "v0.3.6",
   "homepage": "https://github.com/turtlecoin/turtle-wallet-electron",
   "repository": "https://github.com/turtlecoin/turtle-wallet-electron",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "debug": "electron . debug",
-    "dist-win": "./node_modules/.bin/electron-builder --x64 --win -c.extraResources=./bin/win/turtle-service.exe",
-    "dist-lin": "./node_modules/.bin/electron-builder --x64 --linux -c.extraResources=./bin/lin/turtle-service",
-    "dist-mac": "./node_modules/.bin/electron-builder --x64 --mac -c.extraResources=./bin/osx/turtle-service"
+    "dev": "electron . dev",
+    "dist-win": "./node_modules/.bin/electron-builder --x64 --win",
+    "dist-mac": "./node_modules/.bin/electron-builder --x64 --mac",
+    "dist-lin": "./node_modules/.bin/electron-builder --x64 --linux"
   },
   "keywords": [],
-  "author": "Rixombea, Macroshock, TurtleCoin Developers",
+  "author": "FedoraGold (FED), Rixombea, Macroshock & TurtleCoin Developers",
   "license": "ISC",
   "devDependencies": {
     "devtron": "^1.4.0",
-    "electron": "^3.0.0",
-    "electron-builder": "^20.28.4",
-    "jslint": "^0.12.0"
+    "electron": "^3.0.10",
+    "electron-builder": "^20.36.2",
+    "jshint": "^2.9.6"
   },
   "dependencies": {
-    "@trodi/electron-splashscreen": "^0.3.1",
+    "@trodi/electron-splashscreen": "^0.3.4",
+    "csv-writer": "^1.2.0",
     "electron-log": "^2.2.17",
     "electron-store": "^2.0.0",
     "qr-image": "^3.2.0",
     "request": "^2.88.0",
-    "request-promise-native": "^1.0.5"
+    "request-promise-native": "^1.0.5",
+    "semver": "^5.6.0"
   },
   "build": {
-    "appId": "lol.turtlecoin.walletshell",
-    "productName": "WalletShell",
-    "copyright": "Copyright (c) 2018 Rixombea, Macroshock, TurtleCoin Developers",
+    "appId": "fed.fedoragold.walletshell",
+    "copyright": "Copyright (c) 2018, 2019 FedoraGold, Rixombea, Macroshock, TurtleCoin Developers",
     "directories": {
-      "app": ".",
       "output": "dist",
       "buildResources": "build"
     },
+    "extraFiles": [
+      {
+        "from": "./bin/${os}",
+        "to": "resources/bin/${os}",
+        "filter": ["**/*"]
+      }
+    ],
     "linux": {
+      "artifactName": "${productName}-v${version}-${os}.${ext}",
       "target": [
-        "tar.bz2",
         "AppImage"
       ],
-      "maintainer": "rixombea (@labaylabay)",
+      "maintainer": "jojapoppa",
       "category": "Office",
-      "vendor": "TurtleCoin",
-      "synopsis": "TurtleCoin GUI Wallet"
+      "vendor": "FedoraGold",
+      "synopsis": "FedoraGold GUI Wallet"
     },
     "win": {
       "target": "nsis",
-      "publisherName": "TurtleCoin"
+      "publisherName": "FedoraGold"
     },
     "nsis": {
-      "artifactName": "${productName}-${version}-setup.${ext}"
+      "artifactName": "${productName}-v${version}-${os}-${arch}-setup.${ext}",
+      "oneClick": false,
+      "perMachine": false
     },
     "mac": {
+      "artifactName": "${productName}-v${version}-${os}-${arch}.${ext}",
       "category": "public.app-category.business",
       "target": "tar.gz"
     }

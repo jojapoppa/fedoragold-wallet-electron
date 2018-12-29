@@ -6,15 +6,50 @@
             </div>
             <div class="div-input">
                 <div class="input-wrap">
-                    <h4 class="text-spaced">Select the wallet file:</h4>
-                    <input data-initial="recentWallet" type="text" class="text-block path-input" id="input-load-path" style="padding: 12px 8px;" tabindex="1"></input>
-                    <button data-selection="openFile" data-targetinput="input-load-path" type="button" class="button-green path-input-button" id="button-load-browse" tabindex="2"><i class="fas fa-folder-open"></i></button>
+                    <h4 class="text-spaced input-required">Select the wallet file</h4>
+                    <input type="text" required="required" data-selection="openFile" 
+                        data-targetinput="input-load-path" data-initial="recentWallet"
+                        readonly="readonly" class="text-block path-input-button"
+                        id="input-load-path" tabindex="0" 
+                        placeholder="Full path to the wallet file to be opened..."
+                        />
+                    <button data-selection="openFile" data-targetinput="input-load-path" type="button" class="button-green path-input-button notabindex" id="button-load-browse" tabindex="2"><i class="fas fa-folder-open"></i></button>
                 </div>
 
                 <div class="input-wrap">
-                    <h4 class="text-spaced">Wallet password:</h4>
-                    <input tabindex="3" type="password" class="text-block" id="input-load-password" style="padding: 12px 8px;"></input>
+                    <h4 class="text-spaced input-required">Wallet password</h4>
+                    <input required="required" autofocus="true" tabindex="0" type="password"
+                        class="text-block" id="input-load-password" 
+                        placeholder="Password to open this wallet..."
+                        />
+                        <button tabindex="-1" class="togpass notabindex" data-pf="input-load-password"><i class="fas fa-eye"></i></button>
                 </div>
+                <div class="input-wrap">
+                    <div class="inline-block-div half-width" style="width:62%;">
+                        <h4 class="text-spaced input-required">Daemon or public node address (IP or hostname)</h4>
+                        <input tabindex="0" required="required" data-initial="daemon_host" 
+                            name="nodeAddress" class="text-block" id="input-settings-daemon-address" 
+                            placeholder="Required, hostname or IP address of the TurtleCoin daemon or public node..." />
+                        <span id="daemonHostFormHelp" class="form-help">Type first few character(s) and select from public node list, or type to your own node address.</span>
+                    </div>
+                    <div class="inline-block-div half-width half-width-end" style="width:33%;float:right;margin-right:1.4rem;">
+                        <h4 class="text-spaced input-required">Daemon/Node port</h4>
+                        <input tabindex="0" type="number" required="required" data-initial="daemon_port" 
+                            class="text-block" id="input-settings-daemon-port" 
+                            placeholder="Required, port number of the TurtleCoin daemon or public node..." 
+                            />
+                        <span  id="daemonPortFormHelp" class="form-help"></span>
+                    </div>
+                </div>
+
+                <!-- <div class="input-wrap">
+                    <h4 class="text-spaced input-required">Daemon or public node address (&lt;IP_or_hostname&gt;:&lt;port_number&gt;)</h4>
+                    <input tabindex="0" required="required" data-initial="xdaemon_host" 
+                        name="nodeAddress" class="text-block" id="xinput-settings-daemon-address" 
+                        placeholder="Required, TurtleCoin daemon or public node address &amp; port, e.g mydaemon.com:11898" 
+                        />
+                    <span id="xdaemonHostFormHelp" class="form-help">Type first few character(s) and select from public node list, or type to your own node address.</span>
+                </div> -->
                 
                 <div class="input-wrap">
                     <span class="form-ew form-msg text-spaced-error" id="text-load-error"></span>
@@ -22,9 +57,9 @@
                     <span class="form-ew form-msg text-spaced-success" id="text-load-success"></span>
                 </div>
             </div>
-            <div class="action-buttons">
-                    <button tabindex="5" type="button" class="form-bt button-green" id="button-load-load">Open</button>
-                    <button tabindex="6" type="button" class="form-bt button-red" data-section="section-welcome" id="button-load-cancel">Cancel</button>
+            <div class="action-buttons" id="walletOpenButtons">
+                <button tabindex="0" type="button" class="form-bt button-green" id="button-load-load">Open</button>
+                <button tabindex="0" type="button" class="form-bt button-red" data-section="section-welcome" id="button-load-cancel">Back</button>
             </div>
         </div>
     </section>

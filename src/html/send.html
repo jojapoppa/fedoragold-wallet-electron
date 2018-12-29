@@ -3,30 +3,43 @@
         <div class="section-contents darkened">
 
             <div class="div-title">
-                <h2 class="title">Send TurtleCoin</h2>
+                <h2 class="title">Send FedoraGold (FED)</h2>
             </div>
             <div class="div-input">
                 <div class="input-wrap">
-                    <h4 class="text-spaced">Address</h4>
-                    <input placeholder="TRTLXXX..." class="text-block" id="input-send-address"></input>
-                    <span class="form-help">Type one or more characters to search from address book, or type new address.<br>New address will be added into your address book</span>
+                    <h4 class="text-spaced input-required">Recipient Address</h4>
+                    <input tabindex="0" required="required" class="text-block" id="input-send-address" 
+                        placeholder="Required, a valid FED address..."
+                    />
+                    <span class="form-help">Type one or more characters to search from address book, or type new address.</span>
                 </div>
 
                 <div class="input-wrap">
-                    <h4 class="text-spaced">Payment ID (optional)</h4>
-                    <input class="text-block" id="input-send-payid"></input>
+                    <h4 class="text-spaced">Payment ID</h4>
+                    <input tabindex="0" title="Optional" class="text-block" id="input-send-payid" 
+                        placeholder="Optional, a valid payment id for this transfer..."
+                    />
+
                 </div>
                 
                 <div class="input-wrap">
                     <div class="div-send-amount  inline-block-div half-width">
-                        <h4 class="text-spaced">Amount</h4>
-                        <input max="1.00" type="number" step="0.10" min="1.00" class="text-block" id="input-send-amount"></input>
-                        <span id="sendFormHelp" class="form-help">Max. amount you can send is 0.00 TRTL</span>
+                        <h4 class="text-spaced input-required">Amount</h4>
+                        <input tabindex="0" title="Required, amount of FED you want to send..." 
+                            required="required" max="1.00" type="number" step="0.10" 
+                            min="1.00" class="text-block" id="input-send-amount" 
+                            placeholder="1.00"
+                        />
+                        <span id="sendFormHelp" class="form-help">Max. amount you can send is 0.00 FED</span>
+                        <span tabindex="0" id="sendMaxAmount" class="hidden">send all</span>
                     </div>
                     <div class="div-send-fee inline-block-div half-width half-width-end">
-                            <h4 class="text-spaced">Transaction Fee</h4>
-                            <input data-noclear="1" value="0.10" type="number" step="0.10" min="0.10" class="text-block" id="input-send-fee"></input>
-                            <span id="sendFormHelp" class="form-help">Min. fee is 0.10 TRTL</span>
+                            <h4 class="text-spaced input-required">Transaction Fee</h4>
+                            <input tabindex="0" title="Required, FED amount for transaction fee..." required="required" 
+                                data-noclear="1" value="0.10" type="number" step="0.10" min="0.10" 
+                                class="text-block" id="input-send-fee" placeholder="0.10"
+                            />
+                            <span id="sendFormHelp" class="form-help">Min. fee is 0.10 FED</span>
                     </div>
                 </div>
                                 

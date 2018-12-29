@@ -1,7 +1,7 @@
 <template>
     <section class="section" id="section-transactions">
         <div class="section-contents">
-            <div class="div-title"><h2 class="title">Transactions</h2></div>
+            <div class="div-title"><h2 class="title">Transactions <span id="transaction-export" class="hidden">(Export as csv)</span></h2></div>
             <div id="txfiller" class="list-tables">
                 <p>Transaction data not available.<br>
                    Either you haven't made any transaction or your wallet still being synchronized.
@@ -10,15 +10,14 @@
             <div id="transaction-lists" class="list-tables hidden">
                 <div class="tx-tools">
                     <div class="tx-search">
-                    <input id="tx-search" class="text-block search" placeholder="Search by anything..." />
+                    <input tabindex="0" id="tx-search" class="text-block search noenter" placeholder="Search by anything..." />
                     </div>
                     <div class="tx-sort">
                         Sort by:
-                        <span class="csort" data-dir="0" id="txSortAmount">Amount</span>
-                        <span class="csort" data-dir="0" id="txSortTime">Date</span>
+                        <span  tabindex="0" class="csort" data-dir="0" id="txSortAmount">Amount</span>
+                        <span  tabindex="0" class="csort" data-dir="0" id="txSortTime">Date</span>
                     </div>
                 </div>
-                <!-- <progress class="light block-progress-extra"></progress> -->
                 <div class="transaction-table-wrapper">
                     <table class="custom-table transaction-list-table" id="transaction-list-table">
                         <tbody class="list"></tbody>
@@ -29,7 +28,7 @@
             <div class="input-wrap button-wrap" style="padding: 0;margin-top: 1rem;">
                 <input type="hidden" id="transaction-updated" value="0" />
                 <input type="hidden" id="transaction-notify" value="0" />
-                <button type="button" class="hidden button-green small" id="button-transactions-refresh">Refresh</button>
+                <button tabindex="-1" type="button" class="hidden button-green small" id="button-transactions-refresh">Refresh</button>
             </div>
         </div>
     </section>

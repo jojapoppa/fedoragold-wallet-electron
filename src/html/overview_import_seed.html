@@ -2,34 +2,49 @@
     <section class="section" id="section-overview-import-seed">
         <div class="section-contents darkened">
             <div class="div-title">
-                <h2 class="title">Import From Mnemonic Seed</h2>
+                <h2 class="title">Import Mnemonic Seed</h2>
             </div>
             <div class="div-input">
                 <div class="input-wrap">
-                    <h4 class="text-spaced">Select the folder where the wallet file will be stored:</h4>
-                    <input type="text" data-initial="recentWalletDir" class="text-block path-input" id="input-import-seed-path" style="padding: 12px 8px;" />
-                    <button data-selection="openDirectory" data-targetinput="input-import-seed-path" type="button" class="button-green button-browse path-input-button" id="button-import-seed-browse"><i class="fas fa-folder-open"></i></button>
+                    <h4 class="text-spaced input-required">Select where the wallet file will be stored</h4>
+                    <input required="required" data-fileobj="wallet file" data-selection="saveFile"
+                        data-targetinput="input-import-seed-path" type="text" readonly="readonly" 
+                        class="text-block path-input-button" id="input-import-seed-path" 
+                        placeholder="Required, full path to store this wallet..."
+                        />
+                    <button  data-fileobj="wallet file" data-selection="saveFile" 
+                        data-targetinput="input-import-seed-path" 
+                        type="button" 
+                        class="button-green button-browse path-input-button notabindex" 
+                        id="button-import-seed-browse"><i class="fas fa-folder-open"></i>
+                    </button>
                 </div>
                 <div class="input-wrap">
-                    <div class="div-import-name inline-block-div half-width">
-                        <h4 class="text-spaced" style="display: inline;">Filename for this wallet file:</h4>
-                        <input type="text" class="text-block" id="input-import-seed-name" />
+                    <div class="inline-block-div half-width" style="width:64%;">
+                        <h4 class="text-spaced input-required" style="display: inline;">Set password to open this wallet:</h4>
+                        <input required="required" type="password" class="text-block" 
+                        id="input-import-seed-password"
+                        placeholder="Required, set a password to open this wallet..."
+                        />
+                        <button tabindex="-1" class="togpass notabindex" data-pf="input-import-seed-password"><i class="fas fa-eye"></i></button>
                     </div>
-
-                    <div class="div-import-password inline-block-div half-width half-width-end">
-                        <h4 class="text-spaced" style="display: inline;">Set password to open this wallet:</h4>
-                        <input type="password" class="text-block" id="input-import-seed-password"/>
+                    <div class="inline-block-div half-width half-width-end" style="width:30%;float:right;margin-right:1.4rem;">
+                            <h4 class="text-spaced">Scan Height</h4>
+                            <input type="number" min="0" step="1" 
+                                class="text-block short-number" 
+                                id="key-import-seed-height" 
+                                placeholder="Optional..."
+                                />
                     </div>
                 </div>
 
                 <div class="input-wrap">
-                    <h4 class="text-spaced">Mnemonic seed to be imported:</h4>
-                    <textarea class="default-textarea" id="key-import-seed" rows="3"></textarea>
+                    <h4 class="text-spaced input-required">Mnemonic seed to be imported</h4>
+                    <textarea required="required" class="default-textarea" 
+                        id="key-import-seed" rows="3"
+                        placeholder="Required, mnemonic seed to be imported..."></textarea>
                 </div>
-                <div class="input-wrap">
-                    <h4 class="text-spaced">Scan Height (optional):</h4>
-                    <input type="number" min="0" step="1" class="text-block short-number" id="key-import-seed-height" />
-                </div>
+                
                 <div class="input-wrap">
                     <span class="form-ew form-msg text-spaced-error" id="text-import-seed-error"></span>
                     <span class="form-ew form-msg text-spaced-success" id="text-import-seed-success"></span>

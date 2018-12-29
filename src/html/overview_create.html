@@ -2,27 +2,26 @@
     <section class="section" id="section-overview-create">
         <div class="section-contents darkened">
             <div class="div-title">
-                <h2 class="title">Create a wallet</h2>
+                <h2 class="title">Create new wallet</h2>
             </div>
             <div class="div-input">
                 <div class="input-wrap">
-                    <h4 class="text-spaced">Select the folder where the wallet file will be stored::</h4>
-                    <input data-initial="recentWalletDir" class="text-block path-input" id="input-create-path" style="padding: 12px 8px;"></input>
-                    <button data-selection="openDirectory" data-targetinput="input-create-path" type="button" class="button-green path-input-button" id="button-create-browse"><i class="fas fa-folder-open"></i></button>
+                    <h4 class="text-spaced input-required">Select where the wallet file will be stored</h4>
+                    <input required="required" data-fileobj="wallet file" 
+                        data-selection="saveFile"  data-targetinput="input-create-path" 
+                        readonly="readonly" class="text-block path-input-button" id="input-create-path" 
+                        placeholder="Required, full path to store this wallet..."
+                        />
+                    <button  data-fileobj="wallet file" data-selection="saveFile"  data-targetinput="input-create-path" type="button" class="button-green path-input-button notabindex" id="button-create-browse"><i class="fas fa-folder-open"></i></button>
                 </div>
                 <div class="input-wrap">
-                    <div class="div-create-name inline-block-div half-width">
-                        <h4 class="text-spaced">Filename for this wallet file:</h4>
-                        <input class="text-block" id="input-create-name"></input>
-                    </div>
-
-                    <div class="div-create-password  inline-block-div half-width half-width-end">
-                        <h4 class="text-spaced">Set password to open this wallet:</h4>
-                        <input type="password" class="text-block" id="input-create-password"></input>
-                    </div>
+                    <h4 class="text-spaced input-required">Set password to open this wallet</h4>
+                    <input required="required" type="password" class="text-block" 
+                        id="input-create-password" 
+                        placeholder="Required, set a password to open your new wallet..."
+                        />
+                    <button tabindex="-1" class="togpass notabindex" data-pf="input-create-password"><i class="fas fa-eye"></i></button>
                 </div>
-
-
                 <div class="div-create-messages input-wrap">
                     <span class="form-ew form-msg text-spaced-error" id="text-create-error"></span>
                     <span class="form-ew form-msg text-spaced-success" id="text-create-success"></span>

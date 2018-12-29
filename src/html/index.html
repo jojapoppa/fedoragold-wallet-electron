@@ -26,43 +26,43 @@
         <link rel="import" href="./address_book_add.html">
     </head>
 
-    <body>    
+    <body>
         <!-- Top navbar -->
         <div class="navbar xgrid">
             <div class="idle" id="navbar-div-sync">
                 <i class="fas fa-pause-circle" id="navbar-icon-sync"></i>
-                <span id="navbar-text-sync">IDLE</span>
+                <span tabindex="-1" id="navbar-text-sync">IDLE</span>
             </div>
             
-            <button title="Wallet Overview" class="form-bt navbar-button navbar-need-connected" data-section="section-overview" id="button-section-overview">
+            <button tabindex="-1" title="Wallet Overview" class="form-bt navbar-button navbar-need-connected" data-section="section-overview" id="button-section-overview">
                 <i class="fas fa-wallet"></i> <span class="navbar-label">Wallet</span>
             </button>
-            <button title="Address Book" type="button" class="form-bt navbar-button" data-section="section-addressbook" id="button-section-addressbook">
+            <button tabindex="-1" title="Address Book" type="button" class="form-bt navbar-button" data-section="section-addressbook" id="button-section-addressbook">
                 <i class="fas fa-address-book"></i> <span class="navbar-label">Address Book</span>
             </button>
-            <button title="Send" class="form-bt navbar-button navbar-need-connected" data-section="section-send" id="button-section-send">
+            <button tabindex="-1" title="Send" class="form-bt navbar-button navbar-need-connected" data-section="section-send" id="button-section-send">
                 <i class="fas fa-share-square"></i> <span class="navbar-label">Send</span>
             </button>
-            <button title="Transactions" class="form-bt navbar-button navbar-need-connected" data-section="section-transactions" id="button-section-transactions">
+            <button tabindex="-1" title="Transactions" class="form-bt navbar-button navbar-need-connected" data-section="section-transactions" id="button-section-transactions">
                 <i class="fas fa-exchange-alt"></i> <span class="navbar-label">Transactions</span>
             </button>
-            <button title="Settings" class="form-bt navbar-button" data-section="section-settings" id="button-section-settings">
+            <button tabindex="-1" title="Settings" class="form-bt navbar-button" data-section="section-settings" id="button-section-settings">
                 <i class="fas fa-cog"></i> <span class="navbar-label">Settings</span>
             </button>
-            <button title="About" class="form-bt navbar-button" data-section="section-about" id="button-section-about">
+            <button tabindex="-1" title="About" class="form-bt navbar-button" data-section="section-about" id="button-section-about">
                 <i class="fas fa-info-circle"></i> <span class="navbar-label">About</span>
             </button>
         </div>
     
         <!-- Main div, here the program will load the different .html files depending on the active tab -->
-        <div id="conn-info" class="status-node-info hidden"></div>
+        <div id="conn-info" class="status-node-info empty"></div>
         <div id="main-div"></div>
         <dialog id="main-dialog" class="default-dialog"></dialog>
         <dialog id="tx-dialog" class="tx-dialog"></dialog>
         <dialog id="ab-dialog" class="default-dialog address-book-dialog"></dialog>
         <dialog id="tf-dialog" class="tx-dialog"></dialog>
-        <button title="Show keyboard shortcut" id="kswitch"><i class="fas fa-keyboard"></i></button>
-        <button title="Swith to dark mode" id="tswitch"><i class="fas fa-moon"></i></button>
-        <script>require('../js/ui_event.js')</script>
+        <button tabindex="-1" title="Show keyboard shortcut" id="kswitch"><i class="fas fa-keyboard"></i></button>
+        <button  tabindex="-1" title="Swith to dark mode" id="tswitch"><i class="fas fa-moon"></i></button>
+        <script>require('../js/wsui_main.js')</script>
     </body>
 </html>

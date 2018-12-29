@@ -4,21 +4,23 @@
             <div class="div-overview-address">
                 <div class="input-wrap" style="margin-top:0">
                     <h2 class="title">Address:</h2>
-                    <textarea  data-noclear="1" class="overview-input default-textarea" id="wallet-address" readonly="readonly" rows="2"></textarea>
+                    <textarea tabindex="-1" data-noclear="1" class="overview-input default-textarea" id="wallet-address" readonly="readonly" rows="2"></textarea>
                     <span id="form-help-wallet-address" class="form-help"></span>
+                    <a id="integrated-wallet-gen" class="wallet-tool form-help align-right">Generate Integrated Address</a>
+                    <a id="payment-id-gen" class="wallet-tool form-help align-right">Generate Payment ID</a>
                 </div>
             </div>
 
             <div class="main-balance-overview">
                 <div class="div-overview-balance">
                     <h2 class="title">Balance:</h2>
-                    <h4 class="text-block" id="balance-available" title="Unlocked Balance">
-                        <i class="fas fa-unlock-alt"></i> TRTL
-                        <span style="float: right;" class="tctcl">0.00</span>
+                    <h4 class="text-block" id="balance-available" title="Available Balance">
+                        <i class="fas fa-unlock-alt"></i> FED 
+                        <span data-cplabel="Balance" style="float: right;" class="tctcl">0.00</span>
                     </h4>
-                    <h4 class="text-block" id="balance-locked" title="Locked Balance">
-                        <i class="fas fa-lock"></i> TRTL
-                        <span style="float: right;" class="tctcl">0.00</span>
+                    <h4 class="text-block" id="balance-locked" title="Unconfirmed/Locked Balance">
+                        <i class="fas fa-lock"></i> FED
+                        <span data-cplabel="Locked balance" style="float: right;" class="tctcl">0.00</span>
                     </h4>
                 </div>
 
@@ -27,8 +29,9 @@
                 </div>
             </div>
             <div class="input-wrap button-wrap">
-                <button type="button" class="form-bt  button-green" id="button-overview-closewallet">Close Wallet</button>
-                <button type="button" class="form-bt button-green" data-section="section-overview-show" id="button-overview-showkeys">Private keys</button>
+                <button tabindex="0" type="button" class="form-bt  button-green" id="button-overview-closewallet">Close Wallet</button>
+                <!-- button tabindex="0" type="button" class="form-bt button-green" title="Display or backup your private keys" data-section="section-overview-show" id="button-overview-showkeys">Private keys</button -->
+                <!-- button tabindex="0" type="button" class="form-bt button-green" title="When possible, perform wallet input/output optimization by creating fusion transactions. Try this if you get error when sending big transaction." id="button-send-optimize">Optimize</button -->
             </div>
         </div>
     </section>

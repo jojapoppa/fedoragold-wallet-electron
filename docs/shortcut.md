@@ -2,16 +2,18 @@
 
 ![WalletShell Logo](walletshell.png)
 
-| Shortcut   | Target   |
-| ------------  | -------   |
-| <kbd>Ctrl</kbd>+<kbd>Home</kbd>                | Switch to **overview/welcome** section |
-| <kbd>Ctrl</kbd>+<kbd>Tab</kbd>                 | Switch to **next section** |
-| <kbd>Ctrl</kbd>+<kbd>n</kbd>                   | Switch to **Create new wallet** section |
-| <kbd>Ctrl</kbd>+<kbd>o</kbd>                   | Switch to **Open a wallet** section |
-| <kbd>Ctrl</kbd>+<kbd>i</kbd>                   | Switch to **Import wallet from private keys** section |
-| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>i</kbd>  | Switch to **Import wallet from mnemonic seed** section |
-| <kbd>Ctrl</kbd>+<kbd>e</kbd>                   | Switch to **Export private keys/seed** section |
-| <kbd>Ctrl</kbd>+<kbd>t</kbd>                   | Switch to **Transactions** section |
-| <kbd>Ctrl</kbd>+<kbd>s</kbd>                   | Switch to **Send/Transfer** section |
-| <kbd>Ctrl</kbd>+<kbd>\\</kbd>                  | Toggle dark/night mode |
-| <kbd>Esc</kbd>                                 | Close any opened dialog |
+| Shortcut                                       | Target                               | Conditions |
+| ---------                                      | -------                              | ---------- |
+| <kbd>Ctrl</kbd>+<kbd>Home</kbd>                | Go to **overview/welcome** screen    | - |
+| <kbd>Ctrl</kbd>+<kbd>Tab</kbd>                 | Go to **next tab/screen**            | - |
+| <kbd>Ctrl</kbd>+<kbd>n</kbd>                   | Create new wallet                    | No wallet is being opened |
+| <kbd>Ctrl</kbd>+<kbd>o</kbd>                   | Open a wallet                        | No wallet is being opened |
+| <kbd>Ctrl</kbd>+<kbd>i</kbd>                   | Import wallet from private keys      | No wallet is being opened |
+| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>i</kbd>  | Import wallet from mnemonic seed     | No wallet is being opened |
+| <kbd>Ctrl</kbd>+<kbd>e</kbd>                   | Export private keys & mnemonic seed  | Wallet is currently opened |
+| <kbd>Ctrl</kbd>+<kbd>t</kbd>                   | Go to **Transactions** screen        | Wallet is currently opened |
+| <kbd>Ctrl</kbd>+<kbd>s</kbd>                   | Go to **Send/Transfer** screen       | Wallet is currently opened |
+| <kbd>Ctrl</kbd>+<kbd>x</kbd>                   | Close currently opened wallet        | Wallet is currently opened |
+| <kbd>Ctrl</kbd>+<kbd>\\</kbd>                  | Toggle dark/night mode               | - |
+| <kbd>Ctrl</kbd>+<kbd>/</kbd>                   | Display list of available shortcuts  | - |
+| <kbd>Esc</kbd>                                 | Close any opened dialog              | - |

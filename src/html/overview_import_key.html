@@ -2,41 +2,48 @@
     <section class="section" id="section-overview-import-key">
         <div class="section-contents darkened">
             <div class="div-title">
-                <h2 class="title">Import Key</h2>
+                <h2 class="title">Import Private Key</h2>
             </div>
             <div class="div-input">
                 <div class="input-wrap">
-                    <h4 class="text-spaced">Select the folder where the wallet file will be stored:</h4>
-                    <input data-initial="recentWalletDir" class="text-block path-input" id="input-import-path" style="padding: 12px 8px;"></input>
-                    <button data-selection="openDirectory" data-targetinput="input-import-path" type="button" class="button-green path-input-button" id="button-import-browse"><i class="fas fa-folder-open"></i></button>
+                    <h4 class="text-spaced input-required">Select where the wallet file will be stored</h4>
+                    <input required="required" data-fileobj="wallet file" 
+                        data-selection="saveFile" data-targetinput="input-import-path" 
+                        class="text-block path-input-button" id="input-import-path" readonly="readonly" 
+                        placeholder="Required, full path to store this wallet..."
+                        />
+                    <button data-fileobj="wallet file" data-selection="saveFile" data-targetinput="input-import-path" type="button" class="button-green path-input-button notabindex" id="button-import-browse"><i class="fas fa-folder-open"></i></button>
                 </div>
 
-                <div class="input-wrap">
-                    <div class="div-import-name  inline-block-div half-width">
-                        <h4 class="text-spaced" style="display: inline;">Filename for this wallet file:</h4>
-                        <input class="text-block" id="input-import-name"></input>
-                    </div>
-                    
-
-                    <div class="div-import-password  inline-block-div half-width half-width-end">
-                        <h4 class="text-spaced" style="display: inline;">Set password to open this wallet:</h4>
-                        <input type="password" class="text-block" id="input-import-password"></input>
-                    </div>
-                </div>
-                <div class="input-wrap">
-                    <h4 class="text-spaced">View key to be imported:</h4>
-                    <input class="text-block" id="key-import-view" style="padding: 12px 8px;"></input>
-                </div>
                 <div class="input-wrap">
                     <div class="inline-block-div half-width" style="width:64%;">
-                        <h4 class="text-spaced">Spend key to be imported:</h4>
-                        <input class="text-block" id="key-import-spend" style="padding: 12px 8px;"></input>
+                        <h4 class="text-spaced input-required">Set password to open this wallet</h4>
+                        <input title="Required" required="required" type="password" 
+                        class="text-block" id="input-import-password" 
+                        placeholder="Required, set a password to open this wallet..."
+                        />
+                        <button tabindex="-1" class="togpass notabindex" data-pf="input-import-password"><i class="fas fa-eye"></i></button>
                     </div>
 
-                    <div class="inline-block-div half-width half-width-end" style="width:30%;float:right;margin-right:1rem;">
-                        <h4 class="text-spaced">Scan Height (optional):</h4>
-                        <input type="number" min="0" step="1" class="text-block short-number" id="key-import-height" />
+                    <div class="inline-block-div half-width half-width-end" style="width:30%;float:right;margin-right:1.4rem;">
+                        <h4 class="text-spaced">Scan Height</h4>
+                        <input type="number" min="0" step="1" class="text-block short-number" 
+                        id="key-import-height" value="1" data-initial="1"
+                        placeholder="Optional..."
+                        />
                     </div>
+                </div>
+                <div class="input-wrap">
+                    <h4 class="text-spaced input-required">View key to be imported</h4>
+                    <input required="required" class="text-block" id="key-import-view" 
+                        placeholder="Required, your private view key to be imported..."
+                    />
+                </div>
+                <div class="input-wrap">
+                    <h4 class="text-spaced input-required">Spend key to be imported</h4>
+                    <input required="required" class="text-block" id="key-import-spend" 
+                    placeholder="Required, your private spend key to be imported..."
+                    />
                 </div>
                 
                 <div class="input-wrap">

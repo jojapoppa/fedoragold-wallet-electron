@@ -12,6 +12,17 @@
                 background: #000 url(../assets/splash_bg.png) 50% 50% no-repeat;
                 text-align: center;
                 margin: 0 auto;
+                position: relative;
+                font-family: sans-serif;
+            }
+            #wsVersion{
+                position: absolute;
+                bottom: 55px;
+                left: 138px;
+                color: #fff;
+                font-size: 14px;
+                text-shadow: 1px 1px 1px #888;
+                opacity: 0.5;
             }
             img {
                 opacity: 0.2;
@@ -27,5 +38,13 @@
             }​
         </style>
     </head>
-    <body><img src="../assets/splash_logo.png" /></body>
+    <body>
+    <img src="../assets/splash_logo.png" />
+    <span id="wsVersion"></span>
+
+    <script>
+        let remote = require('electron').remote;
+        document.getElementById('wsVersion').innerHTML = remote.app.getVersion();
+    </script>
+    </body>
 </html>

@@ -1,5 +1,6 @@
-const {app, BrowserWindow, dialog, Tray, Menu} = require('electron');
+const {app, dialog, Tray, Menu} = require('electron');
 const path = require('path');
+const fs = require('fs');
 const url = require('url');
 const https = require('https');
 const platform = require('os').platform();
@@ -8,45 +9,50 @@ const Store = require('electron-store');
 const settings = new Store({name: 'Settings'});
 const log = require('electron-log');
 const splash = require('@trodi/electron-splashscreen');
+const config = require('./src/js/ws_config');
+const childDaemonProcess = require('child_process');
 
-const IS_DEBUG = (process.argv[1] === 'debug' || process.argv[2] === 'debug');
+const IS_DEV  = (process.argv[1] === 'dev' || process.argv[2] === 'dev');
+const IS_DEBUG = IS_DEV || process.argv[1] === 'debug' || process.argv[2] === 'debug';
 const LOG_LEVEL = IS_DEBUG ? 'debug' : 'warn';
 
 log.transports.console.level = LOG_LEVEL;
 log.transports.file.level = LOG_LEVEL;
 log.transports.file.maxSize = 5 * 1024 * 1024;
 
-let VERSION = process.env.npm_package_version || '0.3.2';
-if(IS_DEBUG) log.debug(`Starting WalletShell v${VERSION}`);
-const SERVICE_FILENAME =  (platform === 'win32' ? 'turtle-service.exe' : 'turtle-service' );
-const SERVICE_OSDIR = (platform === 'win32' ? 'win' : (platform === 'darwin' ? 'osx' : 'lin'));
+const WALLETSHELL_VERSION = app.getVersion() || '0.3.6';
+const SERVICE_FILENAME =  (platform === 'win32' ? `${config.walletServiceBinaryFilename}.exe` : config.walletServiceBinaryFilename );
+const DAEMON_FILENAME =  (platform === 'win32' ? `${config.daemonBinaryFilename}.exe` : config.daemonBinaryFilename );
+const SERVICE_OSDIR = (platform === 'win32' ? 'win' : (platform === 'darwin' ? 'osx' : 'linux'));
 const DEFAULT_SERVICE_BIN = path.join(process.resourcesPath,'bin', SERVICE_OSDIR, SERVICE_FILENAME);
-const DEFAULT_TITLE = 'WalletShell TurtleCoin Wallet';
-const DEFAULT_TRAY_TIP = 'Slow and steady wins the race!';
-const PUBLIC_NODES_URL = 'https://raw.githubusercontent.com/turtlecoin/turtlecoin-nodes-json/master/turtlecoin-nodes.json';
-const FALLBACK_NODES = [
-    'public.turtlenode.io:11898',
-    'public.turtlenode.net:11898',
-];
+const DEFAULT_DAEMON_BIN = path.join(process.resourcesPath,'bin', SERVICE_OSDIR, DAEMON_FILENAME);
 const DEFAULT_SETTINGS = {
     service_bin: DEFAULT_SERVICE_BIN,
+    daemon_bin: DEFAULT_DAEMON_BIN,
     service_host: '127.0.0.1',
-    service_port: 8070,
+    service_port: config.walletServiceRpcPort,
     service_password: crypto.randomBytes(32).toString('hex'),
-    daemon_host: 'public.turtlenode.io',
-    daemon_port: 11898,
+    daemon_host: config.remoteNodeDefaultHost,
+    daemon_port: config.daemonDefaultRpcPort,
     pubnodes_date: null,
-    pubnodes_data: FALLBACK_NODES,
-    pubnodes_custom: ['127.0.0.1:11898'],
+    pubnodes_data: config.remoteNodeListFallback,
+    pubnodes_custom: ['127.0.0.1:30158'],
     tray_minimize: false,
-    tray_close: false
-}
+    tray_close: false,
+    darkmode: true,
+    service_config_format: config.walletServiceConfigFormat
+};
+const DEFAULT_SIZE = { width: 840, height: 680 };
 
 app.prompExit = true;
 app.prompShown = false;
 app.needToExit = false;
+app.setAppUserModelId(config.appId);
 
-app.setAppUserModelId('lol.turtlecoin.walletshell');
+app.daemonPid = null;
+app.daemonLastPid = null;
+
+log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
 let trayIcon = path.join(__dirname,'src/assets/tray.png');
 let trayIconHide = path.join(__dirname,'src/assets/trayon.png');
@@ -56,29 +62,27 @@ let tray;
 
 function createWindow () {
     // Create the browser window.
-    let darkmode = settings.get('darkmode', false);
+    let darkmode = settings.get('darkmode', true);
     let bgColor = darkmode ? '#000000' : '#02853E';
 
     const winOpts = {
-        title: DEFAULT_TITLE,
+        title: `${config.appName} ${config.appDescription}`,
         icon: path.join(__dirname,'src/assets/walletshell_icon.png'),
         frame: true,
-        width: 800,
-        height: 680,
-        minWidth: 800,
-        minHeight: 680,
+        width: DEFAULT_SIZE.width,
+        height: DEFAULT_SIZE.height,
+        minWidth: DEFAULT_SIZE.width,
+        minHeight: DEFAULT_SIZE.height,
         show: false,
         backgroundColor: bgColor,
-        // maximizable: false,
-        // minimizable: true,
-        // resizable: false
-    }
+        center: true,
+    };
 
     win = splash.initSplashScreen({
         windowOpts: winOpts,
         templateUrl: path.join(__dirname, "src/html/splash.html"),
         delay: 0, 
-        minVisible: 2500,
+        minVisible: 3000,
         splashScreenOpts: {
             width: 425,
             height: 325,
@@ -94,14 +98,28 @@ function createWindow () {
             }
         }
     ]);
-    
+
     tray = new Tray(trayIcon);
     tray.setPressedImage(trayIconHide);
-    tray.setTitle(DEFAULT_TITLE);
-    tray.setToolTip(DEFAULT_TRAY_TIP);
+    tray.setTitle(config.appName);
+    tray.setToolTip(config.appSlogan);
     tray.setContextMenu(contextMenu);
     tray.on('click', () => {
-        win.isVisible() ? win.hide() : win.show();
+        if(settings.get('tray_minimize', false)){
+            if(win.isVisible()){
+                win.hide();
+            }else{
+                win.show();
+            }
+        }else{
+            if(win.isMinimized()){
+                win.restore();
+                win.focus();
+            }else{
+                win.minimize();
+            }
+        }
+        
     });
 
     win.on('show', () => {
@@ -116,7 +134,7 @@ function createWindow () {
             }
         ]);
         tray.setContextMenu(contextMenu);
-        tray.setToolTip(DEFAULT_TRAY_TIP);
+        tray.setToolTip(config.appSlogan);
     });
 
     win.on('hide', () => {
@@ -149,14 +167,14 @@ function createWindow () {
     }));
 
     // open devtools
-    if(IS_DEBUG ) win.webContents.openDevTools();
+    if(IS_DEV ) win.webContents.openDevTools();
 
     // show windosw
     win.once('ready-to-show', () => {
         //win.show();
-        win.setTitle(DEFAULT_TITLE);
-        tray.setToolTip(DEFAULT_TRAY_TIP);
-    })
+        win.setTitle(`${config.appName} ${config.appDescription}`);
+        tray.setToolTip(config.appSlogan);
+    });
 
     win.on('close', (e) => {
         if(settings.get('tray_close') && !app.needToExit){
@@ -192,14 +210,14 @@ function createWindow () {
     win.setMenu(null);
 
     // misc handler
-    win.webContents.on('crashed', (event, killed) => { 
+    win.webContents.on('crashed', () => { 
         // todo: prompt to restart
         log.debug('webcontent was crashed');
     });
 
-    win.on('unresponsive', (even) => {
+    win.on('unresponsive', () => {
         // todo: prompt to restart
-        log.debug('webcontent is unresponsive')
+        log.debug('webcontent is unresponsive');
     });
 }
 
@@ -216,43 +234,138 @@ function storeNodeList(pnodes){
 }
 
 function doNodeListUpdate(){
-    https.get(PUBLIC_NODES_URL, (res) => {
-        var result = '';
-        res.setEncoding('utf8');
+    try{
+        https.get(config.remoteNodeListUpdateUrl, (res) => {
+            var result = '';
+            res.setEncoding('utf8');
 
-        res.on('data', (chunk) => {
-            result += chunk;
+            res.on('data', (chunk) => {
+                result += chunk;
+            });
+
+            res.on('end', () => {
+                try{
+                    var pnodes = JSON.parse(result);
+                    let today = new Date();
+                    storeNodeList(pnodes);
+                    log.debug('Public node list has been updated');
+                    let mo = (today.getMonth()+1);
+                    settings.set('pubnodes_date', `${today.getFullYear()}-${mo}-${today.getDate()}`);
+                }catch(e){
+                    log.debug(`Failed to update public node list: ${e.message}`);
+                    storeNodeList();
+                }
+            });
+        }).on('error', (e) => {
+            log.debug(`Failed to update public-node list: ${e.message}`);
+        });
+    }catch(e){
+        log.error(`Failed to update public-node list: ${e.code} - ${e.message}`);
+    }
+}
+
+function serviceBinCheck(){
+    if(!DEFAULT_SERVICE_BIN.startsWith('/tmp')){
+        return;
+    }
+    if(!DEFAULT_DAEMON_BIN.startsWith('/tmp')){
+        return;
+    }
+
+    let targetPath = path.join(app.getPath('userData'), SERVICE_FILENAME);
+    let daemonPath = path.join(app.getPath('userData'), DAEMON_FILENAME);
+    try{
+        fs.renameSync(targetPath, `${targetPath}.bak`, (err) => {
+            if(err) log.error(err);
+        });
+        fs.renameSync(daemonPath, `${daemonPath}.bak`, (err) => {
+            if(err) log.error(err);
+        });
+    }catch(_e){}
+    
+    try{
+        fs.copyFile(DEFAULT_DAEMON_BIN, daemonPath, (err) => {
+          if (err){
+            log.error(err);
+            return;
+          }
+          settings.set('daemon_bin', daemonPath);
+          log.debug(`daemon service binary copied to ${daemonPath}`);
         });
 
-        res.on('end', () => {
-            try{
-                var pnodes = JSON.parse(result);
-                let today = new Date();
-                storeNodeList(pnodes);
-                log.debug('Public node list has been updated');
-                let mo = (today.getMonth()+1);
-                settings.set('pubnodes_date', `${today.getFullYear()}-${mo}-${today.getDate()}`);
-            }catch(e){
-                log.debug(`Failed to update public node list: ${e.message}`);
-                storeNodeList();
-            }
+        fs.copyFile(DEFAULT_SERVICE_BIN, targetPath, (err) => {
+          if (err){
+            log.error(err);
+            return;
+          }
+          settings.set('service_bin', targetPath);
+          log.debug(`walletd service binary copied to ${targetPath}`);
         });
-    }).on('error', (e) => {
-        log.debug(`Failed to update public node list: ${e.message}`);
-    });
+    }catch(_e){}
+}
+
+daemonStatus = function(){
+    return  (undefined !== this.daemonProcess && null !== this.daemonProcess);
+};
+
+terminateDaemon = function(force) {
+
+    if(!daemonStatus()) return;
+    force = force || false;
+    let signal = force ? 'SIGKILL' : 'SIGTERM';
+
+    app.daemonLastPid = app.daemonPid;
+    try{
+        this.daemonProcess.kill(signal);
+        if(app.daemonPid) process.kill(app.daemonPid, signal);
+    }catch(e){
+      if(!force && this.daemonProcess) {
+          log.debug(`SIGKILLing ${config.daemonBinaryFilename}`);
+          try{this.daemonProcess.kill('SIGKILL');}catch(err){}
+          if(app.daemonPid){
+              try{process.kill(app.daemonPid, 'SIGKILL');}catch(err){}
+          }
+      }
+    }
+
+    this.daemonProcess = null;
+    app.daemonPid = null;
+};
+
+function runDaemon(){
+    let daemonArgs = [
+        '--log-level', 0
+    ];
+
+    log.debug('Starting daemon...');
+    try{
+        this.daemonProcess = childDaemonProcess.spawn(settings.get('daemon_bin'), daemonArgs);
+        app.daemonPid = this.daemonProcess.pid;
+    }catch(e){
+        log.error(`${config.daemonBinaryFilename} is not running`);
+        log.error(e.message);
+        return false;
+    }
 }
 
 function initSettings(){
     Object.keys(DEFAULT_SETTINGS).forEach((k) => {
         if(!settings.has(k) || settings.get(k) === null){
-            settings.set(k, DEFAULT_SETTINGS[k]);
+            if(DEFAULT_SETTINGS[k]===undefined){
+		log.debug(`value of default setting is undefined for: ${k}`); 
+                settings.set(k, '');
+	    } 
+            else {
+                settings.set(k, DEFAULT_SETTINGS[k]);
+            }
         }
     });
+    settings.set('version', WALLETSHELL_VERSION);
+    serviceBinCheck();
 }
 
-
 const silock = app.requestSingleInstanceLock();
-app.on('second-instance', (commandLine, workingDirectory) => {
+app.on('second-instance', () => {
     if (win) {
         if (!win.isVisible()) win.show();
         if (win.isMinimized()) win.restore();
@@ -262,29 +375,36 @@ app.on('second-instance', (commandLine, workingDirectory) => {
 if (!silock) app.quit();
 
 app.on('ready', () => {
-    initSettings();    
+    initSettings();
 
-    settings.set('version', VERSION);
-
-    if(IS_DEBUG) log.warn('Running in debug mode');
+    if(IS_DEV || IS_DEBUG) log.warn(`Running in ${IS_DEV ? 'dev' : 'debug'} mode`);
 
     global.wsession = {
-        debug: IS_DEBUG,
-        //loadedWalletAddress: ''
+        debug: IS_DEBUG
     };
+
+    if(config.remoteNodeListUpdateUrl){
+        let today = new Date();
+        let last_checked = new Date(settings.get('pubnodes_date'));
+        let diff_d = parseInt((today-last_checked)/(1000*60*60*24),10);
+        if(diff_d >= 1){
+            log.info('Performing daily public-node list update.');
+            doNodeListUpdate();
+        }else{
+            log.info('Public node list up to date, skipping update');
+            storeNodeList(false); // from local cache
+        }
+    }
     
     createWindow();
+    // try to target center pos of primary display
+    let eScreen = require('electron').screen;
+    let primaryDisp = eScreen.getPrimaryDisplay();
+    let tx = Math.ceil((primaryDisp.workAreaSize.width - DEFAULT_SIZE.width)/2);
+    let ty = Math.ceil((primaryDisp.workAreaSize.height - (DEFAULT_SIZE.height))/2);
+    if(tx > 0 && ty > 0) win.setPosition(parseInt(tx, 10), parseInt(ty,10));
 
-    let today = new Date();
-    let last_checked = new Date(settings.get('pubnodes_date'));
-    diff_d = parseInt((today-last_checked)/(1000*60*60*24),10);
-    if(diff_d >= 1){
-        log.info('Performing daily public-node list update.');
-        doNodeListUpdate();
-    }else{
-        log.info('Public node list up to date, skipping update');
-        storeNodeList(false); // from local cache
-    }
+    runDaemon();
 });
 
 // Quit when all windows are closed.
@@ -310,6 +430,7 @@ process.on('beforeExit', (code) => {
 });
 
 process.on('exit', (code) => {
+    terminateDaemon(false);
     log.debug(`exit with code: ${code}`);
 });
 

@@ -29,6 +29,8 @@ html.dark::before{
     opacity: 1.0;
 }
 
+
+
 .dark body{
     background-image: url(../assets/walletshell_logo_dm.png);
     color: #e8e8e8;
@@ -56,10 +58,6 @@ html.dark::before{
 .dark .button-red,
 .dark .button-gray{
     text-shadow: 1px 1px 1px rgba(255,255,255, .2);
-    font-weight: normal;
-    font-size: 1rem;
-    padding: 0.5rem 0.75rem 0.3rem 0.75rem;
-    border-radius: 3px;
     color: #c5c5c5;
 }
 
@@ -67,12 +65,17 @@ html.dark::before{
 
 .dark .button-green:hover,
 .dark .button-green:active,
+.dark .button-green:focus,
 .dark .button-red:hover,
-.dark .button-red:active
+.dark .button-red:active,
+.dark .button-red:focus,
 .dark .button-gray:hover,
-.dark .button-gray:active{
+.dark .button-gray:active,
+.dark .button-gray:focus{
     color:#fff;
     border-color: #c5c5c5;
+    box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.49), inset 0px 0px 4px rgba(171, 171, 171, 0.76);
+    text-shadow: -1px -1px 0px #ffffff4f;
 }
 
 .dark .button-red,
@@ -88,9 +91,7 @@ border: 2px solid #cccccc59;
     color: #fff;
 }
 .dark .path-input-button, .dark .button-browse {
-    display: inline-block;
     border: 1px solid #ccc9;
-    padding: 0.65rem 0.75rem;
 }
 
 
@@ -127,7 +128,7 @@ border: 2px solid #cccccc59;
 }
 
 .dark dialog::backdrop{
-    background: rgba(10, 10, 10, 0.87);
+    background: rgba(10, 10, 10, 0.8);
 }
 /* .dark .transaction-list-table td.txamount{
     color: #fff;
@@ -155,4 +156,25 @@ border: 2px solid #cccccc59;
 }
 .dark a.external{
     color: #fffb00;
+}
+
+.dark #datoaste{
+ background-color: #4d524d !important;
+border-top-right-radius: 4px !important;
+border-bottom-right-radius: 4px !important;
+}
+
+.dark h4.input-required:after{
+    color: #ff7a00;
+}
+.dark .text-spaced-info{
+    background:#212721;
+}
+
+.dark .wallet-tool{
+    color: rgba(255,255,255,0.5);
+}
+
+.dark .wallet-tool:hover{
+    color: #fefefe;
 }

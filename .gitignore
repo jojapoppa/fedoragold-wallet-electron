@@ -4,4 +4,3 @@ tbin/*
 .vscode/*
 build/*
 dist/*
-bin/*

@@ -4,4 +4,5 @@ rm -r build
 mkdir dist
 mkdir build
 cp ./src/assets/icon.* ./build/
-npm run dist-lin
+#npm run dist-lin
+npm run dist-mac

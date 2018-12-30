@@ -1,4 +1,5 @@
 service.log
+.DS_Store
 node_modules/*
 tbin/*
 .vscode/*

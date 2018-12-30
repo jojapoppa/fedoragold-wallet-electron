@@ -54,6 +54,8 @@ app.daemonLastPid = null;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
+log.info(`Location of daemon: ${DEFAULT_DAEMON_BIN}`);
+
 let trayIcon = path.join(__dirname,'src/assets/tray.png');
 let trayIconHide = path.join(__dirname,'src/assets/trayon.png');
 
@@ -339,8 +341,9 @@ function runDaemon(){
 
     log.debug('Starting daemon...');
     try{
-        this.daemonProcess = childDaemonProcess.spawn(settings.get('daemon_bin'), daemonArgs);
-        app.daemonPid = this.daemonProcess.pid;
+// jojapoppa
+//        this.daemonProcess = childDaemonProcess.spawn(settings.get('daemon_bin'), daemonArgs);
+//        app.daemonPid = this.daemonProcess.pid;
     }catch(e){
         log.error(`${config.daemonBinaryFilename} is not running`);
         log.error(e.message);

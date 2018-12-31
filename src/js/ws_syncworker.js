@@ -6,7 +6,7 @@ log.transports.file.maxSize = 5 * 1024 * 1024;
 log.transports.console.level = 'debug';
 log.transports.file.level = 'debug';
 
-const CHECK_INTERVAL = 8 * 1000;
+const CHECK_INTERVAL = 4 * 1000; // 8 * 1000;
 var LAST_BLOCK_COUNT = 1;
 var LAST_KNOWN_BLOCK_COUNT = 1;
 

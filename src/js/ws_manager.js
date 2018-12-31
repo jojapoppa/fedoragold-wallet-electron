@@ -27,6 +27,17 @@ const INFO_FUSION_DONE = 'Wallet optimization completed, your balance may appear
 const INFO_FUSION_SKIPPED = 'Wallet already optimized. No further optimization is needed.';
 const ERROR_FUSION_FAILED = 'Unable to optimize your wallet, please try again in a few seconds';
 
+let plat = process.platform;
+const SVC_FILENAME =  (plat === 'win32' ? `${config.walletServiceBinaryFilename}.exe` : config.walletServiceBinaryFilename );
+const SVC_OSDIR = (plat === 'win32' ? 'win' : (plat === 'darwin' ? 'mac' : 'linux'));
+const DEFAULT_SVC_BIN = path.join(process.resourcesPath,'bin', SVC_OSDIR, SVC_FILENAME);
+if (plat === 'darwin') {
+  SVC_BIN = DEFAULT_SVC_BIN;
+}
+else {
+  SVC_BIN = settings.get('service_bin');
+}
+
 var WalletShellManager = function(){
     if (!(this instanceof WalletShellManager)){
         return new WalletShellManager();
@@ -35,11 +46,11 @@ var WalletShellManager = function(){
     this.daemonHost = settings.get('daemon_host');
     this.daemonPort = settings.get('daemon_port');
     this.serviceProcess = null;
-    this.serviceBin = settings.get('service_bin');
+    this.serviceBin = SVC_BIN;
     this.servicePassword = settings.get('service_password');
     this.serviceHost = settings.get('service_host');
     this.servicePort = settings.get('service_port');
-    this.serviceArgsDefault = []; //[ '--rpc-password', settings.get('service_password')];
+    this.serviceArgsDefault = [];
     this.walletConfigDefault = {'rpc-password': settings.get('service_password')};
     this.servicePid = null;
     this.serviceLastPid = null;
@@ -64,7 +75,6 @@ WalletShellManager.prototype.init = function(){
 WalletShellManager.prototype._getSettings = function(){
     this.daemonHost = settings.get('daemon_host');
     this.daemonPort = settings.get('daemon_port');
-    this.serviceBin = settings.get('service_bin');
 };
 
 WalletShellManager.prototype._reinitSession = function(){
@@ -152,9 +162,14 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
     let serviceArgs = this.serviceArgsDefault.concat([
         '-w', walletFile,
         '-p', password,
-        '--log-level', 0,
+        '--log-level', SERVICE_LOG_LEVEL,
         '--address'
     ]);
+
+    if(SERVICE_LOG_LEVEL > 0 || process.platform === 'darwin') {
+        serviceArgs.push('--log-file');
+        serviceArgs.push(logFile(walletFile));
+    }
 
     let wsm = this;
     
@@ -192,13 +207,13 @@ WalletShellManager.prototype._argsToIni = function(args) {
     return configData.trim();
 };
 
+function logFile(walletFile) {
+    let file = path.basename(walletFile);
+    return path.join( path.dirname(walletFile), `${file.split(' ').join('').split('.')[0]}.log`);
+}
+
 WalletShellManager.prototype._spawnService = function(walletFile, password, onError, onSuccess, onDelay){
     this.init();
-    let file = path.basename(walletFile);
-    let logFile = path.join(
-        path.dirname(walletFile),
-        `${file.split(' ').join('').split('.')[0]}.log`
-    );
 
     let serviceArgs = this.serviceArgsDefault.concat([
         '--container-file', walletFile,
@@ -211,9 +226,9 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--log-level', SERVICE_LOG_LEVEL
     ]);
 
-    if(SERVICE_LOG_LEVEL > 0){
+    if(SERVICE_LOG_LEVEL > 0 || process.platform === 'darwin') {
         serviceArgs.push('--log-file');
-        serviceArgs.push(logFile);
+        serviceArgs.push(logFile(walletFile));
     }
 
     let configFile = wsession.get('walletConfig', null);
@@ -235,6 +250,8 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     }else{
         log.warn('Failed to create config file, fallback to cmd args ');
     }
+
+    //confirm(serviceArgs);
 
     let wsm = this;
     log.debug('Starting service...');
@@ -474,13 +491,19 @@ WalletShellManager.prototype.genIntegratedAddress = function(paymentId, address)
 WalletShellManager.prototype.createWallet = function(walletFile, password){
     this.init();
     let wsm = this;
+    let walletLog = `.${walletFile}.log`;
     return new Promise((resolve, reject) => {
         let serviceArgs = wsm.serviceArgsDefault.concat(
-            ['--container-file', walletFile, '--container-password', password, '--generate-container']
+            ['--container-file', walletFile, '--container-password', password, '--log-level', SERVICE_LOG_LEVEL, '--generate-container']
         );
 
-        //log.warn("serviceArgs:");
-        //log.warn(serviceArgs);
+        if(SERVICE_LOG_LEVEL > 0 || process.platform === 'darwin') {
+           serviceArgs.push('--log-file');
+           serviceArgs.push(logFile(walletFile));
+        }
+
+        //confirm(wsm.serviceBin);
+        //confirm(serviceArgs);
 
         childProcess.execFile(
             wsm.serviceBin, serviceArgs, (error, stdout, stderr) => {
@@ -488,11 +511,13 @@ WalletShellManager.prototype.createWallet = function(walletFile, password){
                 if(stderr) log.error(stderr);
                 if (error){
                     log.error(`Failed to create wallet: ${error.message}`);
-                    return reject(new Error(ERROR_WALLET_CREATE));
+                    return reject(new Error(error.message));
+                    //return reject(new Error(ERROR_WALLET_CREATE));
                 } else {
                     if(!wsutil.isRegularFileAndWritable(walletFile)){
-                        log.error(`${walletFile} is invalid or unreadable`);
-                        return reject(new Error(ERROR_WALLET_CREATE));
+                        let errMsg = `${walletFile} is invalid or unreadable`;
+                        log.error(errMsg);
+                        return reject(new Error(errMsg));
                     }
                     return resolve(walletFile);
                 }

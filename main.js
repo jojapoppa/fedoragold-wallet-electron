@@ -54,13 +54,20 @@ app.daemonLastPid = null;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
-log.info(`Location of daemon: ${DEFAULT_DAEMON_BIN}`);
-
 let trayIcon = path.join(__dirname,'src/assets/tray.png');
 let trayIconHide = path.join(__dirname,'src/assets/trayon.png');
 
 let win;
 let tray;
+
+function displayMessage(title, msg) {
+  dialog.showMessageBox({
+                type: 'question',
+                buttons: ['Yes', 'No'],
+                title: `${title}`,
+                message: msg
+            }, function (response) {});
+}
 
 function createWindow () {
     // Create the browser window.
@@ -267,6 +274,8 @@ function doNodeListUpdate(){
 }
 
 function serviceBinCheck(){
+
+    // This stops the copy on platforms that don't use the mounts such as osx/mac	
     if(!DEFAULT_SERVICE_BIN.startsWith('/tmp')){
         return;
     }
@@ -334,16 +343,16 @@ terminateDaemon = function(force) {
     app.daemonPid = null;
 };
 
-function runDaemon(){
+function runDaemon(daemonPath){
     let daemonArgs = [
         '--log-level', 0
     ];
 
     log.debug('Starting daemon...');
+
     try{
-// jojapoppa
-//        this.daemonProcess = childDaemonProcess.spawn(settings.get('daemon_bin'), daemonArgs);
-//        app.daemonPid = this.daemonProcess.pid;
+        this.daemonProcess = childDaemonProcess.spawn(daemonPath, daemonArgs);
+        app.daemonPid = this.daemonProcess.pid;
     }catch(e){
         log.error(`${config.daemonBinaryFilename} is not running`);
         log.error(e.message);
@@ -407,7 +416,12 @@ app.on('ready', () => {
     let ty = Math.ceil((primaryDisp.workAreaSize.height - (DEFAULT_SIZE.height))/2);
     if(tx > 0 && ty > 0) win.setPosition(parseInt(tx, 10), parseInt(ty,10));
 
-    runDaemon();
+    if (platform === 'darwin') {
+      runDaemon(DEFAULT_DAEMON_BIN);
+    }
+    else {
+      runDaemon(settings.get('daemon_bin'));
+    }
 });
 
 // Quit when all windows are closed.

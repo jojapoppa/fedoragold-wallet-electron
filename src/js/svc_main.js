@@ -308,7 +308,7 @@ function sendTransaction(params){
 }
 
 const ERROR_INVALID_PATH = 'Invalid directory/filename, please enter a valid path that you have write permission';
-const ERROR_WALLET_CREATE = 'Wallet can not be created, please check your input and try again';
+const ERROR_WALLET_CREATE = 'Wallet can not be created from svc_main, please check your input and try again';
 const ERROR_WALLET_IMPORT = 'Wallet import faield, please make sure you have entered correct information';
 function createWallet (dir, name, password){
     return new Promise((resolve, reject) => {
@@ -322,14 +322,13 @@ function createWallet (dir, name, password){
         let filename = `${name}.${DEFAULT_WALLET_EXT}`;
         let walletFile = path.join(dir, filename);
 
+        // '--rpc-password', settings.get('service_password')
         execFile(
             settings.get('service_bin'),
-            [ '-g',  '-w', walletFile,  '-p', password,
-              '--rpc-password', settings.get('service_password')
-            ],
+            [ '--container-file', walletFile,  '--container-password', password, '--generate-container' ],
             (error, stdout, stderr) => {
                 if (error) {
-                    log.error(`Failed to create wallet: ${error.message}`);
+                    log.error(`Failed to create wallet from svc_main: ${error.message}`);
                     return reject(new Error(ERROR_WALLET_CREATE));
                 } else {
                     return resolve(walletFile);

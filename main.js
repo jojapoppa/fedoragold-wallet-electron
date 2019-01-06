@@ -37,8 +37,8 @@ const DEFAULT_SETTINGS = {
     pubnodes_date: null,
     pubnodes_data: config.remoteNodeListFallback,
     pubnodes_custom: ['127.0.0.1:30158'],
-    tray_minimize: false,
-    tray_close: false,
+//jo    tray_minimize: false,
+//jo    tray_close: false,
     darkmode: true,
     service_config_format: config.walletServiceConfigFormat
 };
@@ -54,11 +54,11 @@ app.daemonLastPid = null;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
-let trayIcon = path.join(__dirname,'src/assets/tray.png');
-let trayIconHide = path.join(__dirname,'src/assets/trayon.png');
+//jo let trayIcon = path.join(__dirname,'src/assets/tray.png');
+//jo let trayIconHide = path.join(__dirname,'src/assets/trayon.png');
 
 let win;
-let tray;
+//jo let tray;
 
 function displayMessage(title, msg) {
   dialog.showMessageBox({
@@ -99,73 +99,73 @@ function createWindow () {
         },
     });
 
-    let contextMenu = Menu.buildFromTemplate([
-        { label: 'Minimize to tray', click: () => { win.hide(); }},
-        { label: 'Quit', click: ()=> {
-                app.needToExit = true;
-                win.close();
-            }
-        }
-    ]);
+    //let contextMenu = Menu.buildFromTemplate([
+    //    { label: 'Minimize to tray', click: () => { win.hide(); }},
+    //    { label: 'Quit', click: ()=> {
+    //            app.needToExit = true;
+    //            win.close();
+    //        }
+    //    }
+    //]);
 
-    tray = new Tray(trayIcon);
-    tray.setPressedImage(trayIconHide);
-    tray.setTitle(config.appName);
-    tray.setToolTip(config.appSlogan);
-    tray.setContextMenu(contextMenu);
-    tray.on('click', () => {
-        if(settings.get('tray_minimize', false)){
-            if(win.isVisible()){
-                win.hide();
-            }else{
-                win.show();
-            }
-        }else{
-            if(win.isMinimized()){
-                win.restore();
-                win.focus();
-            }else{
-                win.minimize();
-            }
-        }
-        
-    });
+//jo    tray = new Tray(trayIcon);
+//jo    tray.setPressedImage(trayIconHide);
+//jo    tray.setTitle(config.appName);
+//jo    tray.setToolTip(config.appSlogan);
+    //tray.setContextMenu(contextMenu);
+//jo    tray.on('click', () => {
+//jo        if(settings.get('tray_minimize', false)){
+//jo            if(win.isVisible()){
+//jo                win.hide();
+//jo            }else{
+//jo                win.show();
+//jo            }
+//jo        }else{
+//jo            if(win.isMinimized()){
+//jo                win.restore();
+//jo                win.focus();
+//jo            }else{
+//jo                win.minimize();
+//jo            }
+//jo        }
+//jo        
+//jo    });
 
     win.on('show', () => {
-        tray.setHighlightMode('always');
-        tray.setImage(trayIcon);
-        contextMenu = Menu.buildFromTemplate([
-            { label: 'Minimize to tray', click: () => { win.hide();} },
-            { label: 'Quit', click: ()=> {
-                    app.needToExit = true;
-                    win.close();
-                }
-            }
-        ]);
-        tray.setContextMenu(contextMenu);
-        tray.setToolTip(config.appSlogan);
+//jo        tray.setHighlightMode('always');
+//jo        tray.setImage(trayIcon);
+        //contextMenu = Menu.buildFromTemplate([
+        //    { label: 'Minimize to tray', click: () => { win.hide();} },
+        //    { label: 'Quit', click: ()=> {
+        //            app.needToExit = true;
+        //            win.close();
+        //        }
+        //    }
+        //]);
+        //tray.setContextMenu(contextMenu);
+//jo        tray.setToolTip(config.appSlogan);
     });
 
     win.on('hide', () => {
-        tray.setHighlightMode('never');
-        tray.setImage(trayIconHide);
+//jo        tray.setHighlightMode('never');
+//jo        tray.setImage(trayIconHide);
 
-        contextMenu = Menu.buildFromTemplate([
-                { label: 'Restore', click: () => { win.show();} },
-                { label: 'Quit', click: ()=> {
-                    app.needToExit = true;
-                    win.close();
-                }
-            }
-        ]);
-        tray.setContextMenu(contextMenu);
+        //contextMenu = Menu.buildFromTemplate([
+        //        { label: 'Restore', click: () => { win.show();} },
+        //        { label: 'Quit', click: ()=> {
+        //            app.needToExit = true;
+        //            win.close();
+        //        }
+        //    }
+        //]);
+        //tray.setContextMenu(contextMenu);
     });
 
     win.on('minimize', (event) => {
-        if(settings.get('tray_minimize')){
-            event.preventDefault();
-            win.hide();
-        }
+//jo        if(settings.get('tray_minimize')){
+//jo            event.preventDefault();
+//jo            win.hide();
+//jo        }
     });
 
     //load the index.html of the app.
@@ -182,14 +182,16 @@ function createWindow () {
     win.once('ready-to-show', () => {
         //win.show();
         win.setTitle(`${config.appName} ${config.appDescription}`);
-        tray.setToolTip(config.appSlogan);
+//jo        tray.setToolTip(config.appSlogan);
     });
 
     win.on('close', (e) => {
-        if(settings.get('tray_close') && !app.needToExit){
-            e.preventDefault();
-            win.hide();
-        }else if(app.prompExit ){
+//jo        if (!app.needToExit){
+//jo        if(settings.get('tray_close') && !app.needToExit){
+//            e.preventDefault();
+//            win.hide();
+//        }else
+        if(app.prompExit ){
             e.preventDefault();
             if(app.prompShown) return;
             let msg = 'Are you sure want to exit?';
@@ -428,7 +430,8 @@ app.on('ready', () => {
 app.on('window-all-closed', () => {
     // On macOS it is common for applications and their menu bar
     // to stay active until the user quits explicitly with Cmd + Q
-    if (platform !== 'darwin') app.quit();
+    //if (platform !== 'darwin') 
+    app.quit();
 });
 
 app.on('activate', () => {

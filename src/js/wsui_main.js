@@ -552,17 +552,17 @@ function initSettingVal(values){
     values = values || null;
     if(values){
         // save new settings
-        settings.set('service_bin', values.service_bin);
+        //settings.set('service_bin', values.service_bin);
         settings.set('daemon_host', values.daemon_host);
         settings.set('daemon_port', values.daemon_port);
-        settings.set('tray_minimize', values.tray_minimize);
-        settings.set('tray_close', values.tray_close);
+        //settings.set('tray_minimize', values.tray_minimize);
+        //settings.set('tray_close', values.tray_close);
     }
-    settingsInputServiceBin.value = settings.get('service_bin');
+    //settingsInputServiceBin.value = settings.get('service_bin');
     settingsInputDaemonAddress.value = settings.get('daemon_host');
     settingsInputDaemonPort.value = settings.get('daemon_port');
-    settingsInputMinToTray.checked = settings.get('tray_minimize');
-    settingsInputCloseToTray.checked = settings.get('tray_close');
+    //settingsInputMinToTray.checked = settings.get('tray_minimize');
+    //settingsInputCloseToTray.checked = settings.get('tray_close');
 
     // if custom node, save it
     let mynode = `${settings.get('daemon_host')}:${settings.get('daemon_port')}`;
@@ -699,24 +699,24 @@ function showInitialPage(){
 function handleSettings(){
     settingsButtonSave.addEventListener('click', function(){
         formMessageReset();
-        let serviceBinValue = settingsInputServiceBin.value ? settingsInputServiceBin.value.trim() : '';
+//jo        let serviceBinValue = settingsInputServiceBin.value ? settingsInputServiceBin.value.trim() : '';
 
-        if(!serviceBinValue.length){
-            formMessageSet('settings','error',`Settings can't be saved, please enter correct values`);
-            return false;
-        }
+//jo        if(!serviceBinValue.length){
+//jo            formMessageSet('settings','error',`Settings can't be saved, please enter correct values`);
+//jo            return false;
+//jo        }
 
-        if(!wsutil.isRegularFileAndWritable(serviceBinValue)){
-            formMessageSet('settings','error',`Unable to find ${config.walletServiceBinaryFilename}, please enter the correct path`);
-            return false;
-        }
+//jo        if(!wsutil.isRegularFileAndWritable(serviceBinValue)){
+//jo            formMessageSet('settings','error',`Unable to find ${config.walletServiceBinaryFilename}, please enter the correct path`);
+//jo            return false;
+//jo        }
                 
         let vals = {
-            service_bin: serviceBinValue,
+//jo            service_bin: serviceBinValue,
             daemon_host: settings.get('daemon_host'),
             daemon_port: settings.get('daemon_port'),
-            tray_minimize: settingsInputMinToTray.checked,
-            tray_close: settingsInputCloseToTray.checked
+//jo            tray_minimize: settingsInputMinToTray.checked,
+//jo            tray_close: settingsInputCloseToTray.checked
         };
 
         initSettingVal(vals);

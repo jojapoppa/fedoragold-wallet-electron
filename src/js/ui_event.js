@@ -403,17 +403,17 @@ function initSettingVal(values){
     values = values || null;
     if(values){
         // save new settings
-        settings.set('service_bin', values.service_bin);
+        //settings.set('service_bin', values.service_bin);
         settings.set('daemon_host', values.daemon_host);
         settings.set('daemon_port', values.daemon_port);
-        settings.set('tray_minimize', values.tray_minimize);
-        settings.set('tray_close', values.tray_close);
+        //settings.set('tray_minimize', values.tray_minimize);
+        //settings.set('tray_close', values.tray_close);
     }
-    settingsInputServiceBin.value = settings.get('service_bin');
+    //settingsInputServiceBin.value = settings.get('service_bin');
     settingsInputDaemonAddress.value = settings.get('daemon_host');
     settingsInputDaemonPort.value = settings.get('daemon_port');
-    settingsInputMinToTray.checked = settings.get('tray_minimize');
-    settingsInputCloseToTray.checked = settings.get('tray_close');
+    //settingsInputMinToTray.checked = settings.get('tray_minimize');
+    //settingsInputCloseToTray.checked = settings.get('tray_close');
 
     // if custom node, save it
     let mynode = `${settings.get('daemon_host')}:${settings.get('daemon_port')}`;

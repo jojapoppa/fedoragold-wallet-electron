@@ -305,7 +305,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
             return true;
         }).catch((err) => {
             log.debug('Connection failed or timedout');
-            if(retry === 10 && onDelay) onDelay(`Still no respond from ${config.walletServiceBinaryFilename}, please wait a few more seconds...`);
+            if(retry === 10 && onDelay) onDelay(`Still no response from ${config.walletServiceBinaryFilename}, please wait a few more seconds...`);
             if(retry >= MAX_CHECK && !TEST_OK){
                 if(wsm.serviceStatus()){
                     wsm.terminateService();
@@ -325,7 +325,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
 
     setTimeout(function(){
         testConnection(0);
-    }, 10000);
+    }, 15000);
 };
 
 WalletShellManager.prototype.stopService = function(){
@@ -367,7 +367,6 @@ WalletShellManager.prototype.terminateService = function(force) {
     force = force || false;
     let signal = force ? 'SIGKILL' : 'SIGTERM';
     //log.debug(`terminating with ${signal}`);
-    // ugly!
     this.serviceLastPid = this.servicePid;
     try{
         this.serviceProcess.kill(signal);
@@ -475,6 +474,7 @@ WalletShellManager.prototype.getNodeFee = function(){
     });
 };
 
+//jojapoppa, didn't know default max length to give integratedaddresses, this shows what it is...
 WalletShellManager.prototype.genIntegratedAddress = function(paymentId, address){
     let wsm = this;
     return new Promise((resolve, reject) => {

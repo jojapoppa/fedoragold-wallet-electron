@@ -211,16 +211,17 @@ function updateBalance(data){
 }
 
 function updateTransactions(result){
+
+    //log.warn(result.items);
+
     let txlistExisting = wsession.get('txList');
-
-
     const blockItems = result.items;
 
     if(!txlistExisting.length && !blockItems.length){
         document.getElementById('transaction-export').classList.add('hidden');
     }else{
         document.getElementById('transaction-export').classList.remove('hidden');
-    }
+   }
 
     if(!blockItems.length) return;
 
@@ -247,6 +248,7 @@ function updateTransactions(result){
     });
 
     if(!txListNew.length) return;
+
     let latestTx = txListNew[0];
     let newLastHash = latestTx.transactionHash;
     let newLastTimestamp = latestTx.timestamp;
@@ -280,11 +282,18 @@ function updateTransactions(result){
             'body': `Amount: ${(newTxAmount)} ${config.assetTicker}\nHash: ${newLastHash.substring(24,-0)}...`,
             'icon': '../assets/walletshell_icon.png'
         };
+
+        //jojapoppa
+        //confirm(notiOptions.body);
+
         let itNotification = new Notification('Incoming Transfer', notiOptions);
         itNotification.onclick = (event) => {
             event.preventDefault();
             let  txNotifyFiled = document.getElementById('transaction-notify');
             txNotifyFiled.value = 1;
+
+            //confirm("send transaction-noify change event");
+
             txNotifyFiled.dispatchEvent(new Event('change'));
             if(!brwin.isVisible()) brwin.show();
             if(brwin.isMinimized()) brwin.restore();
@@ -381,6 +390,7 @@ function resetFormState(){
 
 // update ui state, push from svc_main
 function updateUiState(msg){
+
     // do something with msg
     switch (msg.type) {
         case 'blockUpdated':
@@ -390,6 +400,7 @@ function updateUiState(msg){
             updateBalance(msg.data);
             break;
         case 'transactionUpdated':
+            //confirm("transactionUpdated");
             updateTransactions(msg.data);
             break;
         case 'nodeFeeUpdated':

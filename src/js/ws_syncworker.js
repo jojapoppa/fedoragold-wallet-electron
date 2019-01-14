@@ -10,7 +10,7 @@ const CHECK_INTERVAL = 4 * 1000; // 8 * 1000;
 var LAST_BLOCK_COUNT = 1;
 var LAST_KNOWN_BLOCK_COUNT = 1;
 
-var SERVICE_CFG = null; // { service_host: '127.0.0.1', service_port: '8070', service_password: 'xxx'};
+var SERVICE_CFG = { service_host: '127.0.0.1', service_port: '9090', service_password: 'xxx'};
 var SAVE_COUNTER = 0;
 var TX_LAST_INDEX = 1;
 var TX_LAST_COUNT = 0;
@@ -126,7 +126,7 @@ function checkBlockUpdate(){
 function checkTransactionsUpdate(){
     if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) return;
 
-
+    //log.warn("checkTransactionsUpdate()");
     wsapi.getBalance().then((balance)=> {
             STATE_PENDING_SAVE = false;
             process.send({
@@ -137,7 +137,7 @@ function checkTransactionsUpdate(){
             //log.warn(balance);
 
             if(LAST_BLOCK_COUNT > 1){
-                logDebug('checkTransactionsUpdate: checking tx update');
+                //log.warn('checkTransactionsUpdate: checking tx update');
                 let currentBLockCount = LAST_BLOCK_COUNT-1;
                 let startIndex = (!TX_CHECK_STARTED ? 1 : TX_LAST_INDEX);
                 let searchCount = currentBLockCount;
@@ -154,7 +154,7 @@ function checkTransactionsUpdate(){
                     firstBlockIndex: startIndexWithMargin,
                     blockCount: searchCountWithMargin
                 };
-                logDebug(`checkTransactionsUpdate: args=${JSON.stringify(trx_args)}`);
+                //log.warn(`checkTransactionsUpdate: args=${JSON.stringify(trx_args)}`);
                 wsapi.getTransactions( trx_args ).then((trx) => {
                     process.send({
                         type: 'transactionUpdated',

@@ -12,7 +12,7 @@ const wsutil = require('./ws_utils');
 const WalletShellSession = require('./ws_session');
 const WalletShellManager = require('./ws_manager');
 const config = require('./ws_config');
-
+//const async = require('async');
 const wsmanager = new WalletShellManager();
 const wsession = new WalletShellSession();
 const settings = new Store({ name: 'Settings' });
@@ -132,8 +132,8 @@ function populateElementVars(){
     settingsInputDaemonAddress = document.getElementById('input-settings-daemon-address');
     settingsInputDaemonPort = document.getElementById('input-settings-daemon-port');
     settingsInputServiceBin = document.getElementById('input-settings-path');
-    settingsInputMinToTray = document.getElementById('checkbox-tray-minimize');
-    settingsInputCloseToTray = document.getElementById('checkbox-tray-close');
+    //settingsInputMinToTray = document.getElementById('checkbox-tray-minimize');
+    //settingsInputCloseToTray = document.getElementById('checkbox-tray-close');
     settingsButtonSave = document.getElementById('button-settings-save');
     // settingsDaemonHostFormHelp = document.getElementById('daemonHostFormHelp');
     // settingsDaemonPortFormHelp = document.getElementById('daemonPortFormHelp');
@@ -1060,7 +1060,7 @@ function handleWalletOpen(){
 function handleWalletClose(){
     overviewWalletCloseButton.addEventListener('click', (event) => {
         event.preventDefault();
-        if(!confirm('Are you sure want to close your wallet?')) return;
+        if(!confirm('Are you sure, want to close your wallet?')) return;
 
         let dialog = document.getElementById('main-dialog');
         let htmlStr = '<div class="div-save-main" style="text-align: center;padding:1rem;"><i class="fas fa-spinner fa-pulse"></i><span style="padding:0px 10px;">Saving &amp; closing your wallet...</span></div>';
@@ -1653,6 +1653,9 @@ function handleTransactions(){
     }
 
     function exportAsCsv(mode){
+
+        confirm("exportAscsv()");
+
         if(wsession.get('txLen') <= 0) return;
 
         formMessageReset();
@@ -1746,6 +1749,9 @@ function handleTransactions(){
     });
 
     txButtonExport.addEventListener('click', () => {
+
+        confirm("txButtonExport.addEventListener");
+
         let dialogTpl = `<div class="transaction-panel">
             <h4>Export Transactions to CSV:</h4>
             <div class="div-panel-buttons">
@@ -1771,6 +1777,9 @@ function handleTransactions(){
     // listen to tx notify
     txInputNotify.addEventListener('change', (event)=>{
         let notify = parseInt(event.target.value, 10) === 1;
+
+        confirm("transaction-notify");
+
         if(!notify) return;
         txInputNotify.value = 0; // reset
         changeSection('section-transactions');

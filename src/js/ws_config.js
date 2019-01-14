@@ -30,14 +30,16 @@ config.blockExplorerUrl = 'http://explorer.fedoragold.com/?hash=[[TX_HASH]]#bloc
 config.remoteNodeDefaultHost = '127.0.0.1'; // seed1
 
 // remote node list update url, set to null if you don't have one
-config.remoteNodeListUpdateUrl = null; //'https://raw.githubusercontent.com/turtlecoin/turtlecoin-nodes-json/master/turtlecoin-nodes.json';
+config.remoteNodeListUpdateUrl = null; 
+// this remoteNodeList is set using nodes.hashvault.pro in the newer version...
+//'https://raw.githubusercontent.com/turtlecoin/turtlecoin-nodes-json/master/turtlecoin-nodes.json';
 
 // fallback remote node list, in case fetching update failed, fill this with known to works remote nodes
 config.remoteNodeListFallback = [
-    '18.223.178.174', // seed1
-    '18.222.96.134',  // seed2
-    '18.191.2.241',   // fuji
-    '34.235.55.80'    // goblin
+    '18.223.178.174:30158', // seed1
+    '18.222.96.134:30158',  // seed2
+    '18.191.2.241:30158',   // fuji
+    '34.235.55.80:30158'    // goblin
 ];
 
 // your currency name
@@ -45,7 +47,7 @@ config.assetName = 'FedoraGold';
 // your currency ticker
 config.assetTicker =  'FED';
 // your currency address prefix, for address validation
-config.addressPrefix =  '';  // jojapoppa, should FED assume a prefix of "N"? if i add that does it chance the validatAddress() lenghts?
+config.addressPrefix =  '';  // jojapoppa, should FED assume a prefix of "N"? if i add that does it chance the validatAddress() lengths?
 // standard wallet address length, for address validation
 config.addressLength = 95;
 // integrated wallet address length, for address validation
@@ -56,7 +58,7 @@ config.minimumFee = 0.1;
 // minimum amount for sending transaction
 config.mininumSend = 0.1;
 // default mixin/anonimity for transaction
-config.defaultMixin = 3;
+config.defaultMixin = 0; //jojapoppa, trying lower value as it's faster - add to UI for optional setting
 // to convert from atomic unit
 config.decimalDivisor = 100000000;
 // to represent human readable value

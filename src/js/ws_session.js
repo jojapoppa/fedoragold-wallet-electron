@@ -4,7 +4,7 @@ const Store = require('electron-store');
 const settings = new Store({name: 'Settings'});
 
 const DEFAULT_TITLE = 'FedoraGold (FED) Wallet';
-const SESSION_KEY = 'wlshell';
+const SESSION_KEY = 'fedwlshell';
 
 // TODO: this is the only thing left as global
 const IS_DEBUG = remote.getGlobal('wsession').debug;

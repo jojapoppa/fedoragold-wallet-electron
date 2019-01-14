@@ -36,7 +36,7 @@ const DEFAULT_SETTINGS = {
     daemon_port: config.daemonDefaultRpcPort,
     pubnodes_date: null,
     pubnodes_data: config.remoteNodeListFallback,
-    pubnodes_custom: ['127.0.0.1:30158'],
+    pubnodes_custom: ['127.0.0.1:30159'],
 //jo    tray_minimize: false,
 //jo    tray_close: false,
     darkmode: true,
@@ -60,19 +60,10 @@ log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 let win;
 //jo let tray;
 
-function displayMessage(title, msg) {
-  dialog.showMessageBox({
-                type: 'question',
-                buttons: ['Yes', 'No'],
-                title: `${title}`,
-                message: msg
-            }, function (response) {});
-}
-
 function createWindow () {
     // Create the browser window.
     let darkmode = settings.get('darkmode', true);
-    let bgColor = darkmode ? '#000000' : '#02853E';
+    let bgColor = darkmode ? '#000000' : '#FFCC33';
 
     const winOpts = {
         title: `${config.appName} ${config.appDescription}`,
@@ -194,7 +185,7 @@ function createWindow () {
         if(app.prompExit ){
             e.preventDefault();
             if(app.prompShown) return;
-            let msg = 'Are you sure want to exit?';
+            let msg = 'Are you sure, want to exit?';
             app.prompShown = true;
             dialog.showMessageBox({
                 type: 'question',
@@ -205,7 +196,7 @@ function createWindow () {
                 app.prompShown = false;
                 if (response === 0) {
                     app.prompExit = false;
-                    win.webContents.send('cleanup','Clean it up, Dad!');
+                    win.webContents.send('cleanup','Clean it up!');
                 }else{
                     app.prompExit = true;
                     app.needToExit = false;

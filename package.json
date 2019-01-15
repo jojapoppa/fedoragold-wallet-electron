@@ -54,6 +54,13 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "./bin/win",
+        "to": "Resources/bin/win",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "linux": {

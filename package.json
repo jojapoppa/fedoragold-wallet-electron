@@ -20,7 +20,7 @@
   "devDependencies": {
     "devtron": "^1.4.0",
     "electron": "^3.0.10",
-    "electron-builder": "^20.36.2",
+    "electron-builder": "^20.38.2",
     "jshint": "^2.9.6"
   },
   "dependencies": {
@@ -40,6 +40,7 @@
       "output": "dist",
       "buildResources": "build"
     },
+    "files": ["**/*", "build/icon.*"],
     "extraFiles": [
       {
         "from": "./bin/linux",
@@ -75,7 +76,9 @@
     },
     "win": {
       "target": "nsis",
-      "publisherName": "FedoraGold"
+      "publisherName": "FedoraGold",
+      "legalTrademarks": "FedoraGold (FED)",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "artifactName": "${productName}-v${version}-${os}-${arch}-setup.${ext}",

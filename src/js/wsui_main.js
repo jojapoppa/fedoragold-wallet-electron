@@ -62,6 +62,7 @@ let addressBookInputWallet;
 let addressBookInputPaymentId;
 let addressBookInputUpdate;
 let addressBookButtonSave;
+let addressBookButtonBack;
 // open wallet page
 let walletOpenInputPath;
 let walletOpenInputPassword;
@@ -150,12 +151,14 @@ function populateElementVars(){
     addressBookInputPaymentId = document.getElementById('input-addressbook-paymentid');
     addressBookInputUpdate = document.getElementById('input-addressbook-update');
     addressBookButtonSave = document.getElementById('button-addressbook-save');
+    addressBookButtonBack = document.getElementById('button-addressbook-back');
 
     // open wallet page
     walletOpenInputPath = document.getElementById('input-load-path');
     walletOpenInputPassword = document.getElementById('input-load-password');
     walletOpenButtonOpen = document.getElementById('button-load-load');
     walletOpenButtons = document.getElementById('walletOpenButtons');
+
     // show/export keys page
     overviewShowKeyButton = document.getElementById('button-show-reveal');
     showkeyButtonExportKey = document.getElementById('button-show-export');
@@ -208,7 +211,7 @@ function populateElementVars(){
 let jtfr = {
    tFind:  [
         "WalletShell",
-        "https://github.com/turtlecoin/turtle-wallet-electron",
+	"https://github.com/jojapoppa/fedoragold-wallet-electron", 
         "FedoraGold",
         "FED",
         "fedoragold_walletd"
@@ -642,19 +645,19 @@ function formMessageSet(target, status, txt){
 
 // sample address book, only on first use
 function insertSampleAddresses(){
-    let flag = 'addressBookFirstUse';
-    if(!settings.get(flag, true)) return;
-    const sampleData = config.addressBookSampleEntries;
-    if(sampleData && Array.isArray(sampleData)){
-        sampleData.forEach((item) => {
-            let ahash = wsutil.b2sSum(item.address + item.paymentId);
-            let aqr = wsutil.genQrDataUrl(item.address);
-            item.qrCode = aqr;
-            abook.set(ahash, item);
-        });
-    }
-    settings.set(flag, false);
-    initAddressCompletion();
+//    let flag = 'addressBookFirstUse';
+//    if(!settings.get(flag, true)) return;
+//    const sampleData = config.addressBookSampleEntries;
+//    if(sampleData && Array.isArray(sampleData)){
+//        sampleData.forEach((item) => {
+//            let ahash = wsutil.b2sSum(item.address + item.paymentId);
+//            let aqr = wsutil.genQrDataUrl(item.address);
+//            item.qrCode = aqr;
+//            abook.set(ahash, item);
+//        });
+//    }
+//    settings.set(flag, false);
+//    initAddressCompletion();
 }
 // utility: blank tx filler
 function setTxFiller(show){
@@ -732,7 +735,7 @@ function handleSettings(){
 function handleAddressBook(){
     function listAddressBook(force){
         force = force || false;
-        insertSampleAddresses();
+        //insertSampleAddresses();
         let currentLength = document.querySelectorAll('.addressbook-item:not([data-hash="fake-hash"])').length;
         let abookLength =abook.size;
         let perPage = 9;
@@ -751,12 +754,16 @@ function handleAddressBook(){
             listOpts.page = perPage;
             listOpts.pagination = true;
         }
-    
-        const addressList = new List('addressbooks', listOpts);
+
+        try {
+          addressList = new List('addressbooks', listOpts);
+        }catch(e){}
         addressList.clear();
+
         Object.keys(abook.get()).forEach((key) => {
             let et = abook.get(key);
-            addressList.add({
+            if (et) {
+              addressList.add({
                 hash: key,
                 addressName: et.name,
                 addressWallet: et.address,
@@ -765,9 +772,9 @@ function handleAddressBook(){
                 walletval: et.address,
                 paymentidval: et.paymentId || '-',
                 qrcodeval: et.qrCode || ''
-            });
+              });
+            }
         });
-    
         addressList.remove('hash', 'fake-hash');
     }
 
@@ -852,7 +859,7 @@ function handleAddressBook(){
          });
      }
 
-     function setAbPaymentIdState(addr){
+    function setAbPaymentIdState(addr){
         if(addr.length > 99){
             addressBookInputPaymentId.value = '';
             addressBookInputPaymentId.setAttribute('disabled', true);
@@ -866,7 +873,7 @@ function handleAddressBook(){
          setAbPaymentIdState(val);
      });
 
-     addressBookInputWallet.addEventListener('keyup', (event) => {
+    addressBookInputWallet.addEventListener('keyup', (event) => {
         let val = event.target.value || '';
         setAbPaymentIdState(val);
     });
@@ -903,10 +910,10 @@ function handleAddressBook(){
         let entryHash = wsutil.b2sSum(entryAddr + entryPaymentId);
 
         if(abook.has(entryHash) && !isUpdate){
-            formMessageSet('addressbook','error',"This combination of address and payment ID already exist, please enter new address or different payment id.");
+            formMessageSet('addressbook','error',"This combination of address and payment ID already exists, please enter new address or different payment id.");
             return;
         }
-   
+
         try{
             abook.set(entryHash, {
                 name: entryName,
@@ -915,8 +922,8 @@ function handleAddressBook(){
                 qrCode: wsutil.genQrDataUrl(entryAddr)
             });
             let oldHash = addressBookInputName.dataset.oldhash || '';
-            let isNew = (oldHash.length && oldHash !== entryHash);
-            
+            let isNew = (oldHash.length && (oldHash !== entryHash));
+           
             if(isUpdate && isNew){
                 abook.delete(oldHash);
             }
@@ -924,11 +931,13 @@ function handleAddressBook(){
             formMessageSet('addressbook','error',"Address book entry can not be saved, please try again");
             return;
         }
+
         addressBookInputName.value = '';
         addressBookInputName.dataset.oldhash = '';
         addressBookInputWallet.value = '';
         addressBookInputPaymentId.value = '';
         addressBookInputUpdate.value = 0;
+
         listAddressBook(true);
         initAddressCompletion();
         formMessageReset();

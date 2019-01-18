@@ -70,11 +70,6 @@ config.addressBookObfuscateEntries = true;
 // key use to obfuscate address book contents
 config.addressBookObfuscationKey = '79009fb00ca1b7130832a42de45142cf6c4b7f333fe6fba5';
 // initial/sample entries to fill new address book
-config.addressBookSampleEntries = [
-    { name: 'somebody',
-      address: 'FEDLuxEnfjdF46cBoHhyDtPN32weD9fvL43KX5cx2Ck9iSP4BLNPrJY3xtuFpXtLxiA6LDYojhF7n4SwPNyj9M64iTwJ738vnJk',
-      paymentId: '', 
-    }
-];
+config.addressBookSampleEntries = [ { } ];
 
 module.exports = config;

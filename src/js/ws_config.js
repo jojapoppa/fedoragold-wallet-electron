@@ -5,7 +5,7 @@ config.appName = 'FedoraGoldWallet';
 config.appDescription = 'FedoraGold (FED) Wallet';
 config.appSlogan = 'Welcome to The FED.';
 config.appId = 'fed.fedoragold.walletshell';
-config.appGitRepo = 'https://github.com/turtlecoin/turtle-wallet-electron';
+config.appGitRepo = 'https://github.com/jojapoppa/fedoragold-wallet-electron';
 
 // default port number for your daemon (e.g. fedoragold_daemon)
 config.daemonDefaultRpcPort = 30159;

@@ -111,13 +111,13 @@ let txInputNotify;
 let txButtonExport;
 // misc
 let thtml;
-let dmswitch;
+//let dmswitch;
 let kswitch;
 
 function populateElementVars(){
     // misc
     thtml = document.documentElement;
-    dmswitch = document.getElementById('tswitch');
+    //dmswitch = document.getElementById('tswitch');
     kswitch = document.getElementById('kswitch');
     firstTab = document.querySelector('.navbar-button');
     // generics
@@ -275,22 +275,26 @@ function showToast(msg, duration, force){
 
 // utility: dark mode
 function setDarkMode(dark){
+
+    // jojapoppa, deactivated until common.css can be edited for daytime mode
+    dark = true;
+
     let tmode = dark ? 'dark' : '';
     if(tmode === 'dark'){
         thtml.classList.add('dark');
-        dmswitch.setAttribute('title', 'Leave dark mode');
-        dmswitch.firstChild.classList.remove('fa-moon');
-        dmswitch.firstChild.classList.add('fa-sun');
+//        dmswitch.setAttribute('title', 'Leave dark mode');
+//        dmswitch.firstChild.classList.remove('fa-moon');
+//        dmswitch.firstChild.classList.add('fa-sun');
         settings.set('darkmode',true);
-        dmswitch.firstChild.dataset.icon = 'sun';
-    }else{
-        thtml.classList.remove('dark');
-        dmswitch.setAttribute('title', 'Swith to dark mode');
-        dmswitch.firstChild.classList.remove('fa-sun');
-        dmswitch.firstChild.classList.add('fa-moon');
-        settings.set('darkmode', false);
-        dmswitch.firstChild.dataset.icon = 'moon';
-    }
+//        dmswitch.firstChild.dataset.icon = 'sun';
+    } //else{
+//        thtml.classList.remove('dark');
+//        dmswitch.setAttribute('title', 'Swith to dark mode');
+//        dmswitch.firstChild.classList.remove('fa-sun');
+//        dmswitch.firstChild.classList.add('fa-moon');
+//        settings.set('darkmode', false);
+//        dmswitch.firstChild.dataset.icon = 'moon';
+//    }
 }
 
 let keybindingTpl = `<div class="transaction-panel">
@@ -337,10 +341,6 @@ let keybindingTpl = `<div class="transaction-panel">
     <td>Close wallet</td>
 </tr> 
 <tr>
-    <th scope="col"><kbd>Ctrl</kbd>+<kbd>\\</kbd></th>
-    <td>Toggle dark/night mode</td>
-</tr>
-<tr>
     <th scope="col"><kbd>Ctrl</kbd>+<kbd>/</kbd></th>
     <td>Display shortcut key information (this dialog)</td>
 </tr>
@@ -355,6 +355,11 @@ let keybindingTpl = `<div class="transaction-panel">
 </div>
 </div>
 `;
+
+//<tr>
+//    <th scope="col"><kbd>Ctrl</kbd>+<kbd>\\</kbd></th>
+//    <td>Toggle dark/night mode</td>
+//</tr>
 
 function genPaymentId(ret){
     ret = ret || false;
@@ -2031,10 +2036,10 @@ function initHandlers(){
         }, false);
     }
 
-    dmswitch.addEventListener('click', () => {
-        let tmode = thtml.classList.contains('dark') ? '' : 'dark';
-        setDarkMode(tmode);
-    });
+    //dmswitch.addEventListener('click', () => {
+    //    let tmode = thtml.classList.contains('dark') ? '' : 'dark';
+    //    setDarkMode(tmode);
+    //});
 
     kswitch.addEventListener('click', showKeyBindings);
 

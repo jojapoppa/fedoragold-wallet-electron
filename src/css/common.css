@@ -29,11 +29,10 @@
 
 html{
     font-family: 'Noto Sans', sans-serif;
-    background: linear-gradient(90deg, #00803b, #3ca74e 50%, #008e47);
+    background: linear-gradient(90deg, #00803b, #3ca74e 50%, #008e47); */
 }
 
 html::before{
-/*     background: linear-gradient(90deg, #00803b, #3ca74e 50%, #008e47); */
     content: '';
     display: block;
     height: 100%;
@@ -730,7 +729,7 @@ dialog h4{
 }
 
 dialog::backdrop{
-    background: rgba(0,25,15,0.8);
+    background: rgba(0,25,15,0.8); 
     z-index:999;
     transition: opacity .3s ease-in-out;
 }
@@ -1224,7 +1223,7 @@ progress.light{
     margin-bottom: 0;
 }
 
-#tswitch, #kswitch{
+/*#tswitch,*/#kswitch{
     background: transparent;
     color: #ccc;
     font-size: 1.1rem;
@@ -1239,10 +1238,10 @@ progress.light{
     opacity: 0.85;
     transition: opacity 0.3s linear;
 }
-
+/*
 #tswitch:hover,
 #tswitch:active,
-#tswitch:focus,
+#tswitch:focus, */
 #kswitch:hover,
 #kswitch:active,
 #kswitch:focus{
@@ -1250,9 +1249,11 @@ progress.light{
     opacity: 1.0;
 }
 
+/*
 #tswitch{
     bottom: 4px;
 }
+*/
 
 #kswitch{
     bottom: 40px;

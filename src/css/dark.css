@@ -152,7 +152,7 @@ border: 2px solid #cccccc59;
 }
 
 .dark .custom-table.kb-table td strong{
-    color: #60ff1b;
+    color: #FFCC33; /* #60ff1b; */
 }
 .dark a.external{
     color: #fffb00;

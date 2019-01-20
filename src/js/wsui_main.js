@@ -205,8 +205,6 @@ function populateElementVars(){
     txButtonExport = document.getElementById('transaction-export');
 }
 
-
-
 // crude/junk template :)
 let jtfr = {
    tFind:  [
@@ -643,22 +641,6 @@ function formMessageSet(target, status, txt){
     }
 }
 
-// sample address book, only on first use
-function insertSampleAddresses(){
-//    let flag = 'addressBookFirstUse';
-//    if(!settings.get(flag, true)) return;
-//    const sampleData = config.addressBookSampleEntries;
-//    if(sampleData && Array.isArray(sampleData)){
-//        sampleData.forEach((item) => {
-//            let ahash = wsutil.b2sSum(item.address + item.paymentId);
-//            let aqr = wsutil.genQrDataUrl(item.address);
-//            item.qrCode = aqr;
-//            abook.set(ahash, item);
-//        });
-//    }
-//    settings.set(flag, false);
-//    initAddressCompletion();
-}
 // utility: blank tx filler
 function setTxFiller(show){
     show = show || false;
@@ -1349,6 +1331,7 @@ function handleWalletExport(){
 }
 
 function handleSendTransfer(){
+
     sendMaxAmount.addEventListener('click', (event) => {
         let maxsend = event.target.dataset.maxsend || 0;
         if(maxsend) sendInputAmount.value = maxsend;
@@ -1373,7 +1356,6 @@ function handleSendTransfer(){
         if(!addr.length) initAddressCompletion();
         setPaymentIdState(addr);
     });
-
 
     sendButtonSend.addEventListener('click', () => {
         formMessageReset();
@@ -1523,6 +1505,8 @@ function handleSendTransfer(){
         });
     });
 
+    //jojapoppa, this is the Optimize Transaction button (button-send-optimize)
+    /* that's commented out in the html for now...
     sendOptimize.addEventListener('click', () => {
         if(!wsession.get('synchronized', false)){
             showToast('Synchronization is in progress, please wait.');
@@ -1533,17 +1517,16 @@ function handleSendTransfer(){
         showToast('Optimization started, your balance may appear incorrect during the process', 3000);
         FUSION_IN_PROGRESS = true;
         wsmanager.optimizeWallet().then( () => {
-            //console.log(res);
             FUSION_IN_PROGRESS = false;
         }).catch(() => {
             FUSION_IN_PROGRESS = false;
-            //console.log(err);
         });
         return; // just return, it will notify when its done.
-    });
+    }); */
 }
 
 function handleTransactions(){
+
     // tx list options
     let txListOpts = {
         valueNames: [
@@ -1563,6 +1546,7 @@ function handleTransactions(){
         searchColumns: ['transactionHash','paymentId','timeStr','amount'],
         indexAsync: true
     };
+
     // tx detail
     function showTransaction(el){
         let tx = (el.name === "tr" ? el : el.closest('tr'));
@@ -1625,6 +1609,7 @@ function handleTransactions(){
     }
 
     function listTransactions(){
+
         if(wsession.get('txLen') <= 0){
             setTxFiller(true);
             return;
@@ -1646,6 +1631,7 @@ function handleTransactions(){
                     outerWindow: 1
                 }]; 
             }
+
             TXLIST_OBJ = new List('transaction-lists', txListOpts, txs);
             TXLIST_OBJ.sort('timestamp', {order: 'desc'});
             resetTxSortMark();
@@ -1662,8 +1648,6 @@ function handleTransactions(){
     }
 
     function exportAsCsv(mode){
-
-        confirm("exportAscsv()");
 
         if(wsession.get('txLen') <= 0) return;
 
@@ -1758,9 +1742,6 @@ function handleTransactions(){
     });
 
     txButtonExport.addEventListener('click', () => {
-
-        confirm("txButtonExport.addEventListener");
-
         let dialogTpl = `<div class="transaction-panel">
             <h4>Export Transactions to CSV:</h4>
             <div class="div-panel-buttons">
@@ -1778,7 +1759,7 @@ function handleTransactions(){
 
     // listen to tx update
     txInputUpdated.addEventListener('change', (event) => {
-        let updated = parseInt(event.target.value, 10) === 1;
+	let updated = parseInt(event.target.value, 10) === 1;
         if(!updated) return;
         txInputUpdated.value = 0;
         listTransactions();
@@ -1786,9 +1767,6 @@ function handleTransactions(){
     // listen to tx notify
     txInputNotify.addEventListener('change', (event)=>{
         let notify = parseInt(event.target.value, 10) === 1;
-
-        confirm("transaction-notify");
-
         if(!notify) return;
         txInputNotify.value = 0; // reset
         changeSection('section-transactions');
@@ -1844,10 +1822,12 @@ function handleNetworkChange(){
 
 // event handlers
 function initHandlers(){
+
     initSectionTemplates();
     let darkStart = settings.get('darkmode', false);
     setDarkMode(darkStart);
-    
+   
+    // jojapoppa ... why was this call moved forword in the function ?!!! 
     // netstatus
     handleNetworkChange();
 
@@ -1875,6 +1855,7 @@ function initHandlers(){
         clipboard.writeText(wv);
         showToast(cpnotice);
     });
+
     // non-input elements ctc handlers
     wsutil.liveEvent('.tctcl', 'click', (event) => {
         let el = event.target;
@@ -2056,27 +2037,36 @@ function initHandlers(){
     });
 
     kswitch.addEventListener('click', showKeyBindings);
-    
+
     //handleNetworkChange();
 
     // settings handlers
     handleSettings();
+
     // addressbook handlers
     handleAddressBook();
+
     // open wallet
     handleWalletOpen();
+
     // close wallet
     handleWalletClose();
+
     // create wallet
     handleWalletCreate();
+
     // export keys/seed
     handleWalletExport();
+
     // send transfer
     handleSendTransfer();
+
     // import keys
     handleWalletImportKeys();
+
     // import seed
     handleWalletImportSeed();
+
     // transactions
     handleTransactions();
 }

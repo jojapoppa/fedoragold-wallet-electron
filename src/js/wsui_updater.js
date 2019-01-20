@@ -272,28 +272,26 @@ function updateTransactions(result){
 
     let rememberedLastHash = settings.get('last_notification', '');
     let notify = true;
+
+    // jojapoppa, are these conditions correct? run extensive UI test do receiving transactions notify in OS UI
     if(lastTxDate !== currentDate || (newTxAmount < 0) || rememberedLastHash === newLastHash ){
         notify = false;
     }
 
     if(notify){
+
         settings.set('last_notification', newLastHash);
         let notiOptions = {
             'body': `Amount: ${(newTxAmount)} ${config.assetTicker}\nHash: ${newLastHash.substring(24,-0)}...`,
             'icon': '../assets/walletshell_icon.png'
         };
 
-        //jojapoppa
-        //confirm(notiOptions.body);
-
         let itNotification = new Notification('Incoming Transfer', notiOptions);
+
         itNotification.onclick = (event) => {
             event.preventDefault();
             let  txNotifyFiled = document.getElementById('transaction-notify');
             txNotifyFiled.value = 1;
-
-            //confirm("send transaction-noify change event");
-
             txNotifyFiled.dispatchEvent(new Event('change'));
             if(!brwin.isVisible()) brwin.show();
             if(brwin.isMinimized()) brwin.restore();
@@ -400,7 +398,6 @@ function updateUiState(msg){
             updateBalance(msg.data);
             break;
         case 'transactionUpdated':
-            //confirm("transactionUpdated");
             updateTransactions(msg.data);
             break;
         case 'nodeFeeUpdated':

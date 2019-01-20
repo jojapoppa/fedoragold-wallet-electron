@@ -65,7 +65,7 @@ let win;
 function createWindow () {
     // Create the browser window.
     let darkmode = settings.get('darkmode', true);
-    let bgColor = darkmode ? '#000000' : '#FFCC33';
+    let bgColor = darkmode ? '#000000' : '#FFBB00';   // '#FFCC33'; //jojapoppa
 
     const winOpts = {
         title: `${config.appName} ${config.appDescription}`,

@@ -69,6 +69,7 @@ body {
 
 .text-center{
     text-align: center;
+    color: #FFCC33;
 }
 
 /* Top navigation bar */
@@ -844,7 +845,7 @@ input.path-input-button{
 }
 
 #navbar-div-sync.syncing{
-  color: #fffb00;
+  color: #FFCC33;
 }
 #navbar-div-sync.synced{
   color: #79ff2c;
@@ -1383,7 +1384,7 @@ kbd{
     padding: 0px;
 }
 a.external{
-    color: #fffb00;
+    color: #FFCC33;
     text-decoration: none;
     background: #2f2f2fc9;
     padding: 1px 4px;

@@ -222,7 +222,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--daemon-address', this.daemonHost,
         '--daemon-port', this.daemonPort,
         '--bind-address', '127.0.0.1',
-        '--bind-port', '9090',    // jojapoppa, use config parameter for this... todo
+        '--bind-port', '31876',    // jojapoppa, use config parameter for this... todo
         '--log-level', SERVICE_LOG_LEVEL
     ]);
 

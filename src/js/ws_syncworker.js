@@ -10,7 +10,7 @@ const CHECK_INTERVAL = 4 * 1000; // 8 * 1000;
 var LAST_BLOCK_COUNT = 1;
 var LAST_KNOWN_BLOCK_COUNT = 1;
 
-var SERVICE_CFG = { service_host: '127.0.0.1', service_port: '9090', service_password: 'xxx'};
+var SERVICE_CFG = { service_host: '127.0.0.1', service_port: '31876', service_password: 'xxx'};
 var SAVE_COUNTER = 0;
 var TX_LAST_INDEX = 1;
 var TX_LAST_COUNT = 0;

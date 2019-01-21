@@ -8,7 +8,7 @@ config.appId = 'fed.fedoragold.walletshell';
 config.appGitRepo = 'https://github.com/jojapoppa/fedoragold-wallet-electron';
 
 // default port number for your daemon (e.g. fedoragold_daemon)
-config.daemonDefaultRpcPort = 30159;
+config.daemonDefaultRpcPort = 31875;
 
 // wallet file created by this app will have this extension
 config.walletFileDefaultExt = 'wal';
@@ -21,7 +21,7 @@ config.daemonBinaryFilename = 'fedoragold_daemon';
 config.walletServiceBinaryVersion = "v0.10.0";
 
 // default port number for your wallet service (e.g. fedoragold_walletd)
-config.walletServiceRpcPort = 9090;
+config.walletServiceRpcPort = 31876;
 
 // block explorer url, the [[TX_HASH] will be substituted w/ actual transaction hash
 config.blockExplorerUrl = 'http://explorer.fedoragold.com/?hash=[[TX_HASH]]#blockchain_transaction';

@@ -38,7 +38,7 @@ const DEFAULT_SETTINGS = {
     daemon_port: config.daemonDefaultRpcPort,
     pubnodes_date: null,
     pubnodes_data: config.remoteNodeListFallback,
-    pubnodes_custom: ['127.0.0.1:30159'],
+    pubnodes_custom: ['127.0.0.1:31875'],
 //jo    tray_minimize: false,
 //jo    tray_close: false,
     darkmode: true,
@@ -340,7 +340,8 @@ terminateDaemon = function(force) {
 
 function runDaemon(daemonPath){
     let daemonArgs = [
-        '--log-level', 0
+        '--log-level', 0,
+        '--rpc-bind-port', 31875
     ];
 
     log.debug('Starting daemon...');

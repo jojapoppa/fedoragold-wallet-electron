@@ -140,34 +140,30 @@ class WalletShellApi {
     }
     getBackupKeys(params) {
         return new Promise((resolve, reject) => {
+            var backupKeys = {};
             params = params || {};
             params.address = params.address || '';
             if (params.address.length === 0) return reject(new Error('Missing address parameter'));
             var req_params = {
                 address: params.address
             };
-            var backupKeys = {};
+
             this.getViewKey().then((vkres) => {
                 backupKeys.viewSecretKey = vkres.viewSecretKey;
                 return vkres;
-                //return Object.assign(vkres);
+            }).then((vsres) => {
+                return this.getSpendKeys(req_params).then((vsres) => {
+                      backupKeys.spendSecretKey = vsres.spendSecretKey;
+                      return vsres;
+                }).catch((err) => { return reject(err); });
             }).then(() => {
-                this.getSpendKeys(req_params).then((vsres) => {
-                    backupKeys.spendSecretKey = vsres.spendSecretKey;
-                    return vsres;
-                }).catch((err) => {
-                    return reject(err);
-                });
-            }).then(() => {
-                this.getMnemonicSeed(req_params).then((mres) => {
-                    backupKeys.mnemonicSeed = mres.mnemonicSeed;
-                    return resolve(backupKeys);
-                }).catch((err) => {
-                    return reject(err);
-                });
-            }).catch((err) => {
-                return reject(err);
-            });
+                //confirm(`viewSecretKey: ${backupKeys.viewSecretKey}`);
+                //confirm(`spendSecretKey: ${backupKeys.spendSecretKey}`);
+                return resolve(backupKeys);
+            }).catch((err) => { return reject(err); });
+        
+            // this.getMnemonicSeed(req_params).then((mres) => {
+            // backupKeys.mnemonicSeed = mres.mnemonicSeed;
         });
     }
     getTransactions(params) {

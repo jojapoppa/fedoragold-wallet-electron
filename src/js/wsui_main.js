@@ -73,7 +73,7 @@ let overviewShowKeyButton;
 let showkeyButtonExportKey;
 let showkeyInputViewKey;
 let showkeyInputSpendKey;
-let showkeyInputSeed;
+//let showkeyInputSeed;
 // send page
 let sendInputAddress;
 let sendInputAmount;
@@ -94,7 +94,7 @@ let importKeyInputPath;
 let importKeyInputPassword;
 let importKeyInputViewKey;
 let importKeyInputSpendKey;
-let importKeyInputScanHeight;
+//let importKeyInputScanHeight;
 // import wallet seed
 let importSeedButtonImport;
 let importSeedInputPath;
@@ -164,7 +164,7 @@ function populateElementVars(){
     showkeyButtonExportKey = document.getElementById('button-show-export');
     showkeyInputViewKey = document.getElementById('key-show-view');
     showkeyInputSpendKey = document.getElementById('key-show-spend');
-    showkeyInputSeed = document.getElementById('seed-show');
+    //showkeyInputSeed = document.getElementById('seed-show');
 
     // send page
     sendInputAddress = document.getElementById('input-send-address');
@@ -187,7 +187,7 @@ function populateElementVars(){
     importKeyInputPassword = document.getElementById('input-import-password');
     importKeyInputViewKey = document.getElementById('key-import-view');
     importKeyInputSpendKey = document.getElementById('key-import-spend');
-    importKeyInputScanHeight = document.getElementById('key-import-height');
+    //importKeyInputScanHeight = document.getElementById('key-import-height');
     // import wallet seed
     importSeedButtonImport = document.getElementById('button-import-seed-import');
     importSeedInputPath = document.getElementById('input-import-seed-path');
@@ -321,12 +321,8 @@ let keybindingTpl = `<div class="transaction-panel">
     <td>Switch to <strong>Import wallet from private keys</strong> screen</td>
 </tr>
 <tr>
-    <th scope="col"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>i</kbd></th>
-    <td>Switch to <strong>Import wallet from mnemonic seed</strong> screen</td>
-</tr> 
-<tr>
     <th scope="col"><kbd>Ctrl</kbd>+<kbd>e</kbd></th>
-    <td>Switch to <strong>Export private keys/seed</strong> screen (when wallet opened)</td>
+    <td>Switch to <strong>Export private keys</strong> screen (when wallet opened)</td>
 </tr> 
 <tr>
     <th scope="col"><kbd>Ctrl</kbd>+<kbd>t</kbd></th>
@@ -356,6 +352,10 @@ let keybindingTpl = `<div class="transaction-panel">
 </div>
 `;
 
+//<tr>
+//    <th scope="col"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>i</kbd></th>
+//    <td>Switch to <strong>Import wallet from mnemonic seed</strong> screen</td>
+//</tr>
 //<tr>
 //    <th scope="col"><kbd>Ctrl</kbd>+<kbd>\\</kbd></th>
 //    <td>Toggle dark/night mode</td>
@@ -1163,7 +1163,7 @@ function handleWalletImportKeys(){
         let passwordValue =  importKeyInputPassword.value ? importKeyInputPassword.value.trim() : '';
         let viewKeyValue = importKeyInputViewKey.value ? importKeyInputViewKey.value.trim() : '';
         let spendKeyValue = importKeyInputSpendKey.value ? importKeyInputSpendKey.value.trim() : '';
-        let scanHeightValue = importKeyInputScanHeight.value ? parseInt(importKeyInputScanHeight.value,10) : 1;
+        let scanHeightValue = 0; //importKeyInputScanHeight.value ? parseInt(importKeyInputScanHeight.value,10) : 1;
         
         // validate path
         wsutil.validateWalletPath(filePathValue, DEFAULT_WALLET_PATH).then((finalPath)=>{
@@ -1179,7 +1179,7 @@ function handleWalletImportKeys(){
 
             // validate viewKey
             if(!viewKeyValue.length || !spendKeyValue.length){
-                formMessageSet('import','error', 'View Key and Spend Key can not be left blank!');
+                formMessageSet('import','error', 'View Key and Spend Key cannot be left blank!');
                 return;
             }
     
@@ -1302,7 +1302,7 @@ function handleWalletExport(){
         wsmanager.getSecretKeys(overviewWalletAddress.value).then((keys) => {
             showkeyInputViewKey.value = keys.viewSecretKey;
             showkeyInputSpendKey.value = keys.spendSecretKey;
-            showkeyInputSeed.value = keys.mnemonicSeed;
+            //showkeyInputSeed.value = keys.mnemonicSeed;
         }).catch(() => {
             formMessageSet('secret','error', "Failed to get key, please try again in a few seconds");
         });
@@ -1321,7 +1321,7 @@ function handleWalletExport(){
                 let textContent = `Wallet Address:${os.EOL}${wsession.get('loadedWalletAddress')}${os.EOL}`;
                 textContent += `${os.EOL}View Secret Key:${os.EOL}${keys.viewSecretKey}${os.EOL}`;
                 textContent += `${os.EOL}Spend Secret Key:${os.EOL}${keys.spendSecretKey}${os.EOL}`;
-                textContent += `${os.EOL}Mnemonic Seed:${os.EOL}${keys.mnemonicSeed}${os.EOL}`;
+                //textContent += `${os.EOL}Mnemonic Seed:${os.EOL}${keys.mnemonicSeed}${os.EOL}`;
                 try{
                     fs.writeFileSync(filename, textContent);
                     formMessageSet('secret','success', 'Your keys have been exported, please keep the file secret!');

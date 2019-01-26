@@ -1,6 +1,6 @@
 ## Porting WalletShell for Other Currency
 
-> Note that this is only valid/possible for `turtle-service` compatible currency (e.g. a TurtleCoin fork).
+> Note that this is only valid/possible for `turtle-service` compatible currency (e.g. a Coin fork).
 
 You can modify WalletShell to be used for your own `turtle-service` compatible currency with few simple steps (assuming you already grab the source code by cloning our repo):
 

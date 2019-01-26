@@ -69,6 +69,7 @@ function createWindow () {
 
     const winOpts = {
         title: `${config.appName} ${config.appDescription}`,
+        //title: `${config.appDescription}`,
         icon: path.join(__dirname,'src/assets/walletshell_icon.png'),
         frame: true,
         width: DEFAULT_SIZE.width,
@@ -174,7 +175,9 @@ function createWindow () {
     // show windosw
     win.once('ready-to-show', () => {
         //win.show();
-        win.setTitle(`${config.appName} ${config.appDescription}`);
+        win.setTitle(`${config.appDescription}`);
+        //win.setTitle(`${config.appName} ${config.appDescription}`);
+
 //jo        tray.setToolTip(config.appSlogan);
     });
 

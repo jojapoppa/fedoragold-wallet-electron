@@ -1,7 +1,0 @@
-    "start": "if(\"${os}\" == \"mac\"){ export resourcedir=Resources||set resourcedir=Resources; } else { export resourcedir=resources||set resourcedir=resources; } electron .",
-
-    "start": "if(\"${os}\" == \"mac\"){ export npm_config_resourcedir=Resources||set npm_config_resourcedir=Resources; } else { export npm_config_resourcedir=resources||set npm_config_resourcedir=resources; }&& electron .",
-
-        "to": "$npm_package_config_resourcedir/bin/${os}",
-
-        "to": "./$npm_package_config_resourcedir/bin/${os}",

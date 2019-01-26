@@ -3,8 +3,8 @@
   "productName": "FedoraGoldWallet",
   "description": "FedoraGold (FED) GUI Wallet",
   "version": "v0.3.6",
-  "homepage": "https://github.com/turtlecoin/turtle-wallet-electron",
-  "repository": "https://github.com/turtlecoin/turtle-wallet-electron",
+  "homepage": "https://github.com/jojapoppa/fedoragold-wallet-electron",
+  "repository": "https://github.com/jojapoppa/fedoragold-wallet-electron",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

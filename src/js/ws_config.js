@@ -32,7 +32,7 @@ config.remoteNodeDefaultHost = '127.0.0.1'; // seed1
 // remote node list update url, set to null if you don't have one
 config.remoteNodeListUpdateUrl = null; 
 // this remoteNodeList is set using nodes.hashvault.pro in the newer version...
-//'https://raw.githubusercontent.com/turtlecoin/turtlecoin-nodes-json/master/turtlecoin-nodes.json';
+//'https://raw.githubusercontent.com/mycoin/mycoin-nodes-json/master/mycoin-nodes.json';
 
 // fallback remote node list, in case fetching update failed, fill this with known to works remote nodes
 config.remoteNodeListFallback = [

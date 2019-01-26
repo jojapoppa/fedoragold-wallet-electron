@@ -681,7 +681,7 @@ function showInitialPage(){
 
     let versionInfo = document.getElementById('walletShellVersion');
     if(versionInfo) versionInfo.innerHTML = WS_VERSION;
-    let tsVersionInfo = document.getElementById('turtleServiceVersion');
+    let tsVersionInfo = document.getElementById('fedServiceVersion');
     if(tsVersionInfo) tsVersionInfo.innerHTML = config.walletServiceBinaryVersion;
 }
 

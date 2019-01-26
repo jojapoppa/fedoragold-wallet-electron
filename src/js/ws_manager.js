@@ -17,8 +17,7 @@ const SERVICE_LOG_DEBUG = wsession.get('debug');
 const SERVICE_LOG_LEVEL_DEFAULT = 0;
 const SERVICE_LOG_LEVEL_DEBUG = 4;
 const SERVICE_LOG_LEVEL = (SERVICE_LOG_DEBUG ? SERVICE_LOG_LEVEL_DEBUG : SERVICE_LOG_LEVEL_DEFAULT);
-
-const ERROR_WALLET_EXEC = `Failed to start ${config.walletServiceBinaryFilename}. Set the path to ${config.walletServiceBinaryFilename} properly in the settings tab.`;
+const ERROR_WALLET_EXEC = `Failed to start ${config.walletServiceBinaryFilename}.`;
 const ERROR_WALLET_PASSWORD = 'Failed to load your wallet, please check your password';
 const ERROR_WALLET_IMPORT = 'Import failed, please check that you have entered all information correctly';
 const ERROR_WALLET_CREATE = 'Wallet can not be created, please check your input and try again';
@@ -178,7 +177,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
 
             if(error){
                 log.error(error.message);
-                onError(`ERROR_WALLET_EXEC: ${error.message}`);
+                onError(`ERROR_WALLET_EXEC: Please check your password.`);
             }else{
                 //log.error(stdout.trim());
 
@@ -566,7 +565,10 @@ WalletShellManager.prototype.importFromSeed = function(walletFile, password, mne
         scanHeight = scanHeight || 0;
 
 	// jojapoppa - this is not supported i think... check.  "seed" means
-	// turtle loads wallet from blockchain (no local storage)
+	// loads wallet from blockchain (no local storage) - very risky feature
+	// ... i'm not sure i like it.  even if we did this the webpage it
+	// loads from would need to be distributed somehow... dunno about this...
+	// for now, this nmematic seed web wallet feature is commented out
         let serviceArgs = wsm.serviceArgsDefault.concat([
             '-g', '-w', walletFile, '-p', password,
             '--mnemonic-seed', mnemonicSeed,

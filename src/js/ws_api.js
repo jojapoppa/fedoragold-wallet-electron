@@ -6,7 +6,7 @@ class WalletShellApi {
         args = args || {};
         if (!(this instanceof WalletShellApi)) return new WalletShellApi(args);
         this.service_host = args.service_host || '127.0.0.1';
-        this.service_port = args.service_port || config.walletServiceRpcPort;
+        this.walletd_port = args.walletd_port || config.walletServiceRpcPort;
         this.service_password = args.service_password || "WHATEVER1234567891";
         this.minimum_fee = (args.minimum_fee !== undefined) ? args.minimum_fee : (config.minimumFee*config.decimalDivisor);
         this.anonimity = config.defaultMixin;
@@ -23,7 +23,7 @@ class WalletShellApi {
                 password: this.service_password
             };
             let s_host = this.service_host;
-            let s_port = this.service_port;
+            let s_port = this.walletd_port;
             request({
                 uri: `http://${s_host}:${s_port}/json_rpc`,
                 method: 'POST',

@@ -32,7 +32,7 @@ const DEFAULT_SETTINGS = {
     service_bin: DEFAULT_SERVICE_BIN,
     daemon_bin: DEFAULT_DAEMON_BIN,
     service_host: '127.0.0.1',
-    service_port: config.walletServiceRpcPort,
+    walletd_port: config.walletServiceRpcPort,
     service_password: crypto.randomBytes(32).toString('hex'),
     daemon_host: config.remoteNodeDefaultHost,
     daemon_port: config.daemonDefaultRpcPort,
@@ -265,7 +265,7 @@ terminateDaemon = function(force) {
 function runDaemon(daemonPath){
     let daemonArgs = [
         '--log-level', 0,
-        '--rpc-bind-port', 31875
+        '--rpc-bind-port', settings.get('daemon_port')  //31875
     ];
 
     log.debug('Starting daemon...');

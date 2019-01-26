@@ -45,12 +45,14 @@ let firstTab;
 // settings page
 let settingsInputDaemonAddress;
 let settingsInputDaemonPort;
+let settingsInputWalletdPort;
 let settingsInputServiceBin;
 let settingsInputMinToTray;
 let settingsInputCloseToTray;
 let settingsButtonSave;
-//let settingsDaemonHostFormHelp;
-//let settingsDaemonPortFormHelp;
+let settingsDaemonHostFormHelp;
+let settingsDaemonPortFormHelp;
+let settingsWalletdPortFormHelp;
 // overview page
 let overviewWalletAddress;
 let overviewWalletCloseButton;
@@ -132,12 +134,14 @@ function populateElementVars(){
     // settings input & elements
     settingsInputDaemonAddress = document.getElementById('input-settings-daemon-address');
     settingsInputDaemonPort = document.getElementById('input-settings-daemon-port');
+    settingsInputWalletdPort = document.getElementById('input-settings-walletd-port');
     settingsInputServiceBin = document.getElementById('input-settings-path');
     //settingsInputMinToTray = document.getElementById('checkbox-tray-minimize');
     //settingsInputCloseToTray = document.getElementById('checkbox-tray-close');
     settingsButtonSave = document.getElementById('button-settings-save');
-    // settingsDaemonHostFormHelp = document.getElementById('daemonHostFormHelp');
-    // settingsDaemonPortFormHelp = document.getElementById('daemonPortFormHelp');
+    settingsDaemonHostFormHelp = document.getElementById('daemonHostFormHelp');
+    settingsDaemonPortFormHelp = document.getElementById('daemonPortFormHelp');
+    settingsWalletdPortFormHelp = document.getElementById('walletdPortFormHelp');
 
     // overview pages
     overviewWalletAddress = document.getElementById('wallet-address');
@@ -561,12 +565,14 @@ function initSettingVal(values){
         //settings.set('service_bin', values.service_bin);
         settings.set('daemon_host', values.daemon_host);
         settings.set('daemon_port', values.daemon_port);
+        settings.set('walletd_port', values.walletd_port);
         //settings.set('tray_minimize', values.tray_minimize);
         //settings.set('tray_close', values.tray_close);
     }
     //settingsInputServiceBin.value = settings.get('service_bin');
     settingsInputDaemonAddress.value = settings.get('daemon_host');
     settingsInputDaemonPort.value = settings.get('daemon_port');
+    settingsInputWalletdPort.value = settings.get('walletd_port');
     //settingsInputMinToTray.checked = settings.get('tray_minimize');
     //settingsInputCloseToTray.checked = settings.get('tray_close');
 
@@ -689,24 +695,24 @@ function showInitialPage(){
 function handleSettings(){
     settingsButtonSave.addEventListener('click', function(){
         formMessageReset();
-//jo        let serviceBinValue = settingsInputServiceBin.value ? settingsInputServiceBin.value.trim() : '';
+   
+        let daemonPortValue = settingsInputDaemonPort.value ? parseInt(settingsInputDaemonPort.value.trim(),10) : '';
+        let walletdPortValue = settingsInputWalletdPort.value ? parseInt(settingsInputWalletdPort.value.trim(),10) : '';
+        if(!Number.isInteger(daemonPortValue)){
+            formMessageSet('settings','error',`Please enter enter a valid daemon port`);
+            return false;
+        }
+        if(!Number.isInteger(walletdPortValue)){
+            formMessageSet('settings','error',`Please enter enter a valid walletd port`);
+            return false;
+        }
 
-//jo        if(!serviceBinValue.length){
-//jo            formMessageSet('settings','error',`Settings can't be saved, please enter correct values`);
-//jo            return false;
-//jo        }
-
-//jo        if(!wsutil.isRegularFileAndWritable(serviceBinValue)){
-//jo            formMessageSet('settings','error',`Unable to find ${config.walletServiceBinaryFilename}, please enter the correct path`);
-//jo            return false;
-//jo        }
-                
+//jojapoppa service_bin: serviceBinValue,
+//jojapoppa settings.get('daemon_port'),
         let vals = {
-//jo            service_bin: serviceBinValue,
             daemon_host: settings.get('daemon_host'),
-            daemon_port: settings.get('daemon_port'),
-//jo            tray_minimize: settingsInputMinToTray.checked,
-//jo            tray_close: settingsInputCloseToTray.checked
+            daemon_port: daemonPortValue,
+            walletd_port: walletdPortValue
         };
 
         initSettingVal(vals);
@@ -955,9 +961,14 @@ function handleWalletOpen(){
         // node settings thingy
         let daemonHostValue = settingsInputDaemonAddress.value ? settingsInputDaemonAddress.value.trim() :'';
         let daemonPortValue = settingsInputDaemonPort.value ? parseInt(settingsInputDaemonPort.value.trim(),10) : '';
+        let walletdPortValue = settingsInputWalletdPort.value ? parseInt(settingsInputWalletdPort.value.trim(),10) : '';
 
         if(!daemonHostValue.length || !Number.isInteger(daemonPortValue)){
-            formMessageSet('load','error',`Please enter enter a valid daemon address & port`);
+            formMessageSet('load','error',`Please enter enter a valid daemon port`);
+            return false;
+        }
+        if(!Number.isInteger(walletdPortValue)){
+            formMessageSet('load','error',`Please enter enter a valid walletd port`);
             return false;
         }
 
@@ -976,11 +987,16 @@ function handleWalletOpen(){
             formMessageSet('load','error',`Invalid daemon/node port number!`);
             return false;
         }
+        if(walletdPortValue <=0){
+            formMessageSet('load','error',`Invalid walletd port number!`);
+            return false;
+        }
 
         let settingVals = {
             service_bin: settings.get('service_bin'),
             daemon_host: daemonHostValue,
             daemon_port: daemonPortValue,
+            walletd_port: walletdPortValue,
             tray_minimize: settings.get('tray_minimize'),
             tray_close: settings.get('tray_close')
         };

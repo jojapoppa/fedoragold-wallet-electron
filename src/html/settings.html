@@ -5,7 +5,7 @@
                 <h2 class="title">Settings</h2>
             </div>
             <div class="div-settings-input default-inputs">
-                <!-- <div class="input-wrap">
+                <!-- div class="input-wrap">
                     <h4 class="text-spaced input-required">Select path to fedoragold_walletd executable file</h4>
                     <input tabindex="0" data-selection="openFile" data-targetinput="input-settings-path" 
                         required="required" data-initial="service_bin" class="text-block path-input-button" 
@@ -22,10 +22,10 @@
                         placeholder="Required, hostname or IP address of the daemon or public node..." 
                         />
                     <span id="daemonHostFormHelp" class="form-help">Type first few character(s) and select from public node list, or type to your own node address.</span>
-                </div>
+                </div -->
 
                 <div class="input-wrap">
-                    <h4 class="text-spaced input-required">Daemon or public node port</h4>
+                    <h4 class="text-spaced input-required">Daemon full node port</h4>
                     <input tabindex="0" type="number" required="required" data-initial="daemon_port" 
                         class="text-block" id="input-settings-daemon-port" 
                         placeholder="Required, port number of the daemon or public node..." 
@@ -34,6 +34,15 @@
                 </div>
 
                 <div class="input-wrap">
+                    <h4 class="text-spaced input-required">Fedoragold walletd port</h4>
+                    <input tabindex="1" type="number" required="required" data-initial="walletd_port" 
+                        class="text-block" id="input-settings-walletd-port" 
+                        placeholder="Required, port number of the local fedoragold walletd..." 
+                        />
+                    <span  id="walletdPortFormHelp" class="form-help"></span>
+                </div>
+
+                <!-- div class="input-wrap">
                         <label class="checkbox-container">
                             <h4 type="checkbox" data-initial="tray_minimize" class="text-spaced checkbox-text">Minimize to system tray?</h4>
                             <input tabindex="0" data-initial="tray_minimize" type="checkbox" id="checkbox-tray-minimize">
@@ -46,7 +55,7 @@
                             <input tabindex="0" data-initial="tray_close" type="checkbox" id="checkbox-tray-close">
                             <span class="checkmark"></span>
                         </label>
-		</div> -->
+		</div -->
                 
                 <div class="input-wrap">
                     <span class="form-ew form-msg text-spaced-error" id="text-settings-error"></span>

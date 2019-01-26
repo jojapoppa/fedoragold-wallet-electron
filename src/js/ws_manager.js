@@ -48,7 +48,7 @@ var WalletShellManager = function(){
     this.serviceBin = SVC_BIN;
     this.servicePassword = settings.get('service_password');
     this.serviceHost = settings.get('service_host');
-    this.servicePort = settings.get('service_port');
+    this.walletdPort = settings.get('walletd_port');
     this.serviceArgsDefault = [];
     this.walletConfigDefault = {'rpc-password': settings.get('service_password')};
     this.servicePid = null;
@@ -65,7 +65,7 @@ WalletShellManager.prototype.init = function(){
     
     let cfg = {
         service_host: this.serviceHost,
-        service_port: this.servicePort,
+        walletd_port: this.walletdPort,
         service_password: this.servicePassword
     };
     this.serviceApi = new WalletShellApi(cfg);
@@ -221,7 +221,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--daemon-address', this.daemonHost,
         '--daemon-port', this.daemonPort,
         '--bind-address', '127.0.0.1',
-        '--bind-port', '31876',    // jojapoppa, use config parameter for this... todo
+        '--bind-port', this.walletdPort,
         '--log-level', SERVICE_LOG_LEVEL
     ]);
 
@@ -430,7 +430,7 @@ WalletShellManager.prototype.startSyncWorker = function(){
         type: 'cfg',
         data: {
             service_host: this.serviceHost,
-            service_port: this.servicePort,
+            walletd_port: this.walletdPort,
             service_password: this.servicePassword
         },
         debug: SERVICE_LOG_DEBUG

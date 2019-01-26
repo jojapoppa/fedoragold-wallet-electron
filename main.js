@@ -39,8 +39,6 @@ const DEFAULT_SETTINGS = {
     pubnodes_date: null,
     pubnodes_data: config.remoteNodeListFallback,
     pubnodes_custom: ['127.0.0.1:31875'],
-//jo    tray_minimize: false,
-//jo    tray_close: false,
     darkmode: true,
     service_config_format: config.walletServiceConfigFormat
 };
@@ -56,11 +54,7 @@ app.daemonLastPid = null;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
-//jo let trayIcon = path.join(__dirname,'src/assets/tray.png');
-//jo let trayIconHide = path.join(__dirname,'src/assets/trayon.png');
-
 let win;
-//jo let tray;
 
 function createWindow () {
     // Create the browser window.
@@ -93,74 +87,9 @@ function createWindow () {
         },
     });
 
-    //let contextMenu = Menu.buildFromTemplate([
-    //    { label: 'Minimize to tray', click: () => { win.hide(); }},
-    //    { label: 'Quit', click: ()=> {
-    //            app.needToExit = true;
-    //            win.close();
-    //        }
-    //    }
-    //]);
-
-//jo    tray = new Tray(trayIcon);
-//jo    tray.setPressedImage(trayIconHide);
-//jo    tray.setTitle(config.appName);
-//jo    tray.setToolTip(config.appSlogan);
-    //tray.setContextMenu(contextMenu);
-//jo    tray.on('click', () => {
-//jo        if(settings.get('tray_minimize', false)){
-//jo            if(win.isVisible()){
-//jo                win.hide();
-//jo            }else{
-//jo                win.show();
-//jo            }
-//jo        }else{
-//jo            if(win.isMinimized()){
-//jo                win.restore();
-//jo                win.focus();
-//jo            }else{
-//jo                win.minimize();
-//jo            }
-//jo        }
-//jo        
-//jo    });
-
-    win.on('show', () => {
-//jo        tray.setHighlightMode('always');
-//jo        tray.setImage(trayIcon);
-        //contextMenu = Menu.buildFromTemplate([
-        //    { label: 'Minimize to tray', click: () => { win.hide();} },
-        //    { label: 'Quit', click: ()=> {
-        //            app.needToExit = true;
-        //            win.close();
-        //        }
-        //    }
-        //]);
-        //tray.setContextMenu(contextMenu);
-//jo        tray.setToolTip(config.appSlogan);
-    });
-
-    win.on('hide', () => {
-//jo        tray.setHighlightMode('never');
-//jo        tray.setImage(trayIconHide);
-
-        //contextMenu = Menu.buildFromTemplate([
-        //        { label: 'Restore', click: () => { win.show();} },
-        //        { label: 'Quit', click: ()=> {
-        //            app.needToExit = true;
-        //            win.close();
-        //        }
-        //    }
-        //]);
-        //tray.setContextMenu(contextMenu);
-    });
-
-    win.on('minimize', (event) => {
-//jo        if(settings.get('tray_minimize')){
-//jo            event.preventDefault();
-//jo            win.hide();
-//jo        }
-    });
+    win.on('show', () => {});
+    win.on('hide', () => {});
+    win.on('minimize', (event) => {});
 
     //load the index.html of the app.
     win.loadURL(url.format({
@@ -176,17 +105,9 @@ function createWindow () {
     win.once('ready-to-show', () => {
         //win.show();
         win.setTitle(`${config.appDescription}`);
-        //win.setTitle(`${config.appName} ${config.appDescription}`);
-
-//jo        tray.setToolTip(config.appSlogan);
     });
 
     win.on('close', (e) => {
-//jo        if (!app.needToExit){
-//jo        if(settings.get('tray_close') && !app.needToExit){
-//            e.preventDefault();
-//            win.hide();
-//        }else
         if(app.prompExit ){
             e.preventDefault();
             if(app.prompShown) return;

@@ -6,7 +6,8 @@ log.transports.file.maxSize = 5 * 1024 * 1024;
 log.transports.console.level = 'debug';
 log.transports.file.level = 'debug';
 
-const CHECK_INTERVAL = 2 * 1000;
+const CHECK_INTERVAL = 1 * 1000; // checks once a second
+var heightVal = 0;
 var LAST_HEIGHTVAL = 1;
 var LAST_BLOCK_COUNT = 1;
 var LAST_KNOWN_BLOCK_COUNT = 1;
@@ -51,13 +52,6 @@ function checkBlockUpdate(){
     logDebug('checkBlockUpdate: fetching block update');
     //let svc = new WalletShellApi(SERVICE_CFG);
 
-
-    // get block height of the daemon fullnode
-    let heightVal = 0;
-    wsapi.getHeight().then((result) => {
-        heightVal = parseInt(result.height, 10);
-        //log.warn(`height: ${heightVal}`);
-
     wsapi.getStatus().then((blockStatus) => {
         STATE_PENDING_SAVE = false;
         let lastConStatus = STATE_CONNECTED;
@@ -100,7 +94,15 @@ function checkBlockUpdate(){
         // add any extras here, so renderer not doing too much things
         let dispKnownBlockCount = (knownBlockCount-1);
         let dispBlockCount = (blockCount > dispKnownBlockCount ? dispKnownBlockCount : blockCount);
-        let syncPercent = ((dispBlockCount / dispKnownBlockCount) * 100);
+
+        let syncPercent = 0;
+        if (heightVal < (dispKnownBlockCount-2)) {
+            syncPercent = ((heightVal / dispKnownBlockCount) * 100);
+        }
+        else {
+	    syncPercent = ((dispBlockCount / dispKnownBlockCount) * 100);
+        }
+
         if(syncPercent <=0 || syncPercent >= 99.995){
             syncPercent = 100;
         }else{
@@ -126,11 +128,6 @@ function checkBlockUpdate(){
         }
 
         checkTransactionsUpdate();
-
-    }).catch((err) => {
-        logDebug(`checkBlockUpdate: FAILED, ${err.message}`);
-        return false;
-    });
 
     }).catch((err) => {
         logDebug(`checkBlockUpdate: FAILED, ${err.message}`);
@@ -213,7 +210,7 @@ function saveWallet(){
             return true;
         }).catch((err)=>{
             STATE_PENDING_SAVE = true;
-            logDebug(`saveWallet: FAILED, ${err.message}`);
+            log.warn(`saveWallet: FAILED, ${err.message}`);
             delayReleaseSaveState();
             return false;
         });
@@ -224,6 +221,16 @@ function workOnTasks(){
     taskWorker = setInterval(() => {
         if(STATE_PAUSED) return;
         logDebug(`Running wallet synchronization tasks`);
+
+        // get block height of the daemon fullnode
+        wsapi.getHeight().then((result) => {
+            heightVal = parseInt(result.height, 10);
+            //log.warn(`height: ${heightVal}`);
+        }).catch((err) => {
+            logDebug(`checkBlockUpdate: FAILED, ${err.message}`);
+            return false;
+        });
+
         checkBlockUpdate();
         if(SAVE_COUNTER > 20){
             //jojapoppa why is this even needed?

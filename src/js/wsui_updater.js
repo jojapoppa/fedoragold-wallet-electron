@@ -53,7 +53,8 @@ function updateSyncProgress(data){
         syncDiv.className = 'syncing';
         // sync status icon
         iconSync.setAttribute('data-icon', 'sync');
-        iconSync.classList.add('fa-spin');
+        iconSync.classList.remove('slow-spin');
+        iconSync.classList.add('slow-spin');
         // connection status
         connInfoDiv.innerHTML = 'Connection restored, resuming sync process...';
         connInfoDiv.classList.remove('empty');
@@ -71,10 +72,11 @@ function updateSyncProgress(data){
         syncDiv.className = '';
         // sync status icon
         iconSync.setAttribute('data-icon', 'ban');
-        iconSync.classList.remove('fa-spin');
+        iconSync.classList.remove('slow-spin');
         // connection status
         connInfoDiv.innerHTML = 'Synchronization paused, please check your network connection!';
         connInfoDiv.classList.remove('empty');
+        connInfoDiv.classList.remove('conn-warning');
         connInfoDiv.classList.add('conn-warning');
 
         // sync sess flags
@@ -89,9 +91,10 @@ function updateSyncProgress(data){
         syncDiv.className = '';
         // sync status icon
         iconSync.setAttribute('data-icon', 'pause-circle');
-        iconSync.classList.remove('fa-spin');
+        iconSync.classList.remove('slow-spin');
         // connection status
         connInfoDiv.classList.remove('conn-warning');
+        connInfoDiv.classList.remove('empty');
         connInfoDiv.classList.add('empty');
         connInfoDiv.textContent = '';
 
@@ -112,10 +115,11 @@ function updateSyncProgress(data){
         syncInfoBar.textContent = statusText;
         //sync status icon
         iconSync.setAttribute('data-icon', 'times');
-        iconSync.classList.remove('fa-spin');
+        iconSync.classList.remove('slow-spin');
         // connection status
         connInfoDiv.innerHTML = 'Connection failed, try switching to another Node in settings page, close and reopen your wallet';
         connInfoDiv.classList.remove('empty');
+        connInfoDiv.classList.remove('conn-warning');
         connInfoDiv.classList.add('conn-warning');
         wsession.set('connectedNode', '');
         brwin.setProgressBar(-1);
@@ -131,10 +135,10 @@ function updateSyncProgress(data){
             syncInfoBar.textContent = statusText;
             // status icon
             iconSync.setAttribute('data-icon', 'check');
-            iconSync.classList.remove('fa-spin');
+            iconSync.classList.remove('slow-spin');
             // sync status sess flag
             wsession.set('synchronized', true);
-            brwin.setProgressBar(-1);
+            // note: don't call setProgressBar here or it really kills performance
          } else {
              // info bar class
             syncDiv.className = 'syncing';
@@ -143,14 +147,15 @@ function updateSyncProgress(data){
             syncInfoBar.textContent = statusText;
             // status icon
             iconSync.setAttribute('data-icon', 'sync');
-            iconSync.classList.add('fa-spin');
+            iconSync.classList.remove('slow_spin');
+            iconSync.classList.add('slow-spin');
             // sync status sess flag
             wsession.set('synchronized', false);
             let taskbarProgress = +(parseFloat(blockSyncPercent)/100).toFixed(2);
             brwin.setProgressBar(taskbarProgress);
         }
 
-        let connStatusText = `Connected to: <strong>${wsession.get('connectedNode')}</strong>`;
+        let connStatusText = ' '; //`Connected to: <strong>${wsession.get('connectedNode')}</strong>`;
         let connNodeFee = wsession.get('nodeFee');
         if(connNodeFee > 0 ){
             connStatusText += ` | Node fee: <strong>${connNodeFee.toFixed(config.decimalPlaces)} ${config.assetTicker}</strong>`;
@@ -182,6 +187,7 @@ function updateBalance(data){
         inputSendAmountField.setAttribute('disabled','disabled');
         maxSendFormHelp.innerHTML = "You don't have any funds to be sent.";
         sendMaxAmount.dataset.maxsend = 0;
+        sendMaxAmount.classList.remove('hidden');
         sendMaxAmount.classList.add('hidden');
         wsession.set('walletUnlockedBalance', 0);
         wsession.set('walletLockedBalance', 0);
@@ -218,6 +224,7 @@ function updateTransactions(result){
     const blockItems = result.items;
 
     if(!txlistExisting.length && !blockItems.length){
+        document.getElementById('transaction-export').classList.remove('hidden');
         document.getElementById('transaction-export').classList.add('hidden');
     }else{
         document.getElementById('transaction-export').classList.remove('hidden');
@@ -308,6 +315,7 @@ function showFeeWarning(fee){
     let dialog = document.getElementById('main-dialog');
     if(dialog.hasAttribute('open')) return;
 
+    dialog.classList.remove('dialog-warning');
     dialog.classList.add('dialog-warning');
     let htmlStr = `
         <h5>Fee Info</h5>
@@ -354,6 +362,7 @@ function updateQr(address){
         qrBox.prepend(qrImg);
         document.getElementById('scan-qr-help').classList.remove('hidden');
     }else{
+        document.getElementById('scan-qr-help').classList.remove('hidden');
         document.getElementById('scan-qr-help').classList.add('hidden');
     }
 }
@@ -381,6 +390,7 @@ function resetFormState(){
         connInfoDiv.classList.remove('empty');
         settingsBackBtn.dataset.section = 'section-welcome';
     }else{
+        connInfoDiv.classList.remove('empty');
         connInfoDiv.classList.add('empty');
         settingsBackBtn.dataset.section = 'section-overview';
     }

@@ -341,13 +341,13 @@ WalletShellManager.prototype.stopService = function(){
                     wsm._reinitSession();
                     resolve(true);
                 }catch(err){
-                    log.debug(`SIGTERM failed: ${err.message}`);
+                    log.warn(`SIGTERM failed: ${err.message}`);
                     wsm.terminateService(true);
                     wsm._reinitSession();
                     resolve(false);
                 }
             }).catch((err) => {
-                log.debug(`Failed to save wallet: ${err.message}`);
+                log.warn(`Failed to save wallet: ${err.message}`);
                 // try to wait for save to completed before force killing
                 setTimeout(()=>{
                     wsm.terminateService(true); // force kill

@@ -64,6 +64,7 @@ WalletShellManager.prototype.init = function(){
     if(this.serviceApi !== null) return;
     
     let cfg = {
+        daemon_port: this.daemonPort,
         service_host: this.serviceHost,
         walletd_port: this.walletdPort,
         service_password: this.servicePassword
@@ -429,6 +430,7 @@ WalletShellManager.prototype.startSyncWorker = function(){
     let cfgData = {
         type: 'cfg',
         data: {
+            daemon_port: this.daemonPort,
             service_host: this.serviceHost,
             walletd_port: this.walletdPort,
             service_password: this.servicePassword

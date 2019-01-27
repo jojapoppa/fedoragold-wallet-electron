@@ -6,11 +6,12 @@ log.transports.file.maxSize = 5 * 1024 * 1024;
 log.transports.console.level = 'debug';
 log.transports.file.level = 'debug';
 
-const CHECK_INTERVAL = 4 * 1000; // 8 * 1000;
+const CHECK_INTERVAL = 2 * 1000;
+var LAST_HEIGHTVAL = 1;
 var LAST_BLOCK_COUNT = 1;
 var LAST_KNOWN_BLOCK_COUNT = 1;
 
-var SERVICE_CFG = { service_host: '127.0.0.1', walletd_port: '31876', service_password: 'xxx'};
+var SERVICE_CFG = { daemon_port: '31875', service_host: '127.0.0.1', walletd_port: '31876', service_password: 'xxx'};
 var SAVE_COUNTER = 0;
 var TX_LAST_INDEX = 1;
 var TX_LAST_COUNT = 0;
@@ -49,6 +50,14 @@ function checkBlockUpdate(){
     PENDING_SAVE_SKIP_COUNTER = 0;
     logDebug('checkBlockUpdate: fetching block update');
     //let svc = new WalletShellApi(SERVICE_CFG);
+
+
+    // get block height of the daemon fullnode
+    let heightVal = 0;
+    wsapi.getHeight().then((result) => {
+        heightVal = parseInt(result.height, 10);
+        //log.warn(`height: ${heightVal}`);
+
     wsapi.getStatus().then((blockStatus) => {
         STATE_PENDING_SAVE = false;
         let lastConStatus = STATE_CONNECTED;
@@ -76,7 +85,7 @@ function checkBlockUpdate(){
         STATE_CONNECTED = true;
         let blockCount = parseInt(blockStatus.blockCount,10);
         let knownBlockCount = parseInt(blockStatus.knownBlockCount, 10);
-        if(blockCount <= LAST_BLOCK_COUNT && knownBlockCount <= LAST_KNOWN_BLOCK_COUNT && TX_SKIPPED_COUNT < 10){
+        if(heightVal <= LAST_HEIGHTVAL && blockCount <= LAST_BLOCK_COUNT && knownBlockCount <= LAST_KNOWN_BLOCK_COUNT && TX_SKIPPED_COUNT < 10){
             logDebug(`checkBlockUpdate: no update, skip block notifier (${TX_SKIPPED_COUNT})`);
             TX_SKIPPED_COUNT += 1;
             return;
@@ -84,6 +93,7 @@ function checkBlockUpdate(){
         TX_SKIPPED_COUNT = 0;
         logDebug('checkBlockUpdate: block updated, notify block update');
         let txcheck = (LAST_KNOWN_BLOCK_COUNT < knownBlockCount || LAST_BLOCK_COUNT < knownBlockCount);
+        LAST_HEIGHTVAL = heightVal;
         LAST_BLOCK_COUNT = blockCount;
         LAST_KNOWN_BLOCK_COUNT = knownBlockCount;
 
@@ -97,6 +107,7 @@ function checkBlockUpdate(){
             syncPercent = syncPercent.toFixed(2);
         }
 
+        blockStatus.displayDaemonHeight = heightVal;
         blockStatus.displayBlockCount = dispBlockCount;
         blockStatus.displayKnownBlockCount = dispKnownBlockCount;
         blockStatus.syncPercent = syncPercent;
@@ -115,6 +126,11 @@ function checkBlockUpdate(){
         }
 
         checkTransactionsUpdate();
+
+    }).catch((err) => {
+        logDebug(`checkBlockUpdate: FAILED, ${err.message}`);
+        return false;
+    });
 
     }).catch((err) => {
         logDebug(`checkBlockUpdate: FAILED, ${err.message}`);
@@ -210,6 +226,7 @@ function workOnTasks(){
         logDebug(`Running wallet synchronization tasks`);
         checkBlockUpdate();
         if(SAVE_COUNTER > 20){
+            //jojapoppa why is this even needed?
             saveWallet();
             SAVE_COUNTER = 0;
         }

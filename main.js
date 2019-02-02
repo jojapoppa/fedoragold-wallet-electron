@@ -44,6 +44,7 @@ const DEFAULT_SETTINGS = {
 };
 const DEFAULT_SIZE = { width: 840, height: 680 };
 
+app.isClosingDown = false;
 app.prompExit = true;
 app.prompShown = false;
 app.needToExit = false;
@@ -126,6 +127,7 @@ function createWindow () {
                 }else{
                     app.prompExit = true;
                     app.needToExit = false;
+                    app.isClosingDown = true;
                 }
             });
         }
@@ -273,6 +275,13 @@ function runDaemon(daemonPath){
     try{
         this.daemonProcess = childDaemonProcess.spawn(daemonPath, daemonArgs);
         app.daemonPid = this.daemonProcess.pid;
+
+        this.daemonProcess.on('exit', function(code, signal) {
+          if (signal != null && !app.isClosingDown) {
+            app.emit('run-daemon');
+          }
+        });
+
     }catch(e){
         log.error(`${config.daemonBinaryFilename} is not running`);
         log.error(e.message);
@@ -336,12 +345,7 @@ app.on('ready', () => {
     let ty = Math.ceil((primaryDisp.workAreaSize.height - (DEFAULT_SIZE.height))/2);
     if(tx > 0 && ty > 0) win.setPosition(parseInt(tx, 10), parseInt(ty,10));
 
-    if (platform === 'darwin') {
-      runDaemon(DEFAULT_DAEMON_BIN);
-    }
-    else {
-      runDaemon(settings.get('daemon_bin'));
-    }
+    app.emit('run-daemon');
 });
 
 // Quit when all windows are closed.
@@ -356,6 +360,15 @@ app.on('activate', () => {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (win === null) createWindow();
+});
+
+app.on('run-daemon', () => {
+    if (platform === 'darwin') {
+      runDaemon(DEFAULT_DAEMON_BIN);
+    }
+    else {
+      runDaemon(settings.get('daemon_bin'));
+    }
 });
 
 process.on('uncaughtException', function (e) {

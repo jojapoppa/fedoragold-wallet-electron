@@ -39,11 +39,19 @@ function triggerTxRefresh(){
 
 function updateSyncProgress(data){
     const iconSync = document.getElementById('navbar-icon-sync');
-    let blockCount = data.displayBlockCount;
-    let daemonHeight = data.displayDaemonHeight;
-    let knownBlockCount = data.displayKnownBlockCount;
+    let blockCount = data.displayBlockCount+1;
+    let daemonHeight = data.displayDaemonHeight+1;
+    let knownBlockCount = data.displayKnownBlockCount+1;
     let blockSyncPercent = data.syncPercent;
     let statusText = '';
+
+    // Sanity check on spurious values at start/restart of syncs
+    if (knownBlockCount < 0 || daemonHeight < 0 || blockCount < 0) {
+        knownBlockCount = 0;
+        daemonHeight = 0;
+        blockCount = 0;
+        blockSyncPercent = 0;
+    }
 
     if(knownBlockCount === SYNC_STATUS_NET_CONNECTED){
         // sync status text
@@ -152,7 +160,17 @@ function updateSyncProgress(data){
             // sync status sess flag
             wsession.set('synchronized', false);
             let taskbarProgress = +(parseFloat(blockSyncPercent)/100).toFixed(2);
-            brwin.setProgressBar(taskbarProgress);
+            if (blockSyncPercent === 0) {
+              syncDiv.className = '';
+              connInfoDiv.classList.remove('conn-warning');
+              connInfoDiv.classList.remove('empty');
+              connInfoDiv.classList.add('empty');
+              iconSync.classList.remove('slow-spin');
+              iconSync.setAttribute('data-icon', 'pause-circle');
+              syncInfoBar.textContent = 'IDLE';
+	    } else {
+              brwin.setProgressBar(taskbarProgress);
+            }
         }
 
         let connStatusText = ' '; //`Connected to: <strong>${wsession.get('connectedNode')}</strong>`;

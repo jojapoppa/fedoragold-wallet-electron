@@ -41,11 +41,11 @@ function initApi(cfg){
 }
 
 function checkBlockUpdate(){
-    if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) return;
+    if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) return false;
     if(STATE_PENDING_SAVE && (PENDING_SAVE_SKIP_COUNTER < PENDING_SAVE_SKIP_MAX)){
         PENDING_SAVE_SKIP_COUNTER += 1;
         logDebug('checkBlockUpdate: there is pending saveWallet, delaying block update check');
-        return;
+        return false;
     }
 
     PENDING_SAVE_SKIP_COUNTER = 0;
@@ -72,7 +72,7 @@ function checkBlockUpdate(){
                 });
             }
             STATE_CONNECTED = false;
-            return;
+            return false;
         }
 
         // we have good connection
@@ -82,7 +82,7 @@ function checkBlockUpdate(){
         if(heightVal <= LAST_HEIGHTVAL && blockCount <= LAST_BLOCK_COUNT && knownBlockCount <= LAST_KNOWN_BLOCK_COUNT && TX_SKIPPED_COUNT < 10){
             logDebug(`checkBlockUpdate: no update, skip block notifier (${TX_SKIPPED_COUNT})`);
             TX_SKIPPED_COUNT += 1;
-            return;
+            return false;
         }
         TX_SKIPPED_COUNT = 0;
         logDebug('checkBlockUpdate: block updated, notify block update');
@@ -119,20 +119,32 @@ function checkBlockUpdate(){
         });
 
         // don't check if we can't get any block
-        if(LAST_BLOCK_COUNT <= 1) return;
+        if(LAST_BLOCK_COUNT <= 1) return false;
 
         // don't check tx if block count not updated
         if(!txcheck && TX_CHECK_STARTED){
             logDebug('checkBlockUpdate: Tx check skipped');
-            return;
+            return false;
         }
 
         checkTransactionsUpdate();
 
+        // don't save wallet if it's he daemon that's syncing
+        if (heightVal < dispKnownBlockCount) {
+            return false;
+        }
+
+        // don't keep saving wallet if walletd is already synched
+        if (dispBlockCount >= dispKnownBlockCount) {
+            return false;
+        }
     }).catch((err) => {
         logDebug(`checkBlockUpdate: FAILED, ${err.message}`);
         return false;
     });
+
+    // isWalletdSynching
+    return true;
 }
 
 //var TX_CHECK_COUNTER = 0;
@@ -202,6 +214,7 @@ function saveWallet(){
     }
     STATE_SAVING = true;
     logDebug(`saveWallet: trying to save wallet`);
+
     setTimeout(() => {
         wsapi.save().then(()=> {
             logDebug(`saveWallet: OK`);
@@ -227,13 +240,12 @@ function workOnTasks(){
             heightVal = parseInt(result.height, 10);
             //log.warn(`height: ${heightVal}`);
         }).catch((err) => {
-            logDebug(`checkBlockUpdate: FAILED, ${err.message}`);
-            return false;
+            logDebug(`getHeight from Daemon: FAILED, ${err.message}`);
+            return;
         });
 
-        checkBlockUpdate();
-        if(SAVE_COUNTER > 20){
-            //jojapoppa why is this even needed?
+        let isWalletdSynching = checkBlockUpdate();
+        if(SAVE_COUNTER > 250 && isWalletdSynching){
             saveWallet();
             SAVE_COUNTER = 0;
         }

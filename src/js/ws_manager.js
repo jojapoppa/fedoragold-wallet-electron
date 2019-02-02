@@ -472,6 +472,7 @@ WalletShellManager.prototype.getNodeFee = function(){
         return theFee;
     }).catch((err) => {
         log.debug(`failed to get node fee: ${err.message}`);
+        return 0;
     });
 };
 

@@ -45,6 +45,7 @@
     "publish": [{
       "provider": "github",
       "owner": "jojapoppa",
+      "releaseType": "release",
       "repo": "fedoragold-wallet-electron"
     }],
     "extraFiles": [

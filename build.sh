@@ -13,11 +13,11 @@ npm run dist-lin --no-bin-link --rollback=false
 
 rm -r bin
 cp -r bin_mac bin
-export CSC_IDENTITY_AUTO_DISCOVERY=false
+#export CSC_IDENTITY_AUTO_DISCOVERY=false
 npm config set FedoraGoldWallet:resourcedir ./Resources/bin/mac
 npm run dist-mac --no-bin-link --rollback=false
 cd dist/mac
-zip -r FedoraGoldWalletMac.zip FedoraGoldWallet.app
+#zip -r FedoraGoldWalletMac.zip FedoraGoldWallet.app
 cd ../..
 
 rm -r bin

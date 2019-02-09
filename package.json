@@ -31,7 +31,8 @@
     "qr-image": "^3.2.0",
     "request": "^2.88.0",
     "request-promise-native": "^1.0.5",
-    "semver": "^5.6.0"
+    "semver": "^5.6.0",
+    "electron-updater": "^4.0.6"
   },
   "build": {
     "appId": "fed.fedoragold.walletshell",
@@ -41,6 +42,11 @@
       "buildResources": "build"
     },
     "files": ["**/*", "build/icon.*"],
+    "publish": [{
+      "provider": "github",
+      "owner": "jojapoppa",
+      "repo": "fedoragold-wallet-electron"
+    }],
     "extraFiles": [
       {
         "from": "./bin/linux",
@@ -69,6 +75,7 @@
       "target": [
         "AppImage"
       ],
+      "publish": ["github"],
       "maintainer": "jojapoppa",
       "category": "Office",
       "vendor": "FedoraGold",
@@ -76,6 +83,7 @@
     },
     "win": {
       "target": "nsis",
+      "publish": ["github"],
       "publisherName": "FedoraGold",
       "legalTrademarks": "FedoraGold (FED)",
       "icon": "build/icon.ico"
@@ -86,9 +94,10 @@
       "perMachine": false
     },
     "mac": {
+      "publish": ["github"],
       "artifactName": "${productName}-v${version}-${os}-${arch}.${ext}",
       "category": "public.app-category.business",
-      "target": "tar.gz"
+      "target": "zip"
     }
   },
   "postinstall": "./node_modules/.bin/electron-builder install-app-deps"

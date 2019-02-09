@@ -11,6 +11,7 @@ const log = require('electron-log');
 const splash = require('@trodi/electron-splashscreen');
 const config = require('./src/js/ws_config');
 const childDaemonProcess = require('child_process');
+const { autoUpdater } = require("electron-updater");
 
 const IS_DEV  = (process.argv[1] === 'dev' || process.argv[2] === 'dev');
 const IS_DEBUG = IS_DEV || process.argv[1] === 'debug' || process.argv[2] === 'debug';
@@ -61,6 +62,8 @@ function createWindow () {
     // Create the browser window.
     let darkmode = settings.get('darkmode', true);
     let bgColor = darkmode ? '#000000' : '#FFCC33';   // '#FFCC33'; //jojapoppa
+
+    autoUpdater.checkForUpdatesAndNotify();
 
     const winOpts = {
         title: `${config.appName} ${config.appDescription}`,

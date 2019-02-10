@@ -63,8 +63,6 @@ function createWindow () {
     let darkmode = settings.get('darkmode', true);
     let bgColor = darkmode ? '#000000' : '#FFCC33';   // '#FFCC33'; //jojapoppa
 
-    autoUpdater.checkForUpdatesAndNotify();
-
     const winOpts = {
         title: `${config.appName} ${config.appDescription}`,
         //title: `${config.appDescription}`,
@@ -91,7 +89,20 @@ function createWindow () {
         },
     });
 
-    win.on('show', () => {});
+    win.on('show', () => {
+      autoUpdater.checkForUpdatesAndNotify();
+      autoUpdater.addListener("update-available", function (event) {
+        const dialogOpts = {
+          type: 'info',
+          buttons: ['OK'],
+          title: 'Application Update',
+          message: 'A new version of FedoraGold Wallet (FED) is available.',
+        }
+        dialog.showMessageBox(dialogOpts, (response) => { });
+        // if (response === 0) autoUpdater.quitAndInstall()
+      });
+    });
+
     win.on('hide', () => {});
     win.on('minimize', (event) => {});
 

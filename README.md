@@ -1,7 +1,7 @@
 ![WalletShell](docs/walletshell.png)
 WalletShell is a GUI wallet for FED Coin.
 
-# ![WalletShell Screens](https://i.imgur.com/41Ujq0S.gif "WalletShell Screens")
+# ![WalletShell Screens](https://i.imgur.com/41Ujq0S.aaaagif "WalletShell Screens")
 
 ### Features:
 This wallet contains the basic functions required to manage your FED Coin assets:

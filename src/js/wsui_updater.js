@@ -167,7 +167,7 @@ function updateSyncProgress(data){
               connInfoDiv.classList.add('empty');
               iconSync.classList.remove('slow-spin');
               iconSync.setAttribute('data-icon', 'pause-circle');
-              syncInfoBar.textContent = 'IDLE';
+              syncInfoBar.textContent = 'STARTING SYNC...';
 	    } else {
               brwin.setProgressBar(taskbarProgress);
             }

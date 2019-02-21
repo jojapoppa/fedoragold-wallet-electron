@@ -25,7 +25,7 @@ const win = remote.getCurrentWindow();
 const Menu = remote.Menu;
 
 const WS_VERSION = settings.get('version', 'unknown');
-const DEFAULT_WALLET_PATH = remote.app.getPath('documents');
+const DEFAULT_WALLET_PATH = remote.app.getPath('home');
 
 let WALLET_OPEN_IN_PROGRESS = false;
 let FUSION_IN_PROGRESS = false;
@@ -1141,7 +1141,7 @@ function handleWalletCreate(){
             // user already confirm to overwrite
             if(wsutil.isRegularFileAndWritable(finalPath)){
                 try{
-                    // for now, backup instead of delete, just to be save
+                    // for now, backup instead of delete, just to be safe
                     let ts = new Date().getTime();
                     let backfn = `${finalPath}.bak${ts}`;
                     fs.renameSync(finalPath, backfn);
@@ -1278,7 +1278,7 @@ function handleWalletImportSeed(){
             // user already confirm to overwrite
             if(wsutil.isRegularFileAndWritable(finalPath)){
                 try{
-                    // for now, backup instead of delete, just to be save
+                    // for now, backup instead of delete, just to be safe
                     let ts = new Date().getTime();
                     let backfn = `${finalPath}.bak${ts}`;
                     fs.renameSync(finalPath, backfn);

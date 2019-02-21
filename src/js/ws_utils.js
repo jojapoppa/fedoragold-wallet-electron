@@ -218,7 +218,7 @@ exports.validateWalletPath = (fullpath, defaultDir, isExisting) => {
         fullpath = fullpath || '';
         isExisting = isExisting || false;
         defaultDir = defaultDir ? path.resolve(defaultDir) : path.resolve('.');
-        if(!fullpath.length) return reject(new Error('Wallet file path can not be left blank'));
+        if(!fullpath.length) return reject(new Error('Wallet file path cannot be left blank'));
         const ERROR_DEFAULT = 'Please specify a full path to the wallet file and make sure you have a proper write permission to the file';
         fullpath = path.resolve(fullpath);
 

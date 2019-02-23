@@ -29,6 +29,8 @@ const DAEMON_FILENAME =  (platform === 'win32' ? `${config.daemonBinaryFilename}
 const SERVICE_OSDIR = (platform === 'win32' ? 'win' : (platform === 'darwin' ? 'mac' : 'linux'));
 const DEFAULT_SERVICE_BIN = path.join(process.resourcesPath,'bin', SERVICE_OSDIR, SERVICE_FILENAME);
 const DEFAULT_DAEMON_BIN = path.join(process.resourcesPath,'bin', SERVICE_OSDIR, DAEMON_FILENAME);
+const DEFAULT_PTHREAD_LIB = path.join(process.resourcesPath,'bin', SERVICE_OSDIR, "libpthread.so.0");
+const DEFAULT_LIBC_LIB = path.join(process.resourcesPath,'bin', SERVICE_OSDIR, "libc.so.6");
 const DEFAULT_SETTINGS = {
     service_bin: DEFAULT_SERVICE_BIN,
     daemon_bin: DEFAULT_DAEMON_BIN,
@@ -220,6 +222,10 @@ function serviceBinCheck(){
 
     let targetPath = path.join(app.getPath('userData'), SERVICE_FILENAME);
     let daemonPath = path.join(app.getPath('userData'), DAEMON_FILENAME);
+
+    let pthreadPath = path.join(app.getPath('userData'), "libpthread.so.0");
+    let clibPath = path.join(app.getPath('userData'), "libc.so.6");
+
     try{
         fs.renameSync(targetPath, `${targetPath}.bak`, (err) => {
             if(err) log.error(err);
@@ -230,6 +236,23 @@ function serviceBinCheck(){
     }catch(_e){}
     
     try{
+        if (platform === 'linux') {
+          fs.copyFile(DEFAULT_LIBC_LIB, clibPath, (err) => {
+            if (err){
+              log.error(err);
+              return;
+            }
+            log.debug(`libc library copied to ${daemonPath}`);
+          });
+          fs.copyFile(DEFAULT_PTHREAD_LIB, pthreadPath, (err) => {
+            if (err){
+              log.error(err);
+              return;
+            }
+            log.debug(`pthread library copied to ${daemonPath}`);
+          });
+        }
+
         fs.copyFile(DEFAULT_DAEMON_BIN, daemonPath, (err) => {
           if (err){
             log.error(err);

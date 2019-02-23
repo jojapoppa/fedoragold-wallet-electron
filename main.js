@@ -43,7 +43,7 @@ const DEFAULT_SETTINGS = {
     darkmode: true,
     service_config_format: config.walletServiceConfigFormat
 };
-const DEFAULT_SIZE = { width: 840, height: 680 };
+const DEFAULT_SIZE = { width: 840, height: 695 };
 
 app.isClosingDown = false;
 app.prompExit = true;

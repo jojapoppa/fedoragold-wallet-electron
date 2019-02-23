@@ -166,7 +166,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
         '--address'
     ]);
 
-    if(SERVICE_LOG_LEVEL > 0 || process.platform === 'darwin') {
+    if(SERVICE_LOG_LEVEL > 0) {
         serviceArgs.push('--log-file');
         serviceArgs.push(logFile(walletFile));
     }
@@ -226,7 +226,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--log-level', SERVICE_LOG_LEVEL
     ]);
 
-    if(SERVICE_LOG_LEVEL > 0 || process.platform === 'darwin') {
+    if(SERVICE_LOG_LEVEL > 0) {
         serviceArgs.push('--log-file');
         serviceArgs.push(logFile(walletFile));
     }
@@ -499,7 +499,7 @@ WalletShellManager.prototype.createWallet = function(walletFile, password){
             ['--container-file', walletFile, '--container-password', password, '--log-level', SERVICE_LOG_LEVEL, '--generate-container']
         );
 
-        if(SERVICE_LOG_LEVEL > 0 || process.platform === 'darwin') {
+        if(SERVICE_LOG_LEVEL > 0) {
            serviceArgs.push('--log-file');
            serviceArgs.push(logFile(walletFile));
         }

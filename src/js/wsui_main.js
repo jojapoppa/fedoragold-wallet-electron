@@ -1674,7 +1674,7 @@ function handleTransactions(){
 
         formMessageReset();
         mode = mode || 'all';
-        let recentDir = settings.get('recentWalletDir', remote.app.getPath('documents'));
+        let recentDir = settings.get('recentWalletDir', remote.app.getPath('home'));
         let filename = remote.dialog.showSaveDialog({
             title: "Export transactions as scv...",
             defaultPath: recentDir,
@@ -1962,7 +1962,7 @@ function initHandlers(){
         let dialogType = args.dialogType;
         let targetName = (args.targetName ? args.targetName : 'file');
         let targetInput = args.targetInput;
-        let recentDir = settings.get('recentWalletDir', remote.app.getPath('documents'));
+        let recentDir = settings.get('recentWalletDir', remote.app.getPath('home'));
         let dialogOpts = {
             defaultPath: recentDir
         };

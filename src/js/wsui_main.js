@@ -1159,7 +1159,7 @@ function handleWalletCreate(){
             ).then((walletFile) => {
                 settings.set('recentWallet', walletFile);
                 walletOpenInputPath.value = walletFile;
-                changeSection('section-overview-load');
+                changeSection('section-welcome');
                 showToast('Wallet has been created, you can now open your wallet!',12000);
             }).catch((err) => {
                 formMessageSet('create', 'error', err.message);

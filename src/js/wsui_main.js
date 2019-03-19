@@ -111,6 +111,7 @@ let txButtonSortDate;
 let txInputUpdated;
 let txInputNotify;
 let txButtonExport;
+let txButtonReset;
 // misc
 let thtml;
 //let dmswitch;
@@ -207,6 +208,7 @@ function populateElementVars(){
     txInputUpdated = document.getElementById('transaction-updated');
     txInputNotify = document.getElementById('transaction-notify');
     txButtonExport = document.getElementById('transaction-export');
+    txButtonReset = document.getElementById('transaction-reset');
 }
 
 // crude/junk template :)
@@ -1760,6 +1762,11 @@ function handleTransactions(){
     wsutil.liveEvent('button.export-txtype', 'click', (event) => {
         let txtype = event.target.dataset.txtype || 'all';
         return exportAsCsv(txtype);
+    });
+
+    txButtonReset.addEventListener('click', () => {
+        wsmanager.reset();
+        listTransactions();
     });
 
     txButtonExport.addEventListener('click', () => {

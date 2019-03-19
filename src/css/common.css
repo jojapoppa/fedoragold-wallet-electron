@@ -1418,6 +1418,15 @@ a.external{
     text-decoration: underline;
 }
 
+#transaction-reset{
+    font-size: 0.85rem;
+    color: #fffb00;
+    cursor: pointer;
+}
+#transaction-reset:hover{
+    text-decoration: underline;
+}
+
 @media (min-width: 1280px){
     .section{
 /*         border-left: 1px solid #cccccc69;

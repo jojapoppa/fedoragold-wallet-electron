@@ -2,7 +2,7 @@
   "name": "FedoraGoldWallet",
   "productName": "FedoraGoldWallet",
   "description": "FedoraGold (FED) GUI Wallet",
-  "version": "v1.0.8",
+  "version": "v1.1.0",
   "homepage": "https://github.com/jojapoppa/fedoragold-wallet-electron",
   "repository": "https://github.com/jojapoppa/fedoragold-wallet-electron",
   "main": "main.js",

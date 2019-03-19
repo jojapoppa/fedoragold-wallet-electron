@@ -621,6 +621,18 @@ WalletShellManager.prototype.sendTransaction = function(params){
     });
 };
 
+WalletShellManager.prototype.reset = function(){
+    let wsm = this;
+    let params = {};
+    return new Promise((resolve, reject) => {
+        wsm.serviceApi.reset(params).then((result) => {
+            return resolve(result);
+        }).catch((err) => {
+            return reject(err);
+        });
+    });
+};
+
 WalletShellManager.prototype._fusionGetMinThreshold = function(threshold, minThreshold, maxFusionReadyCount, counter){
     let wsm = this;
     return new Promise((resolve, reject) => {

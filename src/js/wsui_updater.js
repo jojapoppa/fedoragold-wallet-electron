@@ -244,8 +244,12 @@ function updateTransactions(result){
     if(!txlistExisting.length && !blockItems.length){
         document.getElementById('transaction-export').classList.remove('hidden');
         document.getElementById('transaction-export').classList.add('hidden');
+
+        document.getElementById('transaction-reset').classList.remove('hidden');
+        document.getElementById('transaction-reset').classList.add('hidden');
     }else{
         document.getElementById('transaction-export').classList.remove('hidden');
+        document.getElementById('transaction-reset').classList.remove('hidden');
    }
 
     if(!blockItems.length) return;

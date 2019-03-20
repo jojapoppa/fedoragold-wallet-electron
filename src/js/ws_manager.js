@@ -173,7 +173,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
 
     let wsm = this;
     
-    childProcess.execFile(this.serviceBin, serviceArgs, (error, stdout, stderr) => {
+    childProcess.execFile(this.serviceBin, serviceArgs, {timeout:5000}, (error, stdout, stderr) => {
             if(stderr) log.error(stderr);
 
             if(error){
@@ -508,7 +508,7 @@ WalletShellManager.prototype.createWallet = function(walletFile, password){
         //confirm(serviceArgs);
 
         childProcess.execFile(
-            wsm.serviceBin, serviceArgs, (error, stdout, stderr) => {
+            wsm.serviceBin, serviceArgs, {timeout:5000}, (error, stdout, stderr) => {
                 if(stdout) log.debug(stdout);
                 if(stderr) log.error(stderr);
                 if (error){

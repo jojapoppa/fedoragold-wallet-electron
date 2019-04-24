@@ -228,7 +228,7 @@ class WalletShellApi {
             };
             if (params.paymentId) req_params.paymentId = params.paymentId;
             // give extra long timeout
-            this._sendRequest('sendTransaction', false, req_params, 10000).then((result) => {
+            this._sendRequest('sendTransaction', false, req_params, 20000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);

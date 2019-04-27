@@ -1502,7 +1502,8 @@ function handleSendTransfer(){
             formMessageSet('send', 'warning', 'Sending transaction, please wait...<br><progress></progress>');
             wsmanager.sendTransaction(tx).then((result) => {
                 formMessageReset();
-                let txhashUrl = `<a class="external" title="view in block explorer" href="${config.blockExplorerUrl.replace('[[TX_HASH]]', result.transactionHash)}">${result.transactionHash}</a>`;
+                let href = config.blockExplorerUrl.replace('[[TX_HASH]]', result.transactionHash);
+                let txhashUrl = `<a class="external" title="view in block explorer" href="#" onClick="window.open('${href}', '_blank')">${result.transactionHash}</a>`;
                 let okMsg = `Transaction sent!<br>Tx. hash: ${txhashUrl}.<br>Your balance may appear incorrect while transaction not fully confirmed.`;
                 formMessageSet('send', 'success', okMsg);
                 // check if it's new address, if so save it
@@ -1570,11 +1571,18 @@ function handleTransactions(){
         indexAsync: true
     };
 
+    // wsession.get('loadedWalletAddress')
+    // <tr><th scope="col">Address</th>
+    //   <td data-cplabel="Address" class="tctcl">${tx.dataset.address}</td></tr>
+
     // tx detail
     function showTransaction(el){
         let tx = (el.name === "tr" ? el : el.closest('tr'));
         let txdate = new Date(tx.dataset.timestamp*1000).toUTCString();
-        let txhashUrl = `<a class="external" title="view in block explorer" href="${config.blockExplorerUrl.replace('[[TX_HASH]]', tx.dataset.rawhash)}">View in block explorer</a>`;
+        let href = config.blockExplorerUrl.replace('[[TX_HASH]]', tx.dataset.rawhash);
+	// class="external"
+        let txhashUrl = `<a class="external" title="view in block explorer" href="#" onClick="window.open('${href}', '_blank')">${href}</a>`;
+
         let dialogTpl = `
                 <div class="div-transactions-panel">
                     <h4>Transaction Detail</h4>
@@ -1582,8 +1590,6 @@ function handleTransactions(){
                         <tbody>
                             <tr><th scope="col">Hash</th>
                                 <td data-cplabel="Tx. hash" class="tctcl">${tx.dataset.rawhash}</td></tr>
-                            <tr><th scope="col">Address</th>
-                                <td data-cplabel="Address" class="tctcl">${wsession.get('loadedWalletAddress')}</td></tr>
                             <tr><th scope="col">Payment Id</th>
                                 <td data-cplabel="Payment ID" class="tctcl">${tx.dataset.rawpaymentid}</td></tr>
                             <tr><th scope="col">Amount</th>
@@ -1602,7 +1608,7 @@ function handleTransactions(){
                                 <td>${tx.dataset.unlocktime}</td></tr>
                         </tbody>
                     </table>
-                    <p class="text-center">${txhashUrl}</p>
+                    <p class="text-center"><br/>${txhashUrl}</p>
                 </div>
                 <div class="div-panel-buttons">
                     <button data-target="#tx-dialog" type="button" class="form-bt button-red dialog-close-default" id="button-transactions-panel-close">Close</button>
@@ -1704,6 +1710,7 @@ function handleTransactions(){
             return {
                 timeStr: obj.timeStr,
                 amount: obj.amount,
+                address: obj.address,
                 paymentId: obj.paymentId,
                 transactionHash: obj.transactionHash,
                 fee: obj.fee,
@@ -1766,6 +1773,13 @@ function handleTransactions(){
 
     txButtonReset.addEventListener('click', () => {
         wsmanager.reset();
+
+        // Always wipe the old table out on a reset
+        tbl = document.getElementById('transaction-list-table');
+        while (tbl.hasChildNodes()) {
+          tbl.removeChild(tbl.firstChild);
+        }
+
         listTransactions();
     });
 

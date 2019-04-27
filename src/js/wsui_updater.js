@@ -40,7 +40,7 @@ function triggerTxRefresh(){
 function updateSyncProgress(data){
     const iconSync = document.getElementById('navbar-icon-sync');
     let blockCount = data.displayBlockCount+1;
-    let daemonHeight = data.displayDaemonHeight+1;
+    let daemonHeight = data.displayKnownBlockCount+1; // jojapoppa data.displayDaemonHeight+1;
     let knownBlockCount = data.displayKnownBlockCount+1;
     let blockSyncPercent = data.syncPercent;
     let statusText = '';
@@ -151,7 +151,8 @@ function updateSyncProgress(data){
              // info bar class
             syncDiv.className = 'syncing';
             // status text
-            statusText = `SYNCING ${daemonHeight} : ${statusText} (${blockSyncPercent}%)`;
+            // keep for later: statusText = `SYNCING ${daemonHeight} : ${statusText} (${blockSyncPercent}%)`;
+            statusText = `SYNCING ${statusText} (${blockSyncPercent}%)`;
             syncInfoBar.textContent = statusText;
             // status icon
             iconSync.setAttribute('data-icon', 'sync');

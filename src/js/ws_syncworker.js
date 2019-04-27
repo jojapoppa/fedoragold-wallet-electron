@@ -96,12 +96,12 @@ function checkBlockUpdate(){
         let dispBlockCount = (blockCount > dispKnownBlockCount ? dispKnownBlockCount : blockCount);
 
         let syncPercent = 0;
-        if (heightVal < (dispKnownBlockCount-2)) {
-            syncPercent = ((heightVal / dispKnownBlockCount) * 100);
-        }
-        else {
+        //if (heightVal < (dispKnownBlockCount-2)) {
+        //    syncPercent = ((heightVal / dispKnownBlockCount) * 100);
+        //}
+        //else {
 	    syncPercent = ((dispBlockCount / dispKnownBlockCount) * 100);
-        }
+        //}
 
         if(syncPercent <=0 || syncPercent >= 99.995){
             syncPercent = 100;

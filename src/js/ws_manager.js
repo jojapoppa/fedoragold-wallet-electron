@@ -219,8 +219,11 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--container-file', walletFile,
         '--container-password', password,
         //'--enable-cors', '*',
-        '--daemon-address', this.daemonHost,
-        '--daemon-port', this.daemonPort,
+	 
+//jojapoppa    
+        '--daemon-address', '18.222.96.134', //this.daemonHost,
+        '--daemon-port', '30159', //this.daemonPort,
+	 
         '--bind-address', '127.0.0.1',
         '--bind-port', this.walletdPort,
         '--log-level', SERVICE_LOG_LEVEL

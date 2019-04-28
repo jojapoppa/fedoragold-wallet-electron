@@ -176,22 +176,15 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
     childProcess.execFile(this.serviceBin, serviceArgs, {timeout:5000}, (error, stdout, stderr) => {
             if(stderr) log.error(stderr);
 
-            if(error){
-                log.error(error.message);
-                onError(`ERROR_WALLET_EXEC: Please check your password.`);
+            let addressLabel = "Address: "; 
+            if(stdout && stdout.length && stdout.indexOf(addressLabel) !== -1){
+                let trimmed = stdout.trim();
+                let walletAddress = trimmed.substring(trimmed.indexOf(addressLabel)+addressLabel.length, trimmed.length);
+                wsession.set('loadedWalletAddress', walletAddress);
+                wsm._spawnService(walletFile, password, onError, onSuccess, onDelay);
             }else{
-                //log.error(stdout.trim());
-
-		let addressLabel = "Address: "; 
-                if(stdout && stdout.length && stdout.indexOf(addressLabel) !== -1){
-                    let trimmed = stdout.trim();
-                    let walletAddress = trimmed.substring(trimmed.indexOf(addressLabel)+addressLabel.length, trimmed.length);
-                    wsession.set('loadedWalletAddress', walletAddress);
-                    wsm._spawnService(walletFile, password, onError, onSuccess, onDelay);
-                }else{
-                    // just stop here
-                    onError(ERROR_WALLET_PASSWORD);
-                }
+                // just stop here
+                onError(ERROR_WALLET_PASSWORD);
             }
         }
     );

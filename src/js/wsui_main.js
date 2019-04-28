@@ -1,9 +1,11 @@
 /*jshint bitwise: false*/
 /* globals iqwerty */
 /* globals List */
+
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
+
 const {clipboard, remote, ipcRenderer, shell} = require('electron');
 const Store = require('electron-store');
 const Mousetrap = require('./extras/mousetrap.min.js');
@@ -112,6 +114,7 @@ let txInputUpdated;
 let txInputNotify;
 let txButtonExport;
 let txButtonReset;
+let txButtonExplorer;
 // misc
 let thtml;
 //let dmswitch;
@@ -1503,7 +1506,7 @@ function handleSendTransfer(){
             wsmanager.sendTransaction(tx).then((result) => {
                 formMessageReset();
                 let href = config.blockExplorerUrl.replace('[[TX_HASH]]', result.transactionHash);
-                let txhashUrl = `<a class="external" title="view in block explorer" href="#" onClick="window.open('${href}', '_blank')">${result.transactionHash}</a>`;
+                let txhashUrl = `<a class="external" id="explorer-link" title="view in block explorer" href="${href}">${result.transactionHash}</a>`;
                 let okMsg = `Transaction sent!<br>Tx. hash: ${txhashUrl}.<br>Your balance may appear incorrect while transaction not fully confirmed.`;
                 formMessageSet('send', 'success', okMsg);
                 // check if it's new address, if so save it
@@ -1580,8 +1583,7 @@ function handleTransactions(){
         let tx = (el.name === "tr" ? el : el.closest('tr'));
         let txdate = new Date(tx.dataset.timestamp*1000).toUTCString();
         let href = config.blockExplorerUrl.replace('[[TX_HASH]]', tx.dataset.rawhash);
-	// class="external"
-        let txhashUrl = `<a class="external" title="view in block explorer" href="#" onClick="window.open('${href}', '_blank')">${href}</a>`;
+        let txhashUrl = `<a class="external" id="explorer-link" title="view in block explorer" href="${href}">View in block explorer</a>`;
 
         let dialogTpl = `
                 <div class="div-transactions-panel">
@@ -1618,6 +1620,13 @@ function handleTransactions(){
         let dialog = document.getElementById('tx-dialog');
         wsutil.innerHTML(dialog, dialogTpl);
         dialog = document.getElementById('tx-dialog');
+
+        //WIP - attempting to get links to work from linux and ios and android...
+        //txButtonExplorer = document.getElementById('explorer-link');
+        //txButtonExplorer.addEventListener('click', function() { 
+        //    shell.openExternal('${href}');
+        //});
+
         dialog.showModal();
     }
 
@@ -1772,14 +1781,6 @@ function handleTransactions(){
     });
 
     txButtonReset.addEventListener('click', () => {
-        wsmanager.reset();
-
-        // Always wipe the old table out on a reset
-        tbl = document.getElementById('transaction-list-table');
-        while (tbl.hasChildNodes()) {
-          tbl.removeChild(tbl.firstChild);
-        }
-
         listTransactions();
     });
 

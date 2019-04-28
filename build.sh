@@ -11,6 +11,9 @@ rm -r bin
 cp -r bin_linux bin
 npm run dist-lin --no-bin-link --rollback=false
 
+#cd ../..
+#exit
+
 rm -r bin
 cp -r bin_mac bin
 #export CSC_IDENTITY_AUTO_DISCOVERY=false
@@ -28,4 +31,5 @@ rm -r bin
 
 cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv
 cp dist/FedoraGoldWallet-v*exe /media/sf_sharedv
-cp dist/mac/FedoraGoldWalletMac.zip /media/sf_sharedv
+cp dist/mac/FedoraGoldWalletMac.zip /media/sf_sharedv/FedoraGoldWalletMac-v.zip
+cp dist/*.yml /media/sf_sharedv

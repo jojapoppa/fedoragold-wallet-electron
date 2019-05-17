@@ -1671,6 +1671,8 @@ function handleTransactions(){
             }
 
             TXLIST_OBJ = new List('transaction-lists', txListOpts, txs);
+            TXLIST_OBJ.clear();
+
             TXLIST_OBJ.sort('timestamp', {order: 'desc'});
             resetTxSortMark();
             txButtonSortDate.classList.add('desc');
@@ -1781,6 +1783,13 @@ function handleTransactions(){
     });
 
     txButtonReset.addEventListener('click', () => {
+
+        // Always wipe the old table out on a reset
+        //tbl = document.getElementById('transaction-list-table');
+        //while (tbl.hasChildNodes()) {
+        //  tbl.removeChild(tbl.firstChild);
+        //}
+
         listTransactions();
     });
 

@@ -26,8 +26,8 @@ rm -r bin
 cp -r bin_linux bin
 npm run dist-lin --no-bin-link --rollback=false
 
-cd ../..
-exit
+#cd ../..
+#exit
 
 rm -r bin
 cp -r bin_mac bin

@@ -91,7 +91,7 @@
     },
     "nsis": {
       "artifactName": "${productName}-v${version}-${os}-${arch}-setup.${ext}",
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false
     },
     "mac": {

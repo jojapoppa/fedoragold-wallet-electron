@@ -1646,7 +1646,7 @@ function handleTransactions(){
         });
     }
 
-    function listTransactions(){
+    function listTransactions(refreshList){
 
         if(wsession.get('txLen') <= 0){
             setTxFiller(true);
@@ -1657,6 +1657,10 @@ function handleTransactions(){
         if(!txs.length) {
             if(TXLIST_OBJ === null || TXLIST_OBJ.size() <= 0) setTxFiller(true);
             return;
+        }
+
+        if (refreshList) {
+            TXLIST_OBJ = NULL;
         }
 
         setTxFiller(false);
@@ -1671,8 +1675,6 @@ function handleTransactions(){
             }
 
             TXLIST_OBJ = new List('transaction-lists', txListOpts, txs);
-            TXLIST_OBJ.clear();
-
             TXLIST_OBJ.sort('timestamp', {order: 'desc'});
             resetTxSortMark();
             txButtonSortDate.classList.add('desc');
@@ -1783,14 +1785,8 @@ function handleTransactions(){
     });
 
     txButtonReset.addEventListener('click', () => {
-
-        // Always wipe the old table out on a reset
-        //tbl = document.getElementById('transaction-list-table');
-        //while (tbl.hasChildNodes()) {
-        //  tbl.removeChild(tbl.firstChild);
-        //}
-
-        listTransactions();
+        wsmanager.reset();
+        listTransactions(true);
     });
 
     txButtonExport.addEventListener('click', () => {
@@ -1814,7 +1810,7 @@ function handleTransactions(){
 	let updated = parseInt(event.target.value, 10) === 1;
         if(!updated) return;
         txInputUpdated.value = 0;
-        listTransactions();
+        listTransactions(false);
     });
     // listen to tx notify
     txInputNotify.addEventListener('change', (event)=>{
@@ -1856,7 +1852,7 @@ function handleTransactions(){
         });
     });
 
-    txButtonRefresh.addEventListener('click', listTransactions);
+    //txButtonRefresh.addEventListener('click', listTransactions);
 }
 
 function handleNetworkChange(){

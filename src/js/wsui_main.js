@@ -107,7 +107,7 @@ let importSeedInputPassword;
 let importSeedInputMnemonic;
 let importSeedInputScanHeight;
 // transaction
-let txButtonRefresh;
+//let txButtonRefresh;
 let txButtonSortAmount;
 let txButtonSortDate;
 let txInputUpdated;
@@ -205,7 +205,7 @@ function populateElementVars(){
     importSeedInputScanHeight = document.getElementById('key-import-seed-height');
     // tx page
     // transaction
-    txButtonRefresh = document.getElementById('button-transactions-refresh');
+    //txButtonRefresh = document.getElementById('button-transactions-refresh');
     txButtonSortAmount = document.getElementById('txSortAmount');
     txButtonSortDate = document.getElementById('txSortTime');
     txInputUpdated = document.getElementById('transaction-updated');
@@ -1654,18 +1654,20 @@ function handleTransactions(){
         }
 
         let txs = wsession.get('txNew');
+        if (refreshList) {
+            TXLIST_OBJ = null;
+            txs = wsession.get('txList');
+        }
+
         if(!txs.length) {
             if(TXLIST_OBJ === null || TXLIST_OBJ.size() <= 0) setTxFiller(true);
             return;
         }
 
-        if (refreshList) {
-            TXLIST_OBJ = NULL;
-        }
-
         setTxFiller(false);
         let txsPerPage = 20;
         if(TXLIST_OBJ === null){
+            txs = wsession.get('txList');
             if(txs.length > txsPerPage){
                 txListOpts.page = txsPerPage;
                 txListOpts.pagination = [{
@@ -1852,7 +1854,9 @@ function handleTransactions(){
         });
     });
 
-    //txButtonRefresh.addEventListener('click', listTransactions);
+    //txButtonRefresh.addEventListener('click', (event)=>{
+    //    listTransactions(false);
+    //});
 }
 
 function handleNetworkChange(){

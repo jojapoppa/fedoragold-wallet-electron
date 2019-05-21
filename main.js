@@ -288,7 +288,7 @@ function runDaemon(daemonPath){
         '--rpc-bind-port', settings.get('daemon_port')  //31875
     ];
 
-    log.error(`Starting daemon... ${daemonPath}`);
+    log.info(`Starting daemon... ${daemonPath}`);
 
     try{
         this.daemonProcess = childDaemonProcess.spawn(daemonPath, daemonArgs);

@@ -762,6 +762,7 @@ WalletShellManager.prototype.networkStateUpdate = function(state){
 };
 
 WalletShellManager.prototype.notifyUpdate = function(msg){
+    //log.warn(`in notifyUpdate ... calling updateUiState: ${msg.type}`);
     uiupdater.updateUiState(msg);
 };
 

@@ -1,6 +1,7 @@
 /* globals iqwerty */
 const {webFrame, remote} = require('electron');
 const Store = require('electron-store');
+const log = require('electron-log');
 const wsutil = require('./ws_utils');
 const WalletShellSession = require('./ws_session');
 const config = require('./ws_config');
@@ -237,16 +238,15 @@ function updateBalance(data){
 
 function updateTransactions(result){
 
-    //log.warn(result.items);
+    //log.warn('updateTransactions: result...', result.items);
 
     let txlistExisting = wsession.get('txList');
     const blockItems = result.items;
 
     if(!txlistExisting.length && !blockItems.length){
-        document.getElementById('transaction-export').classList.remove('hidden');
+        //document.getElementById('transaction-export').classList.remove('hidden');
         document.getElementById('transaction-export').classList.add('hidden');
-
-        document.getElementById('transaction-reset').classList.remove('hidden');
+        //document.getElementById('transaction-reset').classList.remove('hidden');
         document.getElementById('transaction-reset').classList.add('hidden');
     }else{
         document.getElementById('transaction-export').classList.remove('hidden');
@@ -260,11 +260,8 @@ function updateTransactions(result){
     Array.from(blockItems).forEach((block) => {
         block.transactions.map((tx) => {
             if(tx.amount !== 0 && !wsutil.objInArray(txlistExisting, tx, 'transactionHash')){
-                //tx.amount = (tx.amount/100).toFixed(2);
                 tx.amount = wsutil.amountForMortal(tx.amount);
                 tx.timeStr = new Date(tx.timestamp*1000).toUTCString();
-                //tx.timeStr = tx.timeStr = new Date(tx.timestamp * 1000).toDateString();
-                //tx.fee = (tx.fee/100).toFixed(2);
                 tx.fee = wsutil.amountForMortal(tx.fee);
                 tx.paymentId = tx.paymentId.length ? tx.paymentId : '-';
                 tx.txType = (tx.amount > 0 ? 'in' : 'out');
@@ -291,6 +288,10 @@ function updateTransactions(result){
     wsession.set('txList', txList);
     wsession.set('txLen', txList.length);
     wsession.set('txNew', txListNew);
+    wsession.set('txLenNew', txListNew.length);
+
+    //log.warn('txLen: ', txList.length);
+    //log.warn('txLenNew: ', txListNew.length);
 
     let currentDate = new Date();
     currentDate = `${currentDate.getUTCFullYear()}-${currentDate.getUTCMonth()+1}-${currentDate.getUTCDate()}`;
@@ -298,7 +299,7 @@ function updateTransactions(result){
     lastTxDate = `${lastTxDate.getUTCFullYear()}-${lastTxDate.getUTCMonth()+1}-${lastTxDate.getUTCDate()}`;
 
     // amount to check
-    triggerTxRefresh();
+    setTimeout(triggerTxRefresh, 1000);
 
     let rememberedLastHash = settings.get('last_notification', '');
     let notify = true;
@@ -422,6 +423,8 @@ function resetFormState(){
 // update ui state, push from svc_main
 function updateUiState(msg){
 
+    //log.warn('in updateUiState: ', msg.type);
+
     // do something with msg
     switch (msg.type) {
         case 'blockUpdated':
@@ -431,6 +434,7 @@ function updateUiState(msg){
             updateBalance(msg.data);
             break;
         case 'transactionUpdated':
+            //log.warn(`transactionUpdated in updateUiState`);
             updateTransactions(msg.data);
             break;
         case 'nodeFeeUpdated':
@@ -454,7 +458,7 @@ function updateUiState(msg){
             iqwerty.toast.Toast(notif, toastOpts);
             break;
         default:
-            console.log('invalid command received by ui', msg);
+            log.warn('invalid command received by ui', msg.type);
             break;
     }
 }

@@ -5,6 +5,7 @@
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
+const log = require('electron-log');
 
 const {clipboard, remote, ipcRenderer, shell} = require('electron');
 const Store = require('electron-store');
@@ -1646,29 +1647,26 @@ function handleTransactions(){
         });
     }
 
-    function listTransactions(refreshList){
-
-        if(wsession.get('txLen') <= 0){
-            setTxFiller(true);
-            return;
-        }
+    function listTransactions(){
 
         let txs = wsession.get('txNew');
-        if (refreshList) {
-            TXLIST_OBJ = null;
+        let txLen = wsession.get('txLenNew');
+        if (TXLIST_OBJ === null || txLen <= 0) {
             txs = wsession.get('txList');
+            txLen = wsession.get('txLen');
         }
 
-        if(!txs.length) {
-            if(TXLIST_OBJ === null || TXLIST_OBJ.size() <= 0) setTxFiller(true);
+        //log.warn('listTransactions Len:', txLen);
+
+        if (txLen <= 0) {
+            if (TXLIST_OBJ === null || TXLIST_OBJ.size() <= 0) setTxFiller(true);
             return;
         }
 
         setTxFiller(false);
         let txsPerPage = 20;
         if(TXLIST_OBJ === null){
-            txs = wsession.get('txList');
-            if(txs.length > txsPerPage){
+            if(txLen > txsPerPage){
                 txListOpts.page = txsPerPage;
                 txListOpts.pagination = [{
                     innerWindow: 2,
@@ -1788,7 +1786,7 @@ function handleTransactions(){
 
     txButtonReset.addEventListener('click', () => {
         wsmanager.reset();
-        listTransactions(true);
+        listTransactions();
     });
 
     txButtonExport.addEventListener('click', () => {
@@ -1812,7 +1810,7 @@ function handleTransactions(){
 	let updated = parseInt(event.target.value, 10) === 1;
         if(!updated) return;
         txInputUpdated.value = 0;
-        listTransactions(false);
+        listTransactions();
     });
     // listen to tx notify
     txInputNotify.addEventListener('change', (event)=>{

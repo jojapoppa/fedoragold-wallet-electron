@@ -27,6 +27,7 @@ var WalletShellSession = function(){
         connectedNode: '',
         txList: [],
         txLen: 0,
+        txLenNew: 0,
         txLastHash: null,
         txLastTimestamp: null,
         txNew: [],

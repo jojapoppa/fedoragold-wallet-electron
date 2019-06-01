@@ -27,7 +27,7 @@ config.walletServiceRpcPort = 31876;
 config.blockExplorerUrl = 'http://explorer.fedoragold.com/gettransaction.php?hash=[[TX_HASH]]';
 
 // default remote node to connect to, set this to a known reliable node for 'just works' user experience
-config.remoteNodeDefaultHost = '127.0.0.1'; // seed1
+config.remoteNodeDefaultHost = '127.0.0.1'; // then fallback to seed1 etc...
 
 // remote node list update url, set to null if you don't have one
 config.remoteNodeListUpdateUrl = null; 
@@ -38,7 +38,6 @@ config.remoteNodeListUpdateUrl = null;
 config.remoteNodeListFallback = [
     '18.223.178.174:30158', // seed1
     '18.222.96.134:30158',  // seed2
-    '18.191.2.241:30158',   // fuji
     '34.235.55.80:30158'    // goblin
 ];
 

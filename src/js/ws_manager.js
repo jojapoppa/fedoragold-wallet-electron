@@ -9,6 +9,7 @@ const WalletShellApi = require('./ws_api');
 const uiupdater = require('./wsui_updater');
 const wsutil = require('./ws_utils');
 const config = require('./ws_config');
+const remote = require('electron').remote;
 
 const settings = new Store({name: 'Settings'});
 const wsession = new WalletShellSession();
@@ -46,11 +47,11 @@ var WalletShellManager = function(){
     this.daemonPort = settings.get('daemon_port');
     this.serviceProcess = null;
     this.serviceBin = SVC_BIN;
-    this.servicePassword = settings.get('service_password');
-    this.serviceHost = settings.get('service_host');
+    this.walletdPassword = settings.get('walletd_password');
+    this.walletdHost = settings.get('walletd_host');
     this.walletdPort = settings.get('walletd_port');
     this.serviceArgsDefault = [];
-    this.walletConfigDefault = {'rpc-password': settings.get('service_password')};
+    this.walletConfigDefault = {'rpc-password': settings.get('walletd_password')};
     this.servicePid = null;
     this.serviceLastPid = null;
     this.serviceActiveArgs = [];
@@ -64,10 +65,15 @@ WalletShellManager.prototype.init = function(){
     if(this.serviceApi !== null) return;
     
     let cfg = {
+        daemon_host: this.daemonHost,
         daemon_port: this.daemonPort,
-        service_host: this.serviceHost,
+        walletd_host: this.walletdHost,
         walletd_port: this.walletdPort,
-        service_password: this.servicePassword
+        walletd_password: this.walletdPassword,
+        localDaemonSynced: remote.app.localDaemonSynced,
+        foundLocalDaemonPort: remote.app.foundLocalDaemonPort,
+        foundRemoteDaemonHost: remote.app.foundRemoteDaemonHost,
+        foundRemoteDaemonPort: remote.app.foundRemoteDaemonPort
     };
     this.serviceApi = new WalletShellApi(cfg);
 };
@@ -208,24 +214,41 @@ function logFile(walletFile) {
 WalletShellManager.prototype._spawnService = function(walletFile, password, onError, onSuccess, onDelay){
     this.init();
 
-    let serviceArgs = this.serviceArgsDefault.concat([
+    var serviceArgs = this.serviceArgsDefault.concat([
         '--container-file', walletFile,
         '--container-password', password,
-        //'--enable-cors', '*',
-	 
-//jojapoppa    
-        '--daemon-address', '18.222.96.134', //this.daemonHost,
-        '--daemon-port', '30159', //this.daemonPort,
-	 
         '--bind-address', '127.0.0.1',
         '--bind-port', this.walletdPort,
         '--log-level', SERVICE_LOG_LEVEL
-    ]);
+        //'--enable-cors', '*',
+        ]);
+
+    if (remote.app.localDaemonSynced) {
+          //log.warn('localDaemonSynced for starting walletd.');
+          serviceArgs = serviceArgs.concat([
+            '--daemon-address', '127.0.0.1',
+            '--daemon-port', remote.app.foundLocalDaemonPort
+          ]);
+    } else if (remote.app.foundRemoteDaemonPort > 0) {
+          //log.warn('foundRemoteDaemonPort for starting walletd.');
+          serviceArgs = serviceArgs.concat([
+            '--daemon-address', remote.app.foundRemoteDaemonHost,
+            '--daemon-port', remote.app.foundRemoteDaemonPort
+          ]);
+   } else {
+          //log.warn('default args... starting walletd');
+          serviceArgs = serviceArgs.concat([
+            '--daemon-address', this.daemonHost,
+            '--daemon-port', this.daemonPort
+          ]);
+    }
 
     if(SERVICE_LOG_LEVEL > 0) {
         serviceArgs.push('--log-file');
         serviceArgs.push(logFile(walletFile));
     }
+
+    //log.warn('Starting walletd with: ',serviceArgs);
 
     let configFile = wsession.get('walletConfig', null);
     if(configFile){
@@ -426,10 +449,11 @@ WalletShellManager.prototype.startSyncWorker = function(){
     let cfgData = {
         type: 'cfg',
         data: {
+            daemon_host: this.daemonHost,
             daemon_port: this.daemonPort,
-            service_host: this.serviceHost,
+            walletd_host: this.walletdHost,
             walletd_port: this.walletdPort,
-            service_password: this.servicePassword
+            walletd_password: this.walletdPassword
         },
         debug: SERVICE_LOG_DEBUG
     };

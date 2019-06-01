@@ -1,40 +1,65 @@
 const request = require('request-promise-native');
 const config = require('./ws_config.js');
+const log = require('electron-log');
+const http = require('http');
 
 class WalletShellApi {
     constructor(args) {
         args = args || {};
         if (!(this instanceof WalletShellApi)) return new WalletShellApi(args);
+        this.daemon_host = args.daemon_host || '127.0.0.1';
         this.daemon_port = args.daemon_port;
-        this.service_host = args.service_host || '127.0.0.1';
+        this.walletd_host = args.walletd_host || '127.0.0.1';
         this.walletd_port = args.walletd_port || config.walletServiceRpcPort;
-        this.service_password = args.service_password || "WHATEVER1234567891";
+        this.walletd_password = args.walletd_password || "WHATEVER1234567891";
         this.minimum_fee = (args.minimum_fee !== undefined) ? args.minimum_fee : (config.minimumFee*config.decimalDivisor);
         this.anonimity = config.defaultMixin;
+
+        this.localDaemonSynced = args.localDaemonSynced || false;
+        this.foundLocalDaemonPort = args.foundLocalDaemonPort || 0;
+        this.foundRemoteDaemonHost = args.foundRemoteDaemonHost || '';
+        this.foundRemoteDaemonPort = args.foundRemoteDaemonPort || 0;
     }
     _sendRequest(method, todaemon, params, timeout) {
         return new Promise((resolve, reject) => {
             if (method.length === 0) return reject(new Error('Invalid Method'));
             params = params || {};
-            timeout = timeout || 3000;
+            timeout = timeout || 10000;
             let data = {
                 jsonrpc: '2.0',
                 method: method,
                 params: params,
-                password: this.service_password
+                password: this.walletd_password
             };
+
+            // needed to support certain systems that have very poor network latency
+            var myAgent = new http.Agent({
+                keepAlive: true,
+                keepAliveMsecs: 10000
+            });
 
             let headers = {
-                Connection: 'keep-alive',
+                Connection: 'Keep-Alive',
+                Agent: myAgent
             };
 
-            let s_uri = `http://${this.service_host}:${this.walletd_port}/json_rpc`;
+            // reset location if the local daemon is not ready yet...
+            if (this.localDaemonSynced) {
+                this.daemon_host = '127.0.0.1';
+                this.daemon_port = this.foundLocalDaemonPort;
+            } else if (this.foundRemoteDaemonPort > 0) {
+                log.warn('local daemon not synced... adjusting...');
+                this.daemon_host = this.foundRemoteDaemonHost;
+                this.daemon_port = this.foundRemoteDaemonPort;
+            }
+
+            let s_uri = `http://${this.walletd_host}:${this.walletd_port}/json_rpc`;
             let s_method = 'POST';
 
             if (todaemon) {
-                s_uri = `http://${this.service_host}:${this.daemon_port}/${method}`;
+                s_uri = `http://${this.daemon_host}:${this.daemon_port}/${method}`;
                 s_method = 'GET';
-                headers = {};
+                headers = {Connection: 'Keep-Alive', Agent: myAgent};
                 data = {
                   jsonrpc: '2.0'
                 };
@@ -47,6 +72,10 @@ class WalletShellApi {
                 body: data,
                 json: true,
                 timeout: timeout
+            }).on('socket', function(socket){
+                socket.setTimeout(4000);
+            }).on('error', function(e) {
+                log.warn('error on socket: ', e);  // just eat the error, don't throw or stop
             }).then((res) => {
                 if (!res) return resolve(true);
                 if (!res.error) {
@@ -58,7 +87,7 @@ class WalletShellApi {
             }).catch((err) => {
                 return reject(err);
             });
-        });
+	});
     }
     // used to determine state of sync for daemon fullnode
     getHeight() {
@@ -96,7 +125,7 @@ class WalletShellApi {
             let req_params = {
                 address: params.address
             };
-            this._sendRequest('getBalance', false, req_params).then((result) => {
+            this._sendRequest('getBalance', false, req_params, 5000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -114,7 +143,7 @@ class WalletShellApi {
     }
     save() {
         return new Promise((resolve, reject) => {
-            this._sendRequest('save', false, {}, 6000).then(() => {
+            this._sendRequest('save', false, {}, 20000).then(() => {
                 return resolve();
             }).catch((err) => {
                 return reject(err);
@@ -199,7 +228,7 @@ class WalletShellApi {
                 firstBlockIndex: (params.firstBlockIndex >= 1) ? params.firstBlockIndex : 1,
                 blockCount: (params.blockCount >= 1) ? params.blockCount : 100
             };
-            this._sendRequest('getTransactions', false, req_params).then((result) => {
+            this._sendRequest('getTransactions', false, req_params, 20000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);

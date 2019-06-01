@@ -2,7 +2,7 @@
   "name": "FedoraGoldWallet",
   "productName": "FedoraGoldWallet",
   "description": "FedoraGold (FED) GUI Wallet",
-  "version": "v1.1.6",
+  "version": "v1.1.7",
   "homepage": "https://github.com/jojapoppa/fedoragold-wallet-electron",
   "repository": "https://github.com/jojapoppa/fedoragold-wallet-electron",
   "main": "main.js",
@@ -32,7 +32,8 @@
     "request": "^2.88.0",
     "request-promise-native": "^1.0.5",
     "semver": "^5.6.0",
-    "electron-updater": "^4.0.6"
+    "electron-updater": "^4.0.6",
+    "set-interval-async": "^1.0.23"
   },
   "build": {
     "appId": "fed.fedoragold.walletshell",

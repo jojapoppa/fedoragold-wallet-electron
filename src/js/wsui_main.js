@@ -316,6 +316,10 @@ let keybindingTpl = `<div class="transaction-panel">
     <td>Switch to <strong>overview/welcome</strong> screen</td>
 </tr> 
 <tr>
+    <th scope="col"><kbd>Ctrl</kbd>+<kbd>h</kbd></th>
+    <td>Switch to <strong>overview/welcome</strong> screen</td>
+</tr>
+<tr>
     <th scope="col"><kbd>Ctrl</kbd>+<kbd>Tab</kbd></th>
     <td>Switch to <strong>next screen</strong></td>
 </tr>

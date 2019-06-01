@@ -8,6 +8,7 @@ cp ./src/assets/icon.* ./build/
 # I was never able to get electron-builder to work from Alpine Linux
 #   because support for wine32 is weak on Alpine, and that is currently
 #   required to create windows compatible instrallers (which is required)
+# The notes on where I left off with that here... will use Ubuntu for now...
 # export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/lib:/usr/lib
 # sudo apk --no-cache add ca-certificates wget
 # sudo wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub
@@ -26,8 +27,8 @@ rm -r bin
 cp -r bin_linux bin
 npm run dist-lin --no-bin-link --rollback=false
 
-#cd ../..
-#exit
+cd ../..
+exit
 
 rm -r bin
 cp -r bin_mac bin

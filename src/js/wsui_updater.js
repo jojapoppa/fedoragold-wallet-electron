@@ -33,6 +33,7 @@ function setWinTitle(title){
 }
 
 function triggerTxRefresh(){
+    //log.warn('in triggerTxRefresh()');
     const txUpdateInputFlag = document.getElementById('transaction-updated');
     txUpdateInputFlag.value = 1;
     txUpdateInputFlag.dispatchEvent(new Event('change'));
@@ -244,9 +245,9 @@ function updateTransactions(result){
     const blockItems = result.items;
 
     if(!txlistExisting.length && !blockItems.length){
-        //document.getElementById('transaction-export').classList.remove('hidden');
+        document.getElementById('transaction-export').classList.remove('hidden');
         document.getElementById('transaction-export').classList.add('hidden');
-        //document.getElementById('transaction-reset').classList.remove('hidden');
+        document.getElementById('transaction-reset').classList.remove('hidden');
         document.getElementById('transaction-reset').classList.add('hidden');
     }else{
         document.getElementById('transaction-export').classList.remove('hidden');
@@ -298,9 +299,10 @@ function updateTransactions(result){
     let lastTxDate = new Date(newLastTimestamp*1000);
     lastTxDate = `${lastTxDate.getUTCFullYear()}-${lastTxDate.getUTCMonth()+1}-${lastTxDate.getUTCDate()}`;
 
-    // amount to check
+    // handle refresh asynchronously...
     setTimeout(triggerTxRefresh, 1000);
 
+    // setup for desktop notifications (to OS desktop)
     let rememberedLastHash = settings.get('last_notification', '');
     let notify = true;
 
@@ -434,7 +436,7 @@ function updateUiState(msg){
             updateBalance(msg.data);
             break;
         case 'transactionUpdated':
-            //log.warn(`transactionUpdated in updateUiState`);
+            //log.warn('transactionUpdated in updateUiState...');
             updateTransactions(msg.data);
             break;
         case 'nodeFeeUpdated':

@@ -2,7 +2,9 @@ const {app, dialog, Tray, Menu} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
+const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
+const request = require('request-promise-native');
 const platform = require('os').platform();
 const crypto = require('crypto');
 const Store = require('electron-store');
@@ -11,7 +13,10 @@ const log = require('electron-log');
 const splash = require('@trodi/electron-splashscreen');
 const config = require('./src/js/ws_config');
 const childDaemonProcess = require('child_process');
+const exec = require('child_process').exec;
+const net = require('net');
 const { autoUpdater } = require("electron-updater");
+const { setIntervalAsync } = require('set-interval-async/fixed');
 
 const IS_DEV  = (process.argv[1] === 'dev' || process.argv[2] === 'dev');
 const IS_DEBUG = IS_DEV || process.argv[1] === 'debug' || process.argv[2] === 'debug';
@@ -32,9 +37,9 @@ const DEFAULT_DAEMON_BIN = path.join(process.resourcesPath,'bin', SERVICE_OSDIR,
 const DEFAULT_SETTINGS = {
     service_bin: DEFAULT_SERVICE_BIN,
     daemon_bin: DEFAULT_DAEMON_BIN,
-    service_host: '127.0.0.1',
+    walletd_host: '127.0.0.1',
     walletd_port: config.walletServiceRpcPort,
-    service_password: crypto.randomBytes(32).toString('hex'),
+    walletd_password: crypto.randomBytes(32).toString('hex'),
     daemon_host: config.remoteNodeDefaultHost,
     daemon_port: config.daemonDefaultRpcPort,
     pubnodes_date: null,
@@ -53,6 +58,12 @@ app.setAppUserModelId(config.appId);
 
 app.daemonPid = null;
 app.daemonLastPid = null;
+app.daemonConnectionAttempts = 0;
+app.localDaemonRunning = false;
+app.localDaemonSynced = false;
+app.foundLocalDaemonPort = 0;
+app.foundRemoteDaemonHost = '';
+app.foundRemoteDaemonPort = 0;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
@@ -221,9 +232,6 @@ function serviceBinCheck(){
     let targetPath = path.join(app.getPath('userData'), SERVICE_FILENAME);
     let daemonPath = path.join(app.getPath('userData'), DAEMON_FILENAME);
 
-    let pthreadPath = path.join(app.getPath('userData'), "libpthread.so.0");
-    let clibPath = path.join(app.getPath('userData'), "libc.so.6");
-
     try{
         fs.renameSync(targetPath, `${targetPath}.bak`, (err) => {
             if(err) log.error(err);
@@ -282,30 +290,142 @@ terminateDaemon = function(force) {
     app.daemonPid = null;
 };
 
-function runDaemon(daemonPath){
+function runDaemon() {
+
+    var daemonPath;
+    if (process.platform === 'darwin') {
+      daemonPath = DEFAULT_DAEMON_BIN;
+    }
+    else {
+      daemonPath = settings.get('daemon_bin');
+    }
+
+    // Don't allow binding on port 0 
+    if (settings.get('daemon_port') === 0) {
+        return;
+    }
+
     let daemonArgs = [
         '--log-level', 0,
-        '--rpc-bind-port', settings.get('daemon_port')  //31875
+        '--rpc-bind-ip', '127.0.0.1',
+        '--rpc-bind-port', settings.get('daemon_port') 
     ];
 
+    try { this.daemonProcess.kill(); } catch(e) {} // just eat and ignore any errors
+    app.daemonConnectionAttempts = 0;
     log.info(`Starting daemon... ${daemonPath}`);
 
     try{
         this.daemonProcess = childDaemonProcess.spawn(daemonPath, daemonArgs);
         app.daemonPid = this.daemonProcess.pid;
-
-        this.daemonProcess.on('exit', function(code, signal) {
-          if (signal != null && !app.isClosingDown) {
-            app.emit('run-daemon');
-          }
-        });
-
     }catch(e){
-        log.error(`${config.daemonBinaryFilename} is not running`);
         log.error(e.message);
-        return false;
     }
+
+    return true;
 }
+
+function resetDaemon() {
+    settings.set('daemon_port', Math.floor(Math.random() * (40000 - 30000) + 30000));
+    app.localDaemonRunning = false;
+    app.daemonPid = 0;
+    app.emit('run-daemon');
+    //log.warn('trying new port: ', settings.get('daemon_port'));
+}
+
+const checkDaemonTimer = setIntervalAsync(() => {
+
+    var cmd = `ps -ex`;
+    switch (process.platform) {
+        case 'win32' : cmd = `tasklist`; break;
+        case 'darwin' : cmd = `ps -ax | grep ${query}`; break;
+        case 'linux' : cmd = `ps -A`; break;
+        default: break;
+    }
+
+    var status = false;
+    exec(cmd, {
+        maxBuffer: 2000 * 1024
+    }, function(error, stdout, stderr) {
+        if (stdout.toLowerCase().indexOf('fedoragold_daem') > -1) {
+            app.localDaemonRunning = true;
+            settings.set('daemon_host', '127.0.0.1');
+            app.foundLocalDaemonPort = settings.get('daemon_port');
+            //log.warn('local daemon is running on port: ', settings.get('daemon_port'));
+        } else {
+            app.localDaemonRunning = false;
+            app.foundLocalDaemonPort = 0;
+        }
+    });
+}, 5000);
+
+const checkSyncTimer = setIntervalAsync(() => {
+    if (app.localDaemonRunning) {
+
+        var myAgent = new http.Agent({
+            keepAlive: true,
+            keepAliveMsecs: 8000
+        });
+        let headers = {
+            Connection: 'Keep-Alive',
+            Agent: myAgent
+        };
+
+        request(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`, {
+            method: 'GET',
+            headers: headers,
+            body: {jsonrpc: '2.0'},
+            json: true,
+            timeout: 10000
+        }, (error, response, body) => {
+              if (! error) {
+                  if (body.iscoreready) {
+                      app.localDaemonSynced = true;
+                      app.daemonConnectionAttempts = 0;
+                  }
+              }
+              else {
+                  app.localDaemonSynced = false;
+                  app.daemonConnectionAttempts++;
+                  if (app.daemonConnectionAttempts > 50) { //jojapoppa, this # 50 is arbitrary... look into this
+                      resetDaemon(); // resets daemon if its process is up but still hung
+                  }
+              }
+        }).catch(function(e){}); // Just eat the error as race condition expected anyway...
+    }
+}, 20000);
+
+const checkFallback = setIntervalAsync(() => {
+    var myAgent = new http.Agent({
+        keepAlive: true,
+        keepAliveMsecs: 10000
+    });
+    let headers = {
+        Connection: 'Keep-Alive',
+        Agent: myAgent
+    };
+
+    let pnodes = settings.get('pubnodes_data');
+    let remoteDaemonNode = pnodes
+        .map((a) => ({ sort: Math.random(), value: a }))
+        .sort((a, b) => a.sort - b.sort)
+        .map((a) => a.value)[0];
+    let locat = remoteDaemonNode.search(':');
+
+    try {
+        var client = net.connect(remoteDaemonNode.substring(locat+1),remoteDaemonNode.substring(0, locat),
+          function() { 
+            client.end();
+            app.foundRemoteDaemonHost = remoteDaemonNode.substring(0, locat);
+            app.foundRemoteDaemonPort = remoteDaemonNode.substring(locat+1);
+            //log.warn('found fallback daemon at: ', app.foundRemoteDaemonHost);
+          });
+        client.on('error', function(error) {
+            client.end(); // do nothing
+        });
+    } catch (e) {} // just eat any errors, so that the previous good daemon HostIP is retained...
+
+}, 30000);
 
 function initSettings(){
     Object.keys(DEFAULT_SETTINGS).forEach((k) => {
@@ -381,12 +501,7 @@ app.on('activate', () => {
 });
 
 app.on('run-daemon', () => {
-    if (platform === 'darwin') {
-      runDaemon(DEFAULT_DAEMON_BIN);
-    }
-    else {
-      runDaemon(settings.get('daemon_bin'));
-    }
+    runDaemon();
 });
 
 process.on('uncaughtException', function (e) {

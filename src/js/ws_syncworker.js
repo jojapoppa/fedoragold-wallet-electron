@@ -1,18 +1,19 @@
 const log = require('electron-log');
 const WalletShellApi = require('./ws_api');
+const { setIntervalAsync } = require('set-interval-async/fixed');
 
 let DEBUG=false;
 log.transports.file.maxSize = 5 * 1024 * 1024;
 log.transports.console.level = 'debug';
 log.transports.file.level = 'debug';
 
-const CHECK_INTERVAL = 1 * 1000; // checks once a second
+const CHECK_INTERVAL = 500;
 var heightVal = 0;
 var LAST_HEIGHTVAL = 1;
 var LAST_BLOCK_COUNT = 1;
 var LAST_KNOWN_BLOCK_COUNT = 1;
 
-var SERVICE_CFG = { daemon_port: '31875', service_host: '127.0.0.1', walletd_port: '31876', service_password: 'xxx'};
+var SERVICE_CFG = { daemon_host: '127.0.0.1', daemon_port: '31875', walletd_host: '127.0.0.1', walletd_port: '31876', walletd_password: 'xxx'};
 var SAVE_COUNTER = 0;
 var TX_LAST_INDEX = 1;
 var TX_LAST_COUNT = 0;
@@ -185,6 +186,9 @@ function checkTransactionsUpdate(){
                         type: 'transactionUpdated',
                         data: trx
                     });
+                    //log.warn('saveWallet()...');
+                    saveWallet();
+                    //log.warn('done');
                     return true;
                 }).catch((err)=>{
                     logDebug(`checkTransactionsUpdate: getTransactions FAILED, ${err.message}`);
@@ -198,6 +202,8 @@ function checkTransactionsUpdate(){
         logDebug(`checkTransactionsUpdate: getBalance FAILED, ${err.message}`);
         return false;
     });
+
+    return true;
 }
 
 function delayReleaseSaveState(){
@@ -210,7 +216,7 @@ function saveWallet(){
     if(!SERVICE_CFG) return;
     if(STATE_PENDING_SAVE){
         logDebug('saveWallet: skipped, last save operation still pending');
-        return;
+        return false;
     }
     STATE_SAVING = true;
     logDebug(`saveWallet: trying to save wallet`);
@@ -228,10 +234,12 @@ function saveWallet(){
             return false;
         });
     }, 2222);
+
+    return true;
 }
 
 function workOnTasks(){
-    taskWorker = setInterval(() => {
+    taskWorker = setIntervalAsync(() => {
         if(STATE_PAUSED) return;
         logDebug(`Running wallet synchronization tasks`);
 

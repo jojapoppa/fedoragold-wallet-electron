@@ -45,12 +45,26 @@ class WalletShellApi {
 
             // reset location if the local daemon is not ready yet...
             if (this.localDaemonSynced) {
-                this.daemon_host = '127.0.0.1';
-                this.daemon_port = this.foundLocalDaemonPort;
+                if (this.daemon_port != this.foundLocalDaemonPort) {
+                    this.daemon_host = '127.0.0.1';
+                    this.daemon_port = this.foundLocalDaemonPort;
+                    log.warn('bind wallet to local daemon on port: ', this.daemon_port);
+                    bindDaemon(this.daemon_host, this.daemon_port); // async bind is okay here...
+                } else {
+                    this.daemon_host = '127.0.0.1';
+                    this.daemon_port = this.foundLocalDaemonPort;
+                }
             } else if (this.foundRemoteDaemonPort > 0) {
                 log.warn('local daemon not synced... adjusting...');
-                this.daemon_host = this.foundRemoteDaemonHost;
-                this.daemon_port = this.foundRemoteDaemonPort;
+                if (this.daemon_port != this.foundRemoteDaemonPort) {
+                    this.daemon_host = this.foundRemoteDaemonHost;
+                    this.daemon_port = this.foundRemoteDaemonPort;
+                    log.warn('bind wallet to remote daemon at IP: ', this.daemon_host);
+                    bindDaemon(this.daemon_host, this.daemon_port); // async bind is okay here...
+                } else {
+                    this.daemon_host = this.foundRemoteDaemonHost;
+                    this.daemon_port = this.foundRemoteDaemonPort;
+                }
             }
 
             let s_uri = `http://${this.walletd_host}:${this.walletd_port}/json_rpc`;
@@ -88,6 +102,22 @@ class WalletShellApi {
                 return reject(err);
             });
 	});
+    }
+    // used to switch wallet to local daemon once it is fully synced
+    bindDaemon(daemonIP, daemonPort) {
+        return new Promise((resolve, reject) => {
+            if (daemonPort > 0) {
+                let req_params = {
+                    daemonIP: daemonIP,
+                    daemonPort: daemonPort
+                };
+                this._sendRequest('bindDaemon', false, req_params, 5000).then((result) => {
+                    return resolve(result);
+                }).catch((err) => {
+                    return reject(err);
+                });
+            }
+        });
     }
     // used to determine state of sync for daemon fullnode
     getHeight() {

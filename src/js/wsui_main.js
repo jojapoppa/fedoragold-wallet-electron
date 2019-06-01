@@ -1651,7 +1651,28 @@ function handleTransactions(){
         });
     }
 
+    //jojapoppa, i'm not sure that it's worth it to incrementally add entries to the transactions
+    //  history list.  for now, i'll just wipe it each time.  if the list grows large and it
+    //  starts to "flicker" then i'll figure out why duplicates keep showing up.  but unless
+    //  the screen flickers it's just not worth the added logic.
+    //  If I decide to keep it this way then I should just remove the incremental logic below
+    //  and simplify the listTransactions() function
+    function wipeList() {
+        try {
+              if(null !== TXLIST_OBJ){
+                TXLIST_OBJ.clear();
+                TXLIST_OBJ.update();
+              }
+
+              TXLIST_OBJ = null;
+            } catch(e) {}
+
+        setTxFiller(true);
+    }
+
     function listTransactions(){
+
+        wipeList();
 
         let txs = wsession.get('txNew');
         let txLen = wsession.get('txLenNew');

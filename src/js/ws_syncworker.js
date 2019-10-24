@@ -56,6 +56,7 @@ function checkBlockUpdate(){
     wsapi.getStatus().then((blockStatus) => {
         STATE_PENDING_SAVE = false;
         let lastConStatus = STATE_CONNECTED;
+
         let conFailed  = parseInt(blockStatus.knownBlockCount, 10) === 1;
         if(conFailed){
             logDebug('checkBlockUpdate: Got bad known block count, mark connection as broken');
@@ -79,7 +80,9 @@ function checkBlockUpdate(){
         // we have good connection
         STATE_CONNECTED = true;
         let blockCount = parseInt(blockStatus.blockCount,10);
+        //log.warn("blockCount: "+blockCount);
         let knownBlockCount = parseInt(blockStatus.knownBlockCount, 10);
+        //log.warn("knownBlockCount: "+knownBlockCount);
         if(heightVal <= LAST_HEIGHTVAL && blockCount <= LAST_BLOCK_COUNT && knownBlockCount <= LAST_KNOWN_BLOCK_COUNT && TX_SKIPPED_COUNT < 10){
             logDebug(`checkBlockUpdate: no update, skip block notifier (${TX_SKIPPED_COUNT})`);
             TX_SKIPPED_COUNT += 1;
@@ -92,17 +95,18 @@ function checkBlockUpdate(){
         LAST_BLOCK_COUNT = blockCount;
         LAST_KNOWN_BLOCK_COUNT = knownBlockCount;
 
-        // add any extras here, so renderer not doing too much things
+        // add any extras here, so renderer is not doing too many things
         let dispKnownBlockCount = (knownBlockCount-1);
         let dispBlockCount = (blockCount > dispKnownBlockCount ? dispKnownBlockCount : blockCount);
 
         let syncPercent = 0;
-        //if (heightVal < (dispKnownBlockCount-2)) {
-        //    syncPercent = ((heightVal / dispKnownBlockCount) * 100);
-        //}
-        //else {
-	    syncPercent = ((dispBlockCount / dispKnownBlockCount) * 100);
-        //}
+        if (heightVal < (dispKnownBlockCount-2)) {
+            syncPercent = ((heightVal / dispKnownBlockCount) * 100);
+            dispBlockCount = heightVal;
+        }
+        else {
+            syncPercent = ((dispBlockCount / dispKnownBlockCount) * 100);
+        }
 
         if(syncPercent <=0 || syncPercent >= 99.995){
             syncPercent = 100;
@@ -246,7 +250,7 @@ function workOnTasks(){
         // get block height of the daemon fullnode
         wsapi.getHeight().then((result) => {
             heightVal = parseInt(result.height, 10);
-            //log.warn(`height: ${heightVal}`);
+            //log.warn(`heightVal: ${heightVal}`);
         }).catch((err) => {
             logDebug(`getHeight from Daemon: FAILED, ${err.message}`);
             return;

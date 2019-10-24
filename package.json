@@ -2,7 +2,7 @@
   "name": "FedoraGoldWallet",
   "productName": "FedoraGoldWallet",
   "description": "FedoraGold (FED) GUI Wallet",
-  "version": "v1.1.7",
+  "version": "v1.1.9",
   "homepage": "https://github.com/jojapoppa/fedoragold-wallet-electron",
   "repository": "https://github.com/jojapoppa/fedoragold-wallet-electron",
   "main": "main.js",
@@ -14,13 +14,17 @@
     "dist-mac": "./node_modules/.bin/electron-builder --x64 --mac",
     "dist-lin": "./node_modules/.bin/electron-builder --x64 --linux"
   },
+  "engines": {
+    "node": "v10.15.2",
+    "npm": "5.8.0"
+  },
   "keywords": [],
   "author": "FedoraGold (FED), Rixombea, Macroshock & TurtleCoin Developers",
   "license": "ISC",
   "devDependencies": {
     "devtron": "^1.4.0",
     "electron": "^3.0.10",
-    "electron-builder": "^20.38.2",
+    "electron-builder": "^20.44.4",
     "jshint": "^2.9.6"
   },
   "dependencies": {
@@ -28,12 +32,12 @@
     "csv-writer": "^1.2.0",
     "electron-log": "^2.2.17",
     "electron-store": "^2.0.0",
+    "electron-updater": "^4.1.2",
     "qr-image": "^3.2.0",
     "request": "^2.88.0",
     "request-promise-native": "^1.0.5",
     "semver": "^5.6.0",
-    "electron-updater": "^4.0.6",
-    "set-interval-async": "^1.0.23"
+    "set-interval-async": "^1.0.29"
   },
   "build": {
     "appId": "fed.fedoragold.walletshell",
@@ -42,17 +46,22 @@
       "output": "dist",
       "buildResources": "build"
     },
-    "files": ["**/*", "build/icon.*"],
-    "publish": [{
-      "provider": "github",
-      "owner": "jojapoppa",
-      "releaseType": "release",
-      "repo": "fedoragold-wallet-electron"
-    }],
+    "files": [
+      "**/*",
+      "build/icon.*"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "jojapoppa",
+        "releaseType": "release",
+        "repo": "fedoragold-wallet-electron"
+      }
+    ],
     "extraFiles": [
       {
         "from": "./bin/linux",
-	"to": "resources/bin/linux",
+        "to": "resources/bin/linux",
         "filter": [
           "**/*"
         ]
@@ -77,7 +86,9 @@
       "target": [
         "AppImage"
       ],
-      "publish": ["github"],
+      "publish": [
+        "github"
+      ],
       "maintainer": "jojapoppa",
       "category": "Office",
       "vendor": "FedoraGold",
@@ -85,7 +96,9 @@
     },
     "win": {
       "target": "nsis",
-      "publish": ["github"],
+      "publish": [
+        "github"
+      ],
       "publisherName": "FedoraGold",
       "legalTrademarks": "FedoraGold (FED)",
       "icon": "build/icon.ico"
@@ -96,7 +109,9 @@
       "perMachine": false
     },
     "mac": {
-      "publish": ["github"],
+      "publish": [
+        "github"
+      ],
       "artifactName": "${productName}-v${version}-${os}-${arch}.${ext}",
       "category": "public.app-category.business",
       "target": "zip"

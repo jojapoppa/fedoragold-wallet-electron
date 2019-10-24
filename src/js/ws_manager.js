@@ -270,7 +270,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         log.warn('Failed to create config file, fallback to cmd args ');
     }
 
-    //confirm(serviceArgs);
+    //confirm("serviceArgs: "+serviceArgs);
 
     let wsm = this;
     log.debug('Starting service...');

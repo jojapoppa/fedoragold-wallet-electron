@@ -153,8 +153,8 @@ function updateSyncProgress(data){
              // info bar class
             syncDiv.className = 'syncing';
             // status text
-            // keep for later: statusText = `SYNCING ${daemonHeight} : ${statusText} (${blockSyncPercent}%)`;
-            statusText = `SYNCING ${statusText} (${blockSyncPercent}%)`;
+            statusText = `daemon SYNCING ${daemonHeight} : ${statusText} (${blockSyncPercent}%)`;
+            // keep for later: statusText = `SYNCING ${statusText} (${blockSyncPercent}%)`;
             syncInfoBar.textContent = statusText;
             // status icon
             iconSync.setAttribute('data-icon', 'sync');

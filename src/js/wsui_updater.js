@@ -137,7 +137,9 @@ function updateSyncProgress(data){
         // sync sess flags
         wsession.set('syncStarted', true);
         statusText = `${blockCount}/${knownBlockCount}` ;
-        if(blockCount+1 >= knownBlockCount && knownBlockCount !== 0) {
+
+        //if(blockCount+1 >= knownBlockCount && knownBlockCount !== 0) {
+        if(daemonHeight+1 >= knownBlockCount && knownBlockCount !== 0) {
             // info bar class
             syncDiv.classList = 'synced';
             // status text

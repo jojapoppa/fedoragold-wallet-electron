@@ -1033,7 +1033,7 @@ function handleWalletOpen(){
         function onSuccess(){
             walletOpenInputPath.value = settings.get('recentWallet');
             overviewWalletAddress.value = wsession.get('loadedWalletAddress');
-            wsmanager.getNodeFee();
+            //wsmanager.getNodeFee(); //jojapoppa, add this back in later...
             WALLET_OPEN_IN_PROGRESS = false;
             changeSection('section-overview');
             setTimeout(()=>{
@@ -1882,18 +1882,18 @@ function handleTransactions(){
     //});
 }
 
-function handleNetworkChange(){
-    window.addEventListener('online', () => {
-        let connectedNode = wsession.get('connectedNode');
-        if(!connectedNode.length || connectedNode.startsWith('127.0.0.1')) return;
-        wsmanager.networkStateUpdate(1);
-    });
-    window.addEventListener('offline',  () => {
-        let connectedNode = wsession.get('connectedNode');
-        if(!connectedNode.length || connectedNode.startsWith('127.0.0.1')) return;
-        wsmanager.networkStateUpdate(0);
-    });
-}
+//function handleNetworkChange(){
+//    window.addEventListener('online', () => {
+//        let connectedNode = wsession.get('connectedNode');
+//        if(!connectedNode.length || connectedNode.startsWith('127.0.0.1')) return;
+//        wsmanager.networkStateUpdate(1);
+//    });
+//    window.addEventListener('offline',  () => {
+//        let connectedNode = wsession.get('connectedNode');
+//        if(!connectedNode.length || connectedNode.startsWith('127.0.0.1')) return;
+//        wsmanager.networkStateUpdate(0);
+//    });
+//}
 
 // event handlers
 function initHandlers(){
@@ -1904,7 +1904,7 @@ function initHandlers(){
    
     // jojapoppa ... why was this call moved forword in the function ?!!! 
     // netstatus
-    handleNetworkChange();
+    //handleNetworkChange();
 
     //external link handler
     wsutil.liveEvent('a.external', 'click', (event) => {

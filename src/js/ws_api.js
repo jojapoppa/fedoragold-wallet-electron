@@ -16,7 +16,7 @@ class WalletShellApi {
         this.anonimity = config.defaultMixin;
 
         this.localDaemonSynced = args.localDaemonSynced || false;
-        this.foundLocalDaemonPort = args.foundLocalDaemonPort || 0;
+        //this.foundLocalDaemonPort = args.foundLocalDaemonPort || 0;
     }
     _sendRequest(method, todaemon, params, timeout) {
         return new Promise((resolve, reject) => {
@@ -42,17 +42,17 @@ class WalletShellApi {
             };
 
             // reset location if the local daemon is not ready yet...
-            if (this.localDaemonSynced) {
-                if (this.daemon_port != this.foundLocalDaemonPort) {
-                    this.daemon_host = '127.0.0.1';
-                    this.daemon_port = this.foundLocalDaemonPort;
-                    log.warn('bind wallet to local daemon on port: ', this.daemon_port);
-                    bindDaemon(this.daemon_host, this.daemon_port); // async bind is okay here...
-                } else {
-                    this.daemon_host = '127.0.0.1';
-                    this.daemon_port = this.foundLocalDaemonPort;
-                }
-            }
+            //if (this.localDaemonSynced) {
+            //    if (this.daemon_port != this.foundLocalDaemonPort) {
+            //        this.daemon_host = '127.0.0.1';
+            //        this.daemon_port = this.foundLocalDaemonPort;
+            //        log.warn('bind wallet to local daemon on port: ', this.daemon_port);
+            //        bindDaemon(this.daemon_host, this.daemon_port); // async bind is okay here...
+            //    } else {
+            //        this.daemon_host = '127.0.0.1';
+            //        this.daemon_port = this.foundLocalDaemonPort;
+            //    }
+            //}
 
             let s_uri = `http://${this.walletd_host}:${this.walletd_port}/json_rpc`;
             let s_method = 'POST';

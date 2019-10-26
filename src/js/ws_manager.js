@@ -15,7 +15,7 @@ const settings = new Store({name: 'Settings'});
 const wsession = new WalletShellSession();
 
 const SERVICE_LOG_DEBUG = wsession.get('debug');
-const SERVICE_LOG_LEVEL_DEFAULT = 0;
+const SERVICE_LOG_LEVEL_DEFAULT = 1;
 const SERVICE_LOG_LEVEL_DEBUG = 4;
 const SERVICE_LOG_LEVEL = (SERVICE_LOG_DEBUG ? SERVICE_LOG_LEVEL_DEBUG : SERVICE_LOG_LEVEL_DEFAULT);
 const ERROR_WALLET_EXEC = `Failed to start ${config.walletServiceBinaryFilename}.`;
@@ -185,6 +185,8 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
                 let trimmed = stdout.trim();
                 let walletAddress = trimmed.substring(trimmed.indexOf(addressLabel)+addressLabel.length, trimmed.length);
                 wsession.set('loadedWalletAddress', walletAddress);
+
+                // the first call just got the address back... now we run it for reals
                 wsm._spawnService(walletFile, password, onError, onSuccess, onDelay);
             }else{
                 // just stop here
@@ -217,26 +219,29 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--container-password', password,
         '--bind-address', '127.0.0.1',
         '--bind-port', this.walletdPort,
-        '--log-level', SERVICE_LOG_LEVEL
+        '--log-level', 2
         //'--enable-cors', '*',
         ]);
 
+        //remote.app.foundLocalDaemonPort
         serviceArgs = serviceArgs.concat([
           '--daemon-address', '127.0.0.1',
-          '--daemon-port', remote.app.foundLocalDaemonPort
+          '--daemon-port', settings.get('daemon_port')
         ]);
 
-    if(SERVICE_LOG_LEVEL > 0) {
-        serviceArgs.push('--log-file');
-        serviceArgs.push(logFile(walletFile));
-    }
+    log.warn("Walletd is binding daemon on port: "+settings.get('daemon_port'));
+
+    //if(SERVICE_LOG_LEVEL > 0) {
+    //    serviceArgs.push('--log-file');
+    //    serviceArgs.push(logFile(walletFile));
+    //}
 
     //log.warn('Starting walletd with: ',serviceArgs);
 
     let wsm = this;
     log.warn('Starting walletd service...');
     try{
-        this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs);
+        this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs, {detached: true, stdio: "inherit"});
         this.servicePid = this.serviceProcess.pid;
     }catch(e){
         if(onError) onError(ERROR_WALLET_EXEC);
@@ -713,38 +718,38 @@ WalletShellManager.prototype.optimizeWallet = function(){
     });
 };
 
-WalletShellManager.prototype.networkStateUpdate = function(state){
-    if(!this.syncWorker) return;    
-    log.debug('ServiceProcess PID: ' + this.servicePid);
-    if(state === 0){
-        // pause the syncworker, but leave service running
-        this.syncWorker.send({
-            type: 'pause',
-            data: null
-        });
-    }else{
-        this.init();
-        // looks like fedoragold_walletd always stalled after disconnected, just kill & relaunch it
-        let pid = this.serviceProcess.pid || null;
-        this.terminateService();
-        // wait a bit
-        setImmediate(() => {
-            if(pid){
-                try{process.kill(pid, 'SIGKILL');}catch(e){}
-            }
-            setTimeout(()=>{
-                log.debug(`respawning ${config.walletServiceBinaryFilename}`);
-                this.serviceProcess = childProcess.spawn(this.serviceBin, this.serviceActiveArgs);
-                // store new pid
-                this.servicePid = this.serviceProcess.pid;
-                this.syncWorker.send({
-                    type: 'resume',
-                    data: null
-                });
-            },15000);
-        },2500);        
-    }
-};
+//WalletShellManager.prototype.networkStateUpdate = function(state){
+//    if(!this.syncWorker) return;    
+//    log.debug('ServiceProcess PID: ' + this.servicePid);
+//    if(state === 0){
+//        // pause the syncworker, but leave service running
+//        this.syncWorker.send({
+//            type: 'pause',
+//            data: null
+//        });
+//    }else{
+//        this.init();
+//        // looks like fedoragold_walletd always stalled after disconnected, just kill & relaunch it
+//        let pid = this.serviceProcess.pid || null;
+//        this.terminateService();
+//        // wait a bit
+//        setImmediate(() => {
+//            if(pid){
+//                try{process.kill(pid, 'SIGKILL');}catch(e){}
+//            }
+//            setTimeout(()=>{
+//                log.debug(`respawning ${config.walletServiceBinaryFilename}`);
+//                this.serviceProcess = childProcess.spawn(this.serviceBin, this.serviceActiveArgs);
+//                // store new pid
+//                this.servicePid = this.serviceProcess.pid;
+//                this.syncWorker.send({
+//                    type: 'resume',
+//                    data: null
+//                });
+//            },15000);
+//        },2500);        
+//    }
+//};
 
 WalletShellManager.prototype.notifyUpdate = function(msg){
     //log.warn(`in notifyUpdate ... calling updateUiState: ${msg.type}`);

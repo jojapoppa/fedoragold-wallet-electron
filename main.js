@@ -16,7 +16,7 @@ const config = require('./src/js/ws_config');
 const spawn = require('child_process').spawn;
 const exec = require('child_process').exec;
 const net = require('net');
-//const hypernal =  require('hypernal')();
+const hypernal = require('hypernal');
 const { autoUpdater } = require("electron-updater");
 const { setIntervalAsync } = require('set-interval-async/fixed');
 
@@ -68,8 +68,11 @@ app.foundLocalDaemonPort = 0;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
-let win = null;
+const sleepMils = (milliseconds) => {
+  return new Promise(resolve => setTimeout(resolve, milliseconds))
+}
 
+let win = null;
 function createWindow () {
     // Create the browser window.
     let darkmode = settings.get('darkmode', true);
@@ -130,7 +133,6 @@ function createWindow () {
 
     // show window
     win.once('ready-to-show', () => {
-        //win.show();
         win.setTitle(`${config.appDescription}`);
     });
 
@@ -270,75 +272,26 @@ daemonStatus = function(){
 terminateDaemon = function() {
     app.daemonLastPid = app.daemonPid;
     try{
-        log.warn(`terminate Daemon ${config.daemonBinaryFilename}`);
-        //this.daemonProcess.exit(0);
-        if (daemonStatus()) this.daemonProcess.kill('SIGTERM');
-        if (app.daemonPid) process.kill(app.daemonPid, 'SIGTERM');
+        if (daemonStatus()) this.daemonProcess.kill('SIGINT');
+        //if (daemonStatus()) this.daemonProcess.kill('SIGTERM');
+        //if (app.daemonPid) process.kill(app.daemonPid, 'SIGTERM');
     }catch(e){}
 
-    if (this.daemonProcess) {
-      log.warn(`SIGKILLing ${config.daemonBinaryFilename}`);
-      if (daemonStatus()) try{this.daemonProcess.kill('SIGKILL');}catch(err){}
-      if (app.daemonPid) try{process.kill(app.daemonPid, 'SIGKILL');}catch(err){}
-    }
+//    sleepMils(1000);
+//    if (this.daemonProcess) {
+//      log.warn(`SIGKILLing ${config.daemonBinaryFilename}`);
+//      if (daemonStatus()) try{this.daemonProcess.kill('SIGKILL');}catch(err){}
+//      if (app.daemonPid) try{process.kill(app.daemonPid, 'SIGKILL');}catch(err){}
+//    }
 
     this.daemonProcess = null;
     app.daemonPid = null;
 };
 
-var child;
-async function executeCLI2(cmd) {
-  log.warn(`Starting... ${cmd}`);
-  child = exec(cmd);
-  this.daemonProcess = child;
-  app.daemonPid = child.pid;
-
-  //this.daemonProcess.stdout.setEncoding('utf8');
-  return new Promise((resolve, reject) => {
-    child.stdout.on('data', (chunk) => {
-      if (win!=null && (typeof win.document !== 'undefined')) 
-        if (win.document.getElementById('section-settings')!=null) {
-          let dia = win.document.getElementById('section-settings');
-          dia.terminalOutput += convert.toHtml(data);
-
-          //hypernal.appendTo('#terminal');
-          //hypernal.write(chunk);
-        }
-
-      console.log(`${chunk}`);
-    });
-    child.on('close', function (err, data) {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(data);
-      }
-    });
-  });
-}
-
-async function executeCLI(cmd) {
-  log.warn("About to execute this: "+cmd);
-  var child = exec(cmd);
-  return new Promise((resolve, reject) => {
-    this.daemonProcess = child;
-    app.daemonPid = child.pid;
-
-    child.stdout.on('data', (data) => {
-      console.log(`${data}`);
-      //log.warn(data.toString());
-      process.stdin.pipe(child.stdin);
-    });
-
-    child.on('close', function (err, data) {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(data);
-      }
-    });
-  });
-}
+//process.on('unhandledRejection', error => {
+  // Will print "unhandledRejection err is not defined"
+  //console.log('unhandledRejection', error.message);
+//});
 
 function runDaemon() {
 
@@ -359,28 +312,51 @@ function runDaemon() {
     app.daemonConnectionAttempts = 0;
     require('events').EventEmitter.prototype._maxListeners = 100;
 
-    try{
+    let daemonArgs = [
+      '--rpc-bind-ip', '127.0.0.1',
+      '--rpc-bind-port', settings.get('daemon_port') 
+    ];
 
-        executeCLI(daemonPath+" --rpc-bind-ip=127.0.0.1 --rpc-bind-port="+settings.get('daemon_port'));
-          //if (win!=null) {
-            //log.warn(chunk.toString());
-            //hypernal.appendTo('#terminal');
-            //hypernal.write(data);
-            //dialog.terminalOutput += convert.toHtml(data);
-          //}
-        //});
-        //this.daemonProcess.stderr.on('data', function(data) {
-        //  if (win!=null) {
-        //    let dialog = win.document.getElementById('section-settings');
-        //    dialog.terminalOutput += convert.toHtml(data);
-        //  }
-        //});
+    try {
+      return new Promise(function(resolve, reject) {
+        var stdout = '', stderr = '';
+        this.daemonProcess = spawn(daemonPath, daemonArgs, 
+          {detached: true, stdio: 'inherit', encoding: 'utf-8'});
+        app.daemonPid = this.daemonProcess.pid;
 
-    }catch(e){
-        log.error(e.message);
+//        this.daemonProcess.stdout.write = function(s) {
+//        //stdout += s;
+//  if (win !== null)
+//  {
+//    hypernal.appendTo('#terminal');
+//    hypernal.write("TEST!");
+//  }
+//  for (var i; -1 !== (i = stdout.indexOf('\n')); stdout = stdout.slice(i + 1))
+//    console.log(stdout.slice(0, i));
+//        };
+
+        if (daemonStatus()) {
+          if (this.daemonProcess.stdout != null) 
+            this.daemonProcess.stdout.on('data', function(chunk) {
+              stdout += chunk;
+            });
+          if (this.daemonProcess.stderr != null) 
+            this.daemonProcess.stderr.on('data', function(chunk) {
+              stderr += chunk;
+            });
+//          this.daemonProcess.on('error', reject)
+//            .on('close', function(code) {
+//              if (code == 0) {
+//                resolve(stdout)
+//              } else {
+//                reject(stderr);
+//              }
+//            });
+        }
+      }); 
+    } catch(e) {
+      log.error(e.message);
     }
-
-    return true;
 }
 
 function resetDaemon() {

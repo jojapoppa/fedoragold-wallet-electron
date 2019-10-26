@@ -42,7 +42,7 @@ function triggerTxRefresh(){
 function updateSyncProgress(data){
     const iconSync = document.getElementById('navbar-icon-sync');
     let blockCount = data.displayBlockCount+1;
-    let daemonHeight = data.displayKnownBlockCount+1; // jojapoppa data.displayDaemonHeight+1;
+    let daemonHeight = data.displayDaemonHeight+1;
     let knownBlockCount = data.displayKnownBlockCount+1;
     let blockSyncPercent = data.syncPercent;
     let statusText = '';
@@ -138,32 +138,28 @@ function updateSyncProgress(data){
         wsession.set('syncStarted', true);
         statusText = `${blockCount}/${knownBlockCount}` ;
 
-        //if(blockCount+1 >= knownBlockCount && knownBlockCount !== 0) {
-        if(daemonHeight+1 >= knownBlockCount && knownBlockCount !== 0) {
-            // info bar class
-            syncDiv.classList = 'synced';
+            // note: don't call setProgressBar, or it really kills performance
+
+            syMsg = "daemon SYNCING ";
+            if (daemonHeight+2 >= knownBlockCount) {
+              syMsg = "SYNCED "
+              syncDiv.className = 'synced';
+              iconSync.setAttribute('data-icon', 'check');
+              iconSync.classList.remove('slow-spin');
+              // sync status sess flag
+              wsession.set('synchronized', true);
+            } else {
+              syncDiv.className = 'syncing';
+              iconSync.setAttribute('data-icon', 'sync');
+              iconSync.classList.remove('slow_spin');
+              iconSync.classList.add('slow-spin');
+              // sync status sess flag
+              wsession.set('synchronized', false);
+            }
+
             // status text
-            statusText = `SYNCED ${statusText}`;
+            statusText = `${syMsg} ${daemonHeight} : ${statusText} (${blockSyncPercent}%)`;
             syncInfoBar.textContent = statusText;
-            // status icon
-            iconSync.setAttribute('data-icon', 'check');
-            iconSync.classList.remove('slow-spin');
-            // sync status sess flag
-            wsession.set('synchronized', true);
-            // note: don't call setProgressBar here or it really kills performance
-         } else {
-             // info bar class
-            syncDiv.className = 'syncing';
-            // status text
-            statusText = `daemon SYNCING ${daemonHeight} : ${statusText} (${blockSyncPercent}%)`;
-            // keep for later: statusText = `SYNCING ${statusText} (${blockSyncPercent}%)`;
-            syncInfoBar.textContent = statusText;
-            // status icon
-            iconSync.setAttribute('data-icon', 'sync');
-            iconSync.classList.remove('slow_spin');
-            iconSync.classList.add('slow-spin');
-            // sync status sess flag
-            wsession.set('synchronized', false);
             let taskbarProgress = +(parseFloat(blockSyncPercent)/100).toFixed(2);
             if (blockSyncPercent === 0) {
               syncDiv.className = '';
@@ -176,7 +172,6 @@ function updateSyncProgress(data){
 	    } else {
               brwin.setProgressBar(taskbarProgress);
             }
-        }
 
         let connStatusText = ' '; //`Connected to: <strong>${wsession.get('connectedNode')}</strong>`;
         let connNodeFee = wsession.get('nodeFee');

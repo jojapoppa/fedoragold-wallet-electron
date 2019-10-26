@@ -37,8 +37,7 @@ config.remoteNodeListUpdateUrl = null;
 // fallback remote node list, in case fetching update failed, fill this with known to works remote nodes
 config.remoteNodeListFallback = [
     '18.223.178.174:30158', // seed1
-    '18.222.96.134:30158',  // seed2
-    '34.235.55.80:30158'    // goblin
+    '18.222.96.134:30158'   // seed2
 ];
 
 // your currency name

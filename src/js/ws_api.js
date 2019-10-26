@@ -17,8 +17,6 @@ class WalletShellApi {
 
         this.localDaemonSynced = args.localDaemonSynced || false;
         this.foundLocalDaemonPort = args.foundLocalDaemonPort || 0;
-        this.foundRemoteDaemonHost = args.foundRemoteDaemonHost || '';
-        this.foundRemoteDaemonPort = args.foundRemoteDaemonPort || 0;
     }
     _sendRequest(method, todaemon, params, timeout) {
         return new Promise((resolve, reject) => {
@@ -54,17 +52,6 @@ class WalletShellApi {
                     this.daemon_host = '127.0.0.1';
                     this.daemon_port = this.foundLocalDaemonPort;
                 }
-            } else if (this.foundRemoteDaemonPort > 0) {
-                log.warn('local daemon not synced... adjusting...');
-                if (this.daemon_port != this.foundRemoteDaemonPort) {
-                    this.daemon_host = this.foundRemoteDaemonHost;
-                    this.daemon_port = this.foundRemoteDaemonPort;
-                    log.warn('bind wallet to remote daemon at IP: ', this.daemon_host);
-                    bindDaemon(this.daemon_host, this.daemon_port); // async bind is okay here...
-                } else {
-                    this.daemon_host = this.foundRemoteDaemonHost;
-                    this.daemon_port = this.foundRemoteDaemonPort;
-                }
             }
 
             let s_uri = `http://${this.walletd_host}:${this.walletd_port}/json_rpc`;
@@ -89,7 +76,8 @@ class WalletShellApi {
             }).on('socket', function(socket){
                 socket.setTimeout(4000);
             }).on('error', function(e) {
-                log.warn('error on socket: ', e);  // just eat the error, don't throw or stop
+                // just eat the error, don't throw or stop
+                // log.warn('error on socket: ', e);
             }).then((res) => {
                 if (!res) return resolve(true);
                 if (!res.error) {
@@ -171,14 +159,27 @@ class WalletShellApi {
             });
         });
     }
-    save() {
+    getInfo() {
+        //let req_params = {};
         return new Promise((resolve, reject) => {
-            this._sendRequest('save', false, {}, 20000).then(() => {
-                return resolve();
+            this._sendRequest('getinfo', true).then((result) => {
+                return resolve(result);
             }).catch((err) => {
-                return reject(err);
-           });
+                // Just eat any errors...
+                //return reject(err);
+            });
         });
+    }
+    save() {
+    // commented out because it's unreliable, and unnecessary
+    // if the wallet exits cleanly, it happens anyway
+    //    return new Promise((resolve, reject) => {
+    //        this._sendRequest('save', false, {}, 20000).then(() => {
+    //            return resolve();
+    //        }).catch((err) => {
+    //            return reject(err);
+    //       });
+    //    });
     }
     getViewKey() {
         return new Promise((resolve, reject) => {

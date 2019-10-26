@@ -2,6 +2,7 @@ const {app, dialog, Tray, Menu} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
+const screen = require('screen');
 const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
 const request = require('request-promise-native');
@@ -12,9 +13,10 @@ const settings = new Store({name: 'Settings'});
 const log = require('electron-log');
 const splash = require('@trodi/electron-splashscreen');
 const config = require('./src/js/ws_config');
-const childDaemonProcess = require('child_process');
+const spawn = require('child_process').spawn;
 const exec = require('child_process').exec;
 const net = require('net');
+//const hypernal =  require('hypernal')();
 const { autoUpdater } = require("electron-updater");
 const { setIntervalAsync } = require('set-interval-async/fixed');
 
@@ -55,6 +57,7 @@ app.prompExit = true;
 app.prompShown = false;
 app.needToExit = false;
 app.setAppUserModelId(config.appId);
+app.fsync = null;
 
 app.daemonPid = null;
 app.daemonLastPid = null;
@@ -62,12 +65,10 @@ app.daemonConnectionAttempts = 0;
 app.localDaemonRunning = false;
 app.localDaemonSynced = false;
 app.foundLocalDaemonPort = 0;
-app.foundRemoteDaemonHost = '';
-app.foundRemoteDaemonPort = 0;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
-let win;
+let win = null;
 
 function createWindow () {
     // Create the browser window.
@@ -127,7 +128,7 @@ function createWindow () {
     // open devtools
     if(IS_DEV ) win.webContents.openDevTools();
 
-    // show windosw
+    // show window
     win.once('ready-to-show', () => {
         //win.show();
         win.setTitle(`${config.appDescription}`);
@@ -266,29 +267,78 @@ daemonStatus = function(){
     return  (undefined !== this.daemonProcess && null !== this.daemonProcess);
 };
 
-terminateDaemon = function(force) {
-
-    if(!daemonStatus()) return;
-    force = force || false;
-    let signal = force ? 'SIGKILL' : 'SIGTERM';
-
+terminateDaemon = function() {
     app.daemonLastPid = app.daemonPid;
     try{
-        this.daemonProcess.kill(signal);
-        if(app.daemonPid) process.kill(app.daemonPid, signal);
-    }catch(e){
-      if(!force && this.daemonProcess) {
-          log.debug(`SIGKILLing ${config.daemonBinaryFilename}`);
-          try{this.daemonProcess.kill('SIGKILL');}catch(err){}
-          if(app.daemonPid){
-              try{process.kill(app.daemonPid, 'SIGKILL');}catch(err){}
-          }
-      }
+        log.warn(`terminate Daemon ${config.daemonBinaryFilename}`);
+        //this.daemonProcess.exit(0);
+        if (daemonStatus()) this.daemonProcess.kill('SIGTERM');
+        if (app.daemonPid) process.kill(app.daemonPid, 'SIGTERM');
+    }catch(e){}
+
+    if (this.daemonProcess) {
+      log.warn(`SIGKILLing ${config.daemonBinaryFilename}`);
+      if (daemonStatus()) try{this.daemonProcess.kill('SIGKILL');}catch(err){}
+      if (app.daemonPid) try{process.kill(app.daemonPid, 'SIGKILL');}catch(err){}
     }
 
     this.daemonProcess = null;
     app.daemonPid = null;
 };
+
+var child;
+async function executeCLI2(cmd) {
+  log.warn(`Starting... ${cmd}`);
+  child = exec(cmd);
+  this.daemonProcess = child;
+  app.daemonPid = child.pid;
+
+  //this.daemonProcess.stdout.setEncoding('utf8');
+  return new Promise((resolve, reject) => {
+    child.stdout.on('data', (chunk) => {
+      if (win!=null && (typeof win.document !== 'undefined')) 
+        if (win.document.getElementById('section-settings')!=null) {
+          let dia = win.document.getElementById('section-settings');
+          dia.terminalOutput += convert.toHtml(data);
+
+          //hypernal.appendTo('#terminal');
+          //hypernal.write(chunk);
+        }
+
+      console.log(`${chunk}`);
+    });
+    child.on('close', function (err, data) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+}
+
+async function executeCLI(cmd) {
+  log.warn("About to execute this: "+cmd);
+  var child = exec(cmd);
+  return new Promise((resolve, reject) => {
+    this.daemonProcess = child;
+    app.daemonPid = child.pid;
+
+    child.stdout.on('data', (data) => {
+      console.log(`${data}`);
+      //log.warn(data.toString());
+      process.stdin.pipe(child.stdin);
+    });
+
+    child.on('close', function (err, data) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+}
 
 function runDaemon() {
 
@@ -305,19 +355,27 @@ function runDaemon() {
         return;
     }
 
-    let daemonArgs = [
-        '--log-level', 0,
-        '--rpc-bind-ip', '127.0.0.1',
-        '--rpc-bind-port', settings.get('daemon_port') 
-    ];
-
     try { this.daemonProcess.kill(); } catch(e) {} // just eat and ignore any errors
     app.daemonConnectionAttempts = 0;
-    log.info(`Starting daemon... ${daemonPath}`);
+    require('events').EventEmitter.prototype._maxListeners = 100;
 
     try{
-        this.daemonProcess = childDaemonProcess.spawn(daemonPath, daemonArgs);
-        app.daemonPid = this.daemonProcess.pid;
+
+        executeCLI(daemonPath+" --rpc-bind-ip=127.0.0.1 --rpc-bind-port="+settings.get('daemon_port'));
+          //if (win!=null) {
+            //log.warn(chunk.toString());
+            //hypernal.appendTo('#terminal');
+            //hypernal.write(data);
+            //dialog.terminalOutput += convert.toHtml(data);
+          //}
+        //});
+        //this.daemonProcess.stderr.on('data', function(data) {
+        //  if (win!=null) {
+        //    let dialog = win.document.getElementById('section-settings');
+        //    dialog.terminalOutput += convert.toHtml(data);
+        //  }
+        //});
+
     }catch(e){
         log.error(e.message);
     }
@@ -395,6 +453,7 @@ const checkSyncTimer = setIntervalAsync(() => {
     }
 }, 20000);
 
+/*
 const checkFallback = setIntervalAsync(() => {
     var myAgent = new http.Agent({
         keepAlive: true,
@@ -416,8 +475,6 @@ const checkFallback = setIntervalAsync(() => {
         var client = net.connect(remoteDaemonNode.substring(locat+1),remoteDaemonNode.substring(0, locat),
           function() { 
             client.end();
-            app.foundRemoteDaemonHost = remoteDaemonNode.substring(0, locat);
-            app.foundRemoteDaemonPort = remoteDaemonNode.substring(locat+1);
             //log.warn('found fallback daemon at: ', app.foundRemoteDaemonHost);
           });
         client.on('error', function(error) {
@@ -426,6 +483,7 @@ const checkFallback = setIntervalAsync(() => {
     } catch (e) {} // just eat any errors, so that the previous good daemon HostIP is retained...
 
 }, 30000);
+*/
 
 function initSettings(){
     Object.keys(DEFAULT_SETTINGS).forEach((k) => {
@@ -514,7 +572,7 @@ process.on('beforeExit', (code) => {
 });
 
 process.on('exit', (code) => {
-    terminateDaemon(false);
+    terminateDaemon();
     log.debug(`exit with code: ${code}`);
 });
 

@@ -9,6 +9,7 @@ log.transports.file.level = 'debug';
 
 const CHECK_INTERVAL = 500;
 var heightVal = 0;
+var knownBlockCount = 0;
 var LAST_HEIGHTVAL = 1;
 var LAST_BLOCK_COUNT = 1;
 var LAST_KNOWN_BLOCK_COUNT = 1;
@@ -77,20 +78,32 @@ function checkBlockUpdate(){
             return false;
         }
 
+        // only contact the daemon for the known block height
+        // after walletd has been started cleanly... that's
+        // why the call is embedded here...
+        //wsapi.getInfo().then((infoStatus) => {
+        //let kbc = parseInt(infoStatus.last_known_block_index, 10);
+        //  if (kbc >= 1) {
+        //    knownBlockCount = kbc;
+        //  }
+        //});
+
         // we have good connection
         STATE_CONNECTED = true;
         let blockCount = parseInt(blockStatus.blockCount,10);
         //log.warn("blockCount: "+blockCount);
-        let knownBlockCount = parseInt(blockStatus.knownBlockCount, 10);
+
+        // if the daemon isn't reporting total blockheight yet, use walletd
+        if (knownBlockCount <= 1) {
+          knownBlockCount = parseInt(blockStatus.knownBlockCount, 10);
+        }
+
         //log.warn("knownBlockCount: "+knownBlockCount);
-        if(heightVal <= LAST_HEIGHTVAL && blockCount <= LAST_BLOCK_COUNT && knownBlockCount <= LAST_KNOWN_BLOCK_COUNT && TX_SKIPPED_COUNT < 10){
+        if (LAST_HEIGHTVAL+2 >= heightVal) {
             logDebug(`checkBlockUpdate: no update, skip block notifier (${TX_SKIPPED_COUNT})`);
-            TX_SKIPPED_COUNT += 1;
             return false;
         }
-        TX_SKIPPED_COUNT = 0;
         logDebug('checkBlockUpdate: block updated, notify block update');
-        let txcheck = (LAST_KNOWN_BLOCK_COUNT < knownBlockCount || LAST_BLOCK_COUNT < knownBlockCount);
         LAST_HEIGHTVAL = heightVal;
         LAST_BLOCK_COUNT = blockCount;
         LAST_KNOWN_BLOCK_COUNT = knownBlockCount;
@@ -98,16 +111,13 @@ function checkBlockUpdate(){
         // add any extras here, so renderer is not doing too many things
         let dispKnownBlockCount = (knownBlockCount-1);
         let dispBlockCount = (blockCount > dispKnownBlockCount ? dispKnownBlockCount : blockCount);
-
         let syncPercent = 0;
         if (heightVal < (dispKnownBlockCount-2)) {
             syncPercent = ((heightVal / dispKnownBlockCount) * 100);
-            dispBlockCount = heightVal;
         }
         else {
             syncPercent = ((dispBlockCount / dispKnownBlockCount) * 100);
         }
-
         if(syncPercent <=0 || syncPercent >= 99.995){
             syncPercent = 100;
         }else{
@@ -115,34 +125,15 @@ function checkBlockUpdate(){
         }
 
         blockStatus.displayDaemonHeight = heightVal;
-        blockStatus.displayBlockCount = dispBlockCount;
-        blockStatus.displayKnownBlockCount = dispKnownBlockCount;
+        blockStatus.displayBlockCount = blockCount;
+        blockStatus.displayKnownBlockCount = knownBlockCount;
         blockStatus.syncPercent = syncPercent;
         process.send({
             type: 'blockUpdated',
             data: blockStatus
         });
 
-        // don't check if we can't get any block
-        if(LAST_BLOCK_COUNT <= 1) return false;
-
-        // don't check tx if block count not updated
-        if(!txcheck && TX_CHECK_STARTED){
-            logDebug('checkBlockUpdate: Tx check skipped');
-            return false;
-        }
-
         checkTransactionsUpdate();
-
-        // don't save wallet if it's he daemon that's syncing
-        if (heightVal < dispKnownBlockCount) {
-            return false;
-        }
-
-        // don't keep saving wallet if walletd is already synched
-        if (dispBlockCount >= dispKnownBlockCount) {
-            return false;
-        }
     }).catch((err) => {
         logDebug(`checkBlockUpdate: FAILED, ${err.message}`);
         return false;
@@ -257,8 +248,10 @@ function workOnTasks(){
         });
 
         let isWalletdSynching = checkBlockUpdate();
-        if(SAVE_COUNTER > 250 && isWalletdSynching){
-            saveWallet();
+        if(SAVE_COUNTER > 500 && isWalletdSynching){
+            // This may not be useful anyway, as daemon
+            // keeps track of progress on a clean exit anyways
+            //saveWallet();
             SAVE_COUNTER = 0;
         }
         SAVE_COUNTER++;

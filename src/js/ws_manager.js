@@ -72,8 +72,6 @@ WalletShellManager.prototype.init = function(){
         walletd_password: this.walletdPassword,
         localDaemonSynced: remote.app.localDaemonSynced,
         foundLocalDaemonPort: remote.app.foundLocalDaemonPort,
-        foundRemoteDaemonHost: remote.app.foundRemoteDaemonHost,
-        foundRemoteDaemonPort: remote.app.foundRemoteDaemonPort
     };
     this.serviceApi = new WalletShellApi(cfg);
 };
@@ -223,25 +221,10 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         //'--enable-cors', '*',
         ]);
 
-    if (remote.app.localDaemonSynced) {
-          //log.warn('localDaemonSynced for starting walletd.');
-          serviceArgs = serviceArgs.concat([
-            '--daemon-address', '127.0.0.1',
-            '--daemon-port', remote.app.foundLocalDaemonPort
-          ]);
-    } else if (remote.app.foundRemoteDaemonPort > 0) {
-          //log.warn('foundRemoteDaemonPort for starting walletd.');
-          serviceArgs = serviceArgs.concat([
-            '--daemon-address', remote.app.foundRemoteDaemonHost,
-            '--daemon-port', remote.app.foundRemoteDaemonPort
-          ]);
-   } else {
-          //log.warn('default args... starting walletd');
-          serviceArgs = serviceArgs.concat([
-            '--daemon-address', this.daemonHost,
-            '--daemon-port', this.daemonPort
-          ]);
-    }
+        serviceArgs = serviceArgs.concat([
+          '--daemon-address', '127.0.0.1',
+          '--daemon-port', remote.app.foundLocalDaemonPort
+        ]);
 
     if(SERVICE_LOG_LEVEL > 0) {
         serviceArgs.push('--log-file');
@@ -250,30 +233,8 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
 
     //log.warn('Starting walletd with: ',serviceArgs);
 
-    let configFile = wsession.get('walletConfig', null);
-    if(configFile){
-        // jojappoppa, changed so that config file is always the same format
-        //let configFormat = settings.get('service_config_format','ini');
-        let configFormat = 'ini';
-
-        if(configFormat === 'json'){
-            // jojapoppa, changed this because had different config params for exe, when type is json
-            childProcess.execFile(this.serviceBin, serviceArgs.concat(['--config', configFile]), (error) => {
-                if(error) configFile = null;
-            });
-        }else{
-            let newConfig = this._argsToIni(serviceArgs);
-            configFile = this._writeIniConfig(newConfig);
-        }
-        serviceArgs = ['--config', configFile];
-    }else{
-        log.warn('Failed to create config file, fallback to cmd args ');
-    }
-
-    //confirm("serviceArgs: "+serviceArgs);
-
     let wsm = this;
-    log.debug('Starting service...');
+    log.warn('Starting walletd service...');
     try{
         this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs);
         this.servicePid = this.serviceProcess.pid;
@@ -304,7 +265,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     let MAX_CHECK = 48;
     function testConnection(retry){
         wsm.serviceApi.getAddress().then((address) => {
-            log.debug('Got an address, connection ok!');
+            log.warn('Got an address, connection ok!');
             if(!TEST_OK){
                 wsm.serviceActiveArgs = serviceArgs;
                 // update session
@@ -323,7 +284,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
             }
             return true;
         }).catch((err) => {
-            log.debug('Connection failed or timedout');
+            //log.debug('Walletd connection failed or timedout');
             if(retry === 10 && onDelay) onDelay(`Still no response from ${config.walletServiceBinaryFilename}, please wait a few more seconds...`);
             if(retry >= MAX_CHECK && !TEST_OK){
                 if(wsm.serviceStatus()){

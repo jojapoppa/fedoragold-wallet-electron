@@ -689,7 +689,7 @@ function showInitialPage(){
     initAddressCompletion();
 
     if(!settings.has('firstRun') || settings.get('firstRun') !== 0){
-        changeSection('section-settings');
+        changeSection('section-welcome'); //settings');
         settings.set('firstRun', 0);
     }else{
         changeSection('section-welcome');

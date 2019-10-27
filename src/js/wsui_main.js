@@ -15,6 +15,7 @@ const wsutil = require('./ws_utils');
 const WalletShellSession = require('./ws_session');
 const WalletShellManager = require('./ws_manager');
 const config = require('./ws_config');
+const AnsiUp = require('ansi_up');
 //const async = require('async');
 const wsmanager = new WalletShellManager();
 const wsession = new WalletShellSession();
@@ -122,6 +123,7 @@ let thtml;
 let kswitch;
 
 function populateElementVars(){
+
     // misc
     thtml = document.documentElement;
     //dmswitch = document.getElementById('tswitch');
@@ -726,7 +728,7 @@ function handleSettings(){
         };
 
         initSettingVal(vals);
-        remote.app.checkUpdateConfig(); // re-check config format
+        //remote.app.checkUpdateConfig(); // re-check config format
         formMessageReset();
         initNodeCompletion();
         let goTo = wsession.get('loadedWalletAddress').length ? 'section-overview' : 'section-welcome';
@@ -2248,6 +2250,14 @@ document.addEventListener('DOMContentLoaded', () => {
     showInitialPage();
     initKeyBindings();
 }, false);
+
+ipcRenderer.on('console', (event,sChunk) => {
+    //log.warn("in console: "+sChunk);
+    var ansi_up = new AnsiUp.default;
+    var html = ansi_up.ansi_to_html(sChunk,toString());
+    var el = document.getElementById("terminal");
+    el.innerHTML += html;
+});
 
 ipcRenderer.on('cleanup', () => {
     if(!win.isVisible()) win.show();

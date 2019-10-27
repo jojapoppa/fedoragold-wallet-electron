@@ -16,7 +16,6 @@ const config = require('./src/js/ws_config');
 const spawn = require('child_process').spawn;
 const exec = require('child_process').exec;
 const net = require('net');
-const hypernal = require('hypernal');
 const { autoUpdater } = require("electron-updater");
 const { setIntervalAsync } = require('set-interval-async/fixed');
 
@@ -293,18 +292,6 @@ terminateDaemon = function() {
   //console.log('unhandledRejection', error.message);
 //});
 
-//        this.daemonProcess.stdout.write = function(s) {
-//        //stdout += s;
-//  if (win !== null)
-//  {
-//    hypernal.appendTo('#terminal');
-//    hypernal.write("TEST!");
-//  }
-//  for (var i; -1 !== (i = stdout.indexOf('\n')); stdout = stdout.slice(i + 1))
-//    console.log(stdout.slice(0, i));
-//        };
-
-
 function runDaemon() {
 
     var daemonPath;
@@ -329,22 +316,28 @@ function runDaemon() {
       '--rpc-bind-port', settings.get('daemon_port') 
     ];
 
-    //try {
-    //  return new Promise(function(resolve, reject) {
+    try {
+      return new Promise(function(resolve, reject) {
         this.daemonProcess = spawn(daemonPath, daemonArgs, 
           {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
         app.daemonPid = this.daemonProcess.pid;
 
         this.daemonProcess.stdout.on('data', function(chunk) {
-          console.log(chunk.toString());
+          if (win !== null) {
+            //console.log(chunk.toString());
+            win.webContents.send('console',chunk.toString());
+          }
         });
         this.daemonProcess.stderr.on('data', function(chunk) {
-          console.log(chunk.toString());
+          if (win !== null) {
+            //console.log(chunk.toString());
+            win.webContents.send('console',chunk.toString());
+          }
         });
-    //  }); 
-    //} catch(e) {
-    //  log.error(e.message);
-    //}
+      }); 
+    } catch(e) {
+      log.error(e.message);
+    }
 }
 
 function resetDaemon() {

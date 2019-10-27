@@ -229,17 +229,10 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
           '--daemon-port', settings.get('daemon_port')
         ]);
 
-    log.warn("Walletd is binding daemon on port: "+settings.get('daemon_port'));
-
-    //if(SERVICE_LOG_LEVEL > 0) {
-    //    serviceArgs.push('--log-file');
-    //    serviceArgs.push(logFile(walletFile));
-    //}
-
-    //log.warn('Starting walletd with: ',serviceArgs);
-
     let wsm = this;
-    log.warn('Starting walletd service...');
+    log.warn("Walletd is binding daemon on port: "+settings.get('daemon_port'));
+    log.warn("Starting walletd service on port: "+settings.get('daemon_port'));
+
     try{
         this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs, {detached: true, stdio: "inherit"});
         this.servicePid = this.serviceProcess.pid;

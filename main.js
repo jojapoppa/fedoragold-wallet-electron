@@ -293,6 +293,18 @@ terminateDaemon = function() {
   //console.log('unhandledRejection', error.message);
 //});
 
+//        this.daemonProcess.stdout.write = function(s) {
+//        //stdout += s;
+//  if (win !== null)
+//  {
+//    hypernal.appendTo('#terminal');
+//    hypernal.write("TEST!");
+//  }
+//  for (var i; -1 !== (i = stdout.indexOf('\n')); stdout = stdout.slice(i + 1))
+//    console.log(stdout.slice(0, i));
+//        };
+
+
 function runDaemon() {
 
     var daemonPath;
@@ -317,46 +329,22 @@ function runDaemon() {
       '--rpc-bind-port', settings.get('daemon_port') 
     ];
 
-    try {
-      return new Promise(function(resolve, reject) {
-        var stdout = '', stderr = '';
+    //try {
+    //  return new Promise(function(resolve, reject) {
         this.daemonProcess = spawn(daemonPath, daemonArgs, 
-          {detached: true, stdio: 'inherit', encoding: 'utf-8'});
+          {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
         app.daemonPid = this.daemonProcess.pid;
 
-//        this.daemonProcess.stdout.write = function(s) {
-//        //stdout += s;
-//  if (win !== null)
-//  {
-//    hypernal.appendTo('#terminal');
-//    hypernal.write("TEST!");
-//  }
-//  for (var i; -1 !== (i = stdout.indexOf('\n')); stdout = stdout.slice(i + 1))
-//    console.log(stdout.slice(0, i));
-//        };
-
-        if (daemonStatus()) {
-          if (this.daemonProcess.stdout != null) 
-            this.daemonProcess.stdout.on('data', function(chunk) {
-              stdout += chunk;
-            });
-          if (this.daemonProcess.stderr != null) 
-            this.daemonProcess.stderr.on('data', function(chunk) {
-              stderr += chunk;
-            });
-//          this.daemonProcess.on('error', reject)
-//            .on('close', function(code) {
-//              if (code == 0) {
-//                resolve(stdout)
-//              } else {
-//                reject(stderr);
-//              }
-//            });
-        }
-      }); 
-    } catch(e) {
-      log.error(e.message);
-    }
+        this.daemonProcess.stdout.on('data', function(chunk) {
+          console.log(chunk.toString());
+        });
+        this.daemonProcess.stderr.on('data', function(chunk) {
+          console.log(chunk.toString());
+        });
+    //  }); 
+    //} catch(e) {
+    //  log.error(e.message);
+    //}
 }
 
 function resetDaemon() {

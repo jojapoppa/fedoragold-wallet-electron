@@ -43,24 +43,28 @@ function initApi(cfg){
 }
 
 function checkBlockUpdate(){
-    if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) return false;
+    logDebug("checkBlockUpdate() called...");
+
+    if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) {
+      logDebug('invalid State'); 
+      return false;
+    }
     if(STATE_PENDING_SAVE && (PENDING_SAVE_SKIP_COUNTER < PENDING_SAVE_SKIP_MAX)){
-        PENDING_SAVE_SKIP_COUNTER += 1;
         logDebug('checkBlockUpdate: there is pending saveWallet, delaying block update check');
+        PENDING_SAVE_SKIP_COUNTER += 1;
         return false;
     }
 
     PENDING_SAVE_SKIP_COUNTER = 0;
-    logDebug('checkBlockUpdate: fetching block update');
     //let svc = new WalletShellApi(SERVICE_CFG);
 
     wsapi.getStatus().then((blockStatus) => {
         STATE_PENDING_SAVE = false;
         let lastConStatus = STATE_CONNECTED;
 
-        let conFailed  = parseInt(blockStatus.knownBlockCount, 10) === 1;
-        if(conFailed){
-            logDebug('checkBlockUpdate: Got bad known block count, mark connection as broken');
+        let kbcReturn = parseInt(blockStatus.knownBlockCount, 10);
+        if (kbcReturn < 100) {
+            log.warn('checkBlockUpdate: Got bad known block count, mark connection as broken');
             if(lastConStatus !== conFailed){
                 let fakeStatus = {
                     blockCount: -200,
@@ -75,32 +79,23 @@ function checkBlockUpdate(){
                 });
             }
             STATE_CONNECTED = false;
+            logDebug("STATE_CONNECTED == false!");
             return false;
+        } else {
+          knownBlockCount = kbcReturn;
         }
 
-        // only contact the daemon for the known block height
-        // after walletd has been started cleanly... that's
-        // why the call is embedded here...
-        //wsapi.getInfo().then((infoStatus) => {
-        //let kbc = parseInt(infoStatus.last_known_block_index, 10);
-        //  if (kbc >= 1) {
-        //    knownBlockCount = kbc;
-        //  }
-        //});
+        logDebug("good connection...");
 
         // we have good connection
         STATE_CONNECTED = true;
         let blockCount = parseInt(blockStatus.blockCount,10);
-        //log.warn("blockCount: "+blockCount);
 
-        // if the daemon isn't reporting total blockheight yet, use walletd
-        if (knownBlockCount <= 1) {
-          knownBlockCount = parseInt(blockStatus.knownBlockCount, 10);
-        }
+        logDebug("blockCount reported: "+blockCount);
+        logDebug("knownBlockCount reported: "+knownBlockCount);
 
-        //log.warn("knownBlockCount: "+knownBlockCount);
         if (LAST_HEIGHTVAL+2 >= heightVal) {
-            logDebug(`checkBlockUpdate: no update, skip block notifier (${TX_SKIPPED_COUNT})`);
+            logDebug(`checkBlockUpdate: no update`); //, skip block notifier (${TX_SKIPPED_COUNT})`);
             return false;
         }
         logDebug('checkBlockUpdate: block updated, notify block update');
@@ -124,6 +119,8 @@ function checkBlockUpdate(){
             syncPercent = syncPercent.toFixed(2);
         }
 
+        logDebug("sending height value: "+heightVal);
+
         blockStatus.displayDaemonHeight = heightVal;
         blockStatus.displayBlockCount = blockCount;
         blockStatus.displayKnownBlockCount = knownBlockCount;
@@ -135,9 +132,11 @@ function checkBlockUpdate(){
 
         checkTransactionsUpdate();
     }).catch((err) => {
-        logDebug(`checkBlockUpdate: FAILED, ${err.message}`);
+        log.warn(`checkBlockUpdate: FAILED, ${err.message}`);
         return false;
     });
+
+    logDebug("returning from checkBlockUpdate");
 
     // isWalletdSynching
     return true;
@@ -147,7 +146,7 @@ function checkBlockUpdate(){
 function checkTransactionsUpdate(){
     if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) return;
 
-    //log.warn("checkTransactionsUpdate()");
+    logDebug("checkTransactionsUpdate()");
     wsapi.getBalance().then((balance)=> {
             STATE_PENDING_SAVE = false;
             process.send({
@@ -214,16 +213,17 @@ function saveWallet(){
         return false;
     }
     STATE_SAVING = true;
-    logDebug(`saveWallet: trying to save wallet`);
+    //log.warn(`saveWallet: trying to save wallet`);
 
     setTimeout(() => {
         wsapi.save().then(()=> {
-            logDebug(`saveWallet: OK`);
+            //log.warn(`saveWallet: OK`);
             STATE_SAVING = false;
             STATE_PENDING_SAVE = false;
             return true;
         }).catch((err)=>{
             STATE_PENDING_SAVE = true;
+            //log.warn("saveWallet error...");
             log.warn(`saveWallet: FAILED, ${err.message}`);
             delayReleaseSaveState();
             return false;
@@ -236,25 +236,30 @@ function saveWallet(){
 function workOnTasks(){
     taskWorker = setIntervalAsync(() => {
         if(STATE_PAUSED) return;
-        logDebug(`Running wallet synchronization tasks`);
 
         // get block height of the daemon fullnode
         wsapi.getHeight().then((result) => {
             heightVal = parseInt(result.height, 10);
-            //log.warn(`heightVal: ${heightVal}`);
+            //log.warn(`new heightVal: ${heightVal}`);
+
+            let isWalletdSynching = checkBlockUpdate();
+            if (isWalletdSynching)
+              logDebug("walletd is synching...");
+            else
+              logDebug("checkBlockUpdate() reported an error...");
         }).catch((err) => {
-            logDebug(`getHeight from Daemon: FAILED, ${err.message}`);
-            return;
+            //just eat this... sometimes daemon takes a while to start...
+            //log.warn(`getHeight from Daemon: FAILED, ${err.message}`);
         });
 
-        let isWalletdSynching = checkBlockUpdate();
-        if(SAVE_COUNTER > 500 && isWalletdSynching){
+        // no more saving wallet for no reason...
+        //if(SAVE_COUNTER > 500 && isWalletdSynching){
             // This may not be useful anyway, as daemon
             // keeps track of progress on a clean exit anyways
             //saveWallet();
-            SAVE_COUNTER = 0;
-        }
-        SAVE_COUNTER++;
+            //SAVE_COUNTER = 0;
+        //}
+        //SAVE_COUNTER++;
     }, CHECK_INTERVAL);
 }
 
@@ -335,7 +340,8 @@ process.on('message', (msg) => {
         case 'stop':
             logDebug('Got stop command, halting all tasks and exit...');
             TX_SKIPPED_COUNT = 0;
-            SERVICE_CFG = wsapi = null;
+            SERVICE_CFG = null;
+            wsapi = null;
             if(taskWorker === undefined || taskWorker === null){
                 try{
                     clearInterval(taskWorker);

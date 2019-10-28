@@ -171,15 +171,13 @@ class WalletShellApi {
         });
     }
     save() {
-    // commented out because it's unreliable, and unnecessary
-    // if the wallet exits cleanly, it happens anyway
-    //    return new Promise((resolve, reject) => {
-    //        this._sendRequest('save', false, {}, 20000).then(() => {
-    //            return resolve();
-    //        }).catch((err) => {
-    //            return reject(err);
-    //       });
-    //    });
+        return new Promise((resolve, reject) => {
+            this._sendRequest('save', false, {}, 20000).then(() => {
+                return resolve();
+            }).catch((err) => {
+                return reject(err);
+           });
+        });
     }
     getViewKey() {
         return new Promise((resolve, reject) => {
@@ -296,6 +294,7 @@ class WalletShellApi {
         });
     }
     reset(params) {
+        log.warn("sending api reset to walletd...");
         return new Promise((resolve, reject) => {
             params = params || {};
             //params.viewSecretKey = params.viewSecretKey || false;

@@ -47,6 +47,8 @@ function updateSyncProgress(data){
     let blockSyncPercent = data.syncPercent;
     let statusText = '';
 
+    //log.warn("Updating GUI height at: "+daemonHeight);
+
     // Sanity check on spurious values at start/restart of syncs
     if (knownBlockCount < 0 || daemonHeight < 0 || blockCount < 0) {
         knownBlockCount = 0;

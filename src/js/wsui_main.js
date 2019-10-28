@@ -1812,6 +1812,7 @@ function handleTransactions(){
     });
 
     txButtonReset.addEventListener('click', () => {
+        log.warn("walletd reset() function called...");
         wsmanager.reset();
         listTransactions();
     });
@@ -2252,11 +2253,35 @@ document.addEventListener('DOMContentLoaded', () => {
 }, false);
 
 ipcRenderer.on('console', (event,sChunk) => {
-    //log.warn("in console: "+sChunk);
     var ansi_up = new AnsiUp.default;
-    var html = ansi_up.ansi_to_html(sChunk,toString());
     var el = document.getElementById("terminal");
-    el.innerHTML += html;
+
+    var buffer = "";
+    var buffin = el.innerHTML + ansi_up.ansi_to_html(sChunk);
+
+    for (i=0; i<buffin.length; i++) {
+      ch = buffin.charCodeAt(i);
+      if (ch == 10) {
+        buffer += "<br/>";
+      } else {
+        if (ch != 13)
+          buffer += String.fromCharCode(ch);
+      }
+    }
+
+    outlen = 0;
+    var lastline = "";
+    var updatedText = "";
+    var lines = buffer.split(/<br\/>|<br>|<br \/>/g);
+    for (i=lines.length-1; (i>0) && (outlen < 1000); i--) {
+      var thisline = lines[i].trim();
+      if (thisline.length > 0) {
+        updatedText = thisline + "<br/>" + updatedText;
+        outlen++;
+      }
+    }
+
+    el.innerHTML = updatedText;
 });
 
 ipcRenderer.on('cleanup', () => {

@@ -324,14 +324,12 @@ function runDaemon() {
 
         this.daemonProcess.stdout.on('data', function(chunk) {
           if (win !== null) {
-            //console.log(chunk.toString());
-            win.webContents.send('console',chunk.toString());
+            win.webContents.send('console',chunk);
           }
         });
         this.daemonProcess.stderr.on('data', function(chunk) {
           if (win !== null) {
-            //console.log(chunk.toString());
-            win.webContents.send('console',chunk.toString());
+            win.webContents.send('console',chunk);
           }
         });
       }); 

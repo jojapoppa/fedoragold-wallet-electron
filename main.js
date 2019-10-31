@@ -64,6 +64,8 @@ app.daemonConnectionAttempts = 0;
 app.localDaemonRunning = false;
 app.localDaemonSynced = false;
 app.foundLocalDaemonPort = 0;
+app.chunkBuf = '';
+app.timeStamp = 0;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
@@ -133,6 +135,7 @@ function createWindow () {
     // show window
     win.once('ready-to-show', () => {
         win.setTitle(`${config.appDescription}`);
+        app.timeStamp = Math.floor(Date.now());
     });
 
     win.on('close', (e) => {
@@ -323,8 +326,14 @@ function runDaemon() {
         app.daemonPid = this.daemonProcess.pid;
 
         this.daemonProcess.stdout.on('data', function(chunk) {
-          if (win !== null) {
-            win.webContents.send('console',chunk);
+          app.chunkBuf += chunk;
+
+          // At most every quarter of a second, don't overwhelm js buffer
+          var newTimeStamp = Math.floor(Date.now());
+          if ((win !== null) && ((newTimeStamp-app.timeStamp) > 250)) {
+            app.timeStamp = newTimeStamp;
+            win.webContents.send('console', app.chunkBuf);
+            app.chunkBuf = '';
           }
         });
         this.daemonProcess.stderr.on('data', function(chunk) {

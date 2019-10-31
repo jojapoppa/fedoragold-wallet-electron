@@ -220,8 +220,11 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--bind-address', '127.0.0.1',
         '--bind-port', this.walletdPort,
         '--log-level', 2
-        //'--enable-cors', '*',
         ]);
+
+        //'--rpc-user', 'admin',
+        //'--rpc-password', password
+        //'--enable-cors', '*',
 
         //remote.app.foundLocalDaemonPort
         serviceArgs = serviceArgs.concat([
@@ -234,15 +237,16 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     log.warn("Starting walletd service on port: "+settings.get('daemon_port'));
 
     try{
-        this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs, {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
+        this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs);
+          // , {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
         this.servicePid = this.serviceProcess.pid;
 
-        this.serviceProcess.stdout.on('data', function(chunk) {
-          log.warn(chunk.toString());
-        });
-        this.serviceProcess.stderr.on('data', function(chunk) {
-          log.warn(chunk.toString());
-        });
+        //this.serviceProcess.stdout.on('data', function(chunk) {
+        //  log.warn(chunk.toString());
+        //});
+        //this.serviceProcess.stderr.on('data', function(chunk) {
+        //  log.warn(chunk.toString());
+        //});
     }catch(e){
         if(onError) onError(ERROR_WALLET_EXEC);
         log.error(`${config.walletServiceBinaryFilename} is not running`);

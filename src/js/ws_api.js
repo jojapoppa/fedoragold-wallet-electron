@@ -12,12 +12,13 @@ class WalletShellApi {
         this.walletd_host = args.walletd_host || '127.0.0.1';
         this.walletd_port = args.walletd_port || config.walletServiceRpcPort;
         this.walletd_password = args.walletd_password || "WHATEVER1234567891";
-        this.minimum_fee = (args.minimum_fee !== undefined) ? args.minimum_fee : (config.minimumFee*config.decimalDivisor);
+        this.minimum_fee = (args.minimum_fee !== undefined) ? args.minimum_fee : 
+          (config.minimumFee*config.decimalDivisor);
         this.anonimity = config.defaultMixin;
 
         this.localDaemonSynced = args.localDaemonSynced || false;
-        //this.foundLocalDaemonPort = args.foundLocalDaemonPort || 0;
     }
+
     _sendRequest(method, todaemon, params, timeout) {
         return new Promise((resolve, reject) => {
             if (method.length === 0) return reject(new Error('Invalid Method'));

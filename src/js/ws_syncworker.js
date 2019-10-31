@@ -64,23 +64,26 @@ function checkBlockUpdate(){
 
         let kbcReturn = parseInt(blockStatus.knownBlockCount, 10);
         if (kbcReturn < 100) {
-            log.warn('checkBlockUpdate: Got bad known block count, mark connection as broken');
-            if(lastConStatus !== conFailed){
-                let fakeStatus = {
-                    blockCount: -200,
-                    knownBlockCount: -200,
-                    displayBlockCount: -200,
-                    displayKnownBlockCount: -200,
-                    syncPercent: -200
-                };
-                process.send({
-                    type: 'blockUpdated',
-                    data: fakeStatus
-                });
-            }
-            STATE_CONNECTED = false;
-            logDebug("STATE_CONNECTED == false!");
-            return false;
+
+          // just eat this message, as connections with daemon can be intermittent
+          //log.warn('checkBlockUpdate: Bad known block count, mark connection as broken');
+          if (lastConStatus !== conFailed) {
+            let fakeStatus = {
+              blockCount: -200,
+              knownBlockCount: -200,
+              displayBlockCount: -200,
+              displayKnownBlockCount: -200,
+              syncPercent: -200
+            };
+            process.send({
+              type: 'blockUpdated',
+              data: fakeStatus
+            });
+          }
+
+          STATE_CONNECTED = false;
+          logDebug("STATE_CONNECTED == false!");
+          return false;
         } else {
           knownBlockCount = kbcReturn;
         }
@@ -132,7 +135,8 @@ function checkBlockUpdate(){
 
         checkTransactionsUpdate();
     }).catch((err) => {
-        log.warn(`checkBlockUpdate: FAILED, ${err.message}`);
+        // just eat this as the connection with Daemon can be intermittent
+        //log.warn(`checkBlockUpdate: FAILED, ${err.message}`);
         return false;
     });
 

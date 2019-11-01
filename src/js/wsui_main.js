@@ -2284,7 +2284,20 @@ ipcRenderer.on('console', (event,sChunk) => {
     el.innerHTML = updatedText;
 });
 
-ipcRenderer.on('cleanup', () => {
+ipcRenderer.on('promptexit', () => {
+
+    if(remote.app.prompShown) return;
+    let msg = 'Are you sure, want to exit?';
+    remote.app.prompShown = true;
+    reslt = confirm(msg);
+    remote.app.prompShown = false;
+
+    if (reslt == true) {
+      remote.app.prompExit = false;
+    } else {
+      return;
+    }
+
     if(!win.isVisible()) win.show();
     if(win.isMinimized()) win.restore();
 
@@ -2299,6 +2312,7 @@ ipcRenderer.on('cleanup', () => {
     let htmlStr = `<div class="div-save-main" style="text-align: center;padding:1rem;"><i class="fas fa-spinner fa-pulse"></i><span style="padding:0px 10px;">${htmlText}</span></div>`;
     dialog.innerHTML = htmlStr;
     dialog.showModal();
+
     wsmanager.stopSyncWorker();
     wsmanager.stopService().then(() => {
         setTimeout(function(){

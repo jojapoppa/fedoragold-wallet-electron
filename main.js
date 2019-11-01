@@ -27,7 +27,7 @@ log.transports.console.level = LOG_LEVEL;
 log.transports.file.level = LOG_LEVEL;
 log.transports.file.maxSize = 5 * 1024 * 1024;
 
-const WALLETSHELL_VERSION = app.getVersion() || '0.3.6';
+const WALLETSHELL_VERSION = app.getVersion() || '0.0.0';
 
 // the os modules platform() call returns win32 even for 64 bit systems... so the "win32" stuff below is fine...
 const SERVICE_FILENAME =  (platform === 'win32' ? `${config.walletServiceBinaryFilename}.exe` : config.walletServiceBinaryFilename );
@@ -51,21 +51,18 @@ const DEFAULT_SETTINGS = {
 };
 const DEFAULT_SIZE = { width: 840, height: 695 };
 
-app.isClosingDown = false;
 app.prompExit = true;
 app.prompShown = false;
-app.needToExit = false;
 app.setAppUserModelId(config.appId);
 app.fsync = null;
+app.timeStamp = 0;
+app.chunkBuf = '';
 
 app.daemonPid = null;
 app.daemonLastPid = null;
-app.daemonConnectionAttempts = 0;
 app.localDaemonRunning = false;
 app.localDaemonSynced = false;
 app.foundLocalDaemonPort = 0;
-app.chunkBuf = '';
-app.timeStamp = 0;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
@@ -75,6 +72,7 @@ const sleepMils = (milliseconds) => {
 
 let win = null;
 function createWindow () {
+
     // Create the browser window.
     let darkmode = settings.get('darkmode', true);
     let bgColor = darkmode ? '#000000' : '#FFCC33';   // '#FFCC33'; //jojapoppa
@@ -114,8 +112,9 @@ function createWindow () {
           title: 'Application Update',
           message: 'A new version of FedoraGold Wallet (FED) is available.',
         }
+      
         dialog.showMessageBox(dialogOpts, (response) => { });
-        // if (response === 0) autoUpdater.quitAndInstall()
+        //inside function-> if (response === 0) autoUpdater.quitAndInstall()
       });
     });
 
@@ -140,26 +139,8 @@ function createWindow () {
 
     win.on('close', (e) => {
         if(app.prompExit ){
-            e.preventDefault();
-            if(app.prompShown) return;
-            let msg = 'Are you sure, want to exit?';
-            app.prompShown = true;
-            dialog.showMessageBox({
-                type: 'question',
-                buttons: ['Yes', 'No'],
-                title: 'Exit Confirmation',
-                message: msg
-            }, function (response) {
-                app.prompShown = false;
-                if (response === 0) {
-                    app.prompExit = false;
-                    win.webContents.send('cleanup','Clean it up!');
-                }else{
-                    app.prompExit = true;
-                    app.needToExit = false;
-                    app.isClosingDown = true;
-                }
-            });
+          e.preventDefault();
+          win.webContents.send('promptexit','promptexit');
         }
     });
     
@@ -311,7 +292,6 @@ function runDaemon() {
     }
 
     try { this.daemonProcess.kill(); } catch(e) {} // just eat and ignore any errors
-    app.daemonConnectionAttempts = 0;
     require('events').EventEmitter.prototype._maxListeners = 100;
 
     let daemonArgs = [
@@ -326,9 +306,9 @@ function runDaemon() {
         app.daemonPid = this.daemonProcess.pid;
 
         this.daemonProcess.stdout.on('data', function(chunk) {
-          app.chunkBuf += chunk;
 
-          // At most every quarter of a second, don't overwhelm js buffer
+          // limit to 1 msg every 1/4 second to avoid overwhelming message bus
+          app.chunkBuf += chunk;
           var newTimeStamp = Math.floor(Date.now());
           if ((win !== null) && ((newTimeStamp-app.timeStamp) > 250)) {
             app.timeStamp = newTimeStamp;
@@ -345,14 +325,6 @@ function runDaemon() {
     } catch(e) {
       log.error(e.message);
     }
-}
-
-function resetDaemon() {
-    settings.set('daemon_port', Math.floor(Math.random() * (40000 - 30000) + 30000));
-    app.localDaemonRunning = false;
-    app.daemonPid = 0;
-    app.emit('run-daemon');
-    //log.warn('trying new port: ', settings.get('daemon_port'));
 }
 
 const checkDaemonTimer = setIntervalAsync(() => {
@@ -403,15 +375,10 @@ const checkSyncTimer = setIntervalAsync(() => {
               if (! error) {
                   if (body.iscoreready) {
                       app.localDaemonSynced = true;
-                      app.daemonConnectionAttempts = 0;
                   }
               }
               else {
                   app.localDaemonSynced = false;
-                  app.daemonConnectionAttempts++;
-                  if (app.daemonConnectionAttempts > 50) { //jojapoppa, this # 50 is arbitrary... look into this
-                      resetDaemon(); // resets daemon if its process is up but still hung
-                  }
               }
         }).catch(function(e){}); // Just eat the error as race condition expected anyway...
     }

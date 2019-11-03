@@ -57,12 +57,10 @@ app.setAppUserModelId(config.appId);
 app.fsync = null;
 app.timeStamp = 0;
 app.chunkBuf = '';
-
 app.daemonPid = null;
 app.daemonLastPid = null;
 app.localDaemonRunning = false;
-app.localDaemonSynced = false;
-app.foundLocalDaemonPort = 0;
+let win = null;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
@@ -70,7 +68,6 @@ const sleepMils = (milliseconds) => {
   return new Promise(resolve => setTimeout(resolve, milliseconds))
 }
 
-let win = null;
 function createWindow () {
 
     // Create the browser window.
@@ -343,12 +340,8 @@ const checkDaemonTimer = setIntervalAsync(() => {
     }, function(error, stdout, stderr) {
         if (stdout.toLowerCase().indexOf('fedoragold_daem') > -1) {
             app.localDaemonRunning = true;
-            settings.set('daemon_host', '127.0.0.1');
-            app.foundLocalDaemonPort = settings.get('daemon_port');
-            //log.warn('local daemon is running on port: ', settings.get('daemon_port'));
         } else {
             app.localDaemonRunning = false;
-            app.foundLocalDaemonPort = 0;
         }
     });
 }, 5000);
@@ -372,17 +365,16 @@ const checkSyncTimer = setIntervalAsync(() => {
             json: true,
             timeout: 10000
         }, (error, response, body) => {
-              if (! error) {
-                  if (body.iscoreready) {
-                      app.localDaemonSynced = true;
-                  }
+            if (!error && response.statusCode == 200) {
+              if (body.iscoreready) {
+                win.webContents.send('daemoncoreready', 'true');
+                return;
               }
-              else {
-                  app.localDaemonSynced = false;
-              }
+            }
+            win.webContents.send('daemoncoreready', 'false');
         }).catch(function(e){}); // Just eat the error as race condition expected anyway...
     }
-}, 20000);
+}, 5000);
 
 /*
 const checkFallback = setIntervalAsync(() => {

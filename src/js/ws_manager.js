@@ -28,6 +28,8 @@ const INFO_FUSION_SKIPPED = 'Wallet already optimized. No further optimization i
 const ERROR_FUSION_FAILED = 'Unable to optimize your wallet, please try again in a few seconds';
 
 let plat = process.platform;
+let daemonCoreReady = false;
+
 const SVC_FILENAME =  (plat === 'win32' ? `${config.walletServiceBinaryFilename}.exe` : config.walletServiceBinaryFilename );
 const SVC_OSDIR = (plat === 'win32' ? 'win' : (plat === 'darwin' ? 'mac' : 'linux'));
 const DEFAULT_SVC_BIN = path.join(process.resourcesPath,'bin', SVC_OSDIR, SVC_FILENAME);
@@ -70,8 +72,7 @@ WalletShellManager.prototype.init = function(){
         walletd_host: this.walletdHost,
         walletd_port: this.walletdPort,
         walletd_password: this.walletdPassword,
-        localDaemonSynced: remote.app.localDaemonSynced,
-        foundLocalDaemonPort: remote.app.foundLocalDaemonPort,
+        daemonCoreReady: this.daemonCoreReady
     };
     this.serviceApi = new WalletShellApi(cfg);
 };
@@ -226,7 +227,6 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         //'--rpc-password', password
         //'--enable-cors', '*',
 
-        //remote.app.foundLocalDaemonPort
         serviceArgs = serviceArgs.concat([
           '--daemon-address', '127.0.0.1',
           '--daemon-port', settings.get('daemon_port')
@@ -756,7 +756,7 @@ WalletShellManager.prototype.optimizeWallet = function(){
 //};
 
 WalletShellManager.prototype.notifyUpdate = function(msg){
-    //log.warn(`in notifyUpdate ... calling updateUiState: ${msg.type}`);
+//    log.warn(`in notifyUpdate ... calling updateUiState: ${msg.type}`);
     uiupdater.updateUiState(msg);
 };
 

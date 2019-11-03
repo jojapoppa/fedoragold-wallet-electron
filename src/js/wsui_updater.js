@@ -19,6 +19,7 @@ const SYNC_STATUS_NET_CONNECTED = -10;
 const SYNC_STATUS_NET_DISCONNECTED = -50;
 const SYNC_STATUS_IDLE = -100;
 const SYNC_STATUS_NODE_ERROR = -200;
+const SYNC_STATUS_RESCAN = -300;
 
 const WFCLEAR_INTERVAL = 5;
 let WFCLEAR_TICK = 0;
@@ -45,6 +46,7 @@ function updateSyncProgress(data){
     let daemonHeight = data.displayDaemonHeight+1;
     let knownBlockCount = data.displayKnownBlockCount+1;
     let blockSyncPercent = data.syncPercent;
+    let uiMessage = data.uiMessage;
     let statusText = '';
 
     //log.warn("Updating GUI height at: "+daemonHeight);
@@ -57,7 +59,23 @@ function updateSyncProgress(data){
         blockSyncPercent = 0;
     }
 
-    if(knownBlockCount === SYNC_STATUS_NET_CONNECTED){
+    if (data.knownBlockCount === SYNC_STATUS_RESCAN) {
+
+        // sync status text
+        statusText = 'SCAN ';
+        var lc = uiMessage.search("INFO ");
+        if (lc > -1) {
+          uiMessage = uiMessage.substring(lc+4);
+        }
+
+        syncInfoBar.textContent = statusText + uiMessage;
+
+        // sync info bar class
+        syncDiv.className = '';
+        // sync status icon
+        iconSync.setAttribute('data-icon', 'pause-circle');
+
+    } else if(data.knownBlockCount === SYNC_STATUS_NET_CONNECTED){
         // sync status text
         statusText = 'RESUMING WALLET SYNC...';
         syncInfoBar.innerHTML = statusText;
@@ -76,7 +94,7 @@ function updateSyncProgress(data){
         wsession.set('syncStarted', false);
         wsession.set('synchronized', false);
         brwin.setProgressBar(-1);
-    }else if(knownBlockCount === SYNC_STATUS_NET_DISCONNECTED){
+    }else if(data.knownBlockCount === SYNC_STATUS_NET_DISCONNECTED){
         // sync status text
         statusText = 'PAUSED, NETWORK DISCONNECTED';
         syncInfoBar.innerHTML = statusText;
@@ -95,7 +113,8 @@ function updateSyncProgress(data){
         wsession.set('syncStarted', false);
         wsession.set('synchronized', false);
         brwin.setProgressBar(-1);
-    }else if(knownBlockCount === SYNC_STATUS_IDLE){
+    }else if(data.knownBlockCount === SYNC_STATUS_IDLE){
+
         // sync status text
         statusText = 'IDLE';
         syncInfoBar.innerHTML = statusText;
@@ -118,7 +137,7 @@ function updateSyncProgress(data){
         setWinTitle();
         // no node connected
         wsession.set('connectedNode', '');
-    }else if(knownBlockCount === SYNC_STATUS_NODE_ERROR){
+    }else if(data.knownBlockCount === SYNC_STATUS_NODE_ERROR){
         // not connected
         // status info bar class
         syncDiv.className = 'failed';
@@ -433,6 +452,9 @@ function updateUiState(msg){
             break;
         case 'balanceUpdated':
             updateBalance(msg.data);
+            break;
+        case 'rescan':
+            updateSyncProgress(msg.data);
             break;
         case 'transactionUpdated':
             //log.warn('transactionUpdated in updateUiState...');

@@ -70,10 +70,11 @@ function checkBlockUpdate(){
           if (lastConStatus !== conFailed) {
             let fakeStatus = {
               blockCount: -200,
-              knownBlockCount: -200,
               displayBlockCount: -200,
               displayKnownBlockCount: -200,
-              syncPercent: -200
+              syncPercent: -200,
+              knownBlockCount: -200,
+              uiMessage: ''
             };
             process.send({
               type: 'blockUpdated',
@@ -127,6 +128,7 @@ function checkBlockUpdate(){
         blockStatus.displayDaemonHeight = heightVal;
         blockStatus.displayBlockCount = blockCount;
         blockStatus.displayKnownBlockCount = knownBlockCount;
+        blockStatus.uiMessage = '';
         blockStatus.syncPercent = syncPercent;
         process.send({
             type: 'blockUpdated',
@@ -307,10 +309,11 @@ process.on('message', (msg) => {
                 type: 'blockUpdated',
                 data: {
                     blockCount: -50,
-                    knownBlockCount: -50,
                     displayBlockCount: -50,
                     displayKnownBlockCount: -50,
-                    syncPercent: -50
+                    syncPercent: -50,
+                    knownBlockCount: -50,
+                    uiMessage: ''
                 }
             });
             STATE_PAUSED = true;
@@ -334,10 +337,11 @@ process.on('message', (msg) => {
                 type: 'blockUpdated',
                 data: {
                     blockCount: -10,
-                    knownBlockCount: -10,
                     displayBlockCount: -10,
                     displayKnownBlockCount: -10,
-                    syncPercent: -10
+                    syncPercent: -10,
+                    knownBlockCount: -10,
+                    uiMessage: ''
                 }
             });
             break;

@@ -728,7 +728,6 @@ function handleSettings(){
         };
 
         initSettingVal(vals);
-        //remote.app.checkUpdateConfig(); // re-check config format
         formMessageReset();
         initNodeCompletion();
         let goTo = wsession.get('loadedWalletAddress').length ? 'section-overview' : 'section-welcome';
@@ -1107,9 +1106,10 @@ function handleWalletClose(){
                     data: {
                         blockCount: -100,
                         displayBlockCount: -100,
-                        knownBlockCount: -100,
                         displayKnownBlockCount: -100,
-                        syncPercent: -100
+                        syncPercent: -100,
+                        knownBlockCount: -100,
+                        uiMessage: ''
                     }
                 };
                 wsmanager.notifyUpdate(resetdata);
@@ -2252,7 +2252,15 @@ document.addEventListener('DOMContentLoaded', () => {
     initKeyBindings();
 }, false);
 
-ipcRenderer.on('console', (event,sChunk) => {
+ipcRenderer.on('daemoncoreready', (event, flag) => {
+  if (flag === 'true') {
+    wsmanager.daemonCoreReady = true;
+    return;
+  }
+  wsmanager.daemonCoreReady = false;
+});
+
+ipcRenderer.on('console', (event, sChunk) => {
     var ansi_up = new AnsiUp.default;
     var el = document.getElementById("terminal");
 
@@ -2271,14 +2279,31 @@ ipcRenderer.on('console', (event,sChunk) => {
 
     outlen = 0;
     var lastline = "";
+    var firstline = "";
     var updatedText = "";
     var lines = buffer.split(/<br\/>|<br>|<br \/>/g);
     for (i=lines.length-1; (i>0) && (outlen < 1000); i--) {
       var thisline = lines[i].trim();
       if (thisline.length > 0) {
+        if (firstline.length === 0) firstline = thisline;
         updatedText = thisline + "<br/>" + updatedText;
         outlen++;
       }
+    }
+
+    if (!wsmanager.daemonCoreReady) {
+      let rescandata = {
+        type: 'rescan',
+        data: {
+          blockCount: -100,
+          displayBlockCount: -100,
+          displayKnownBlockCount: -100,
+          syncPercent: -100,
+          knownBlockCount: -300,
+          uiMessage: firstline
+        }
+      };
+      wsmanager.notifyUpdate(rescandata);
     }
 
     el.innerHTML = updatedText;

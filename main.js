@@ -2,7 +2,7 @@ const {app, dialog, Tray, Menu} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
-const kill = require('tree-kill');
+const killer = require('tree-kill');
 const screen = require('screen');
 const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
@@ -258,7 +258,7 @@ process.on('uncaughtException', function(err) {});
 terminateDaemon = function() {
     app.daemonLastPid = app.daemonPid;
     try{
-        kill(1);
+        killer(app.daemonPid);
     }catch(e){}
 
     // give it 5 seconds to exit - it does need 5 seconds on some platforms...
@@ -266,8 +266,8 @@ terminateDaemon = function() {
 
     // now try all available means to kill it for good...
     if (this.daemonProcess !== null) {
-      try{kill(1, 'SIGKILL');}catch(err){}
       if (app.daemonPid !== null) {
+        try{killer(app.daemonPid, 'SIGKILL');}catch(err){}
         try{this.daemonProcess.kill('SIGKILL');}catch(err){}
         try{process.kill(app.daemonPid, 'SIGKILL');}catch(err){}
       }
@@ -369,7 +369,7 @@ const checkSyncTimer = setIntervalAsync(() => {
 
         // when was the last time we had console output?
         var newTimeStamp = Math.floor(Date.now());
-        if (newTimeStamp - app.timeStamp > 250000) {  // 250 seconds
+        if (newTimeStamp - app.timeStamp > 125000) {  // 125 seconds (2mins)
           // if no response for over 4 mins then reset daemon...
           log.warn("daemon reset...");
           terminateDaemon();

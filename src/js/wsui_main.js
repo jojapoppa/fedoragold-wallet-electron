@@ -2325,7 +2325,6 @@ ipcRenderer.on('promptexit', () => {
 
     if(!win.isVisible()) win.show();
     if(win.isMinimized()) win.restore();
-
     win.focus();
 
     var dialog = document.getElementById('main-dialog');
@@ -2342,10 +2341,12 @@ ipcRenderer.on('promptexit', () => {
     wsmanager.stopService().then(() => {
         setTimeout(function(){
             dialog.innerHTML = 'Good bye!';
+            remote.app.emit('exit');
             wsmanager.terminateService(true);
             win.close();
         }, 1200);
     }).catch((err) => {
+        remote.app.emit('exit');
         wsmanager.terminateService(true);
         win.close();
         console.log(err);

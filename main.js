@@ -2,6 +2,7 @@ const {app, dialog, Tray, Menu} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
+const kill = require('tree-kill');
 const screen = require('screen');
 const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
@@ -64,8 +65,11 @@ let win = null;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
-const sleepMils = (milliseconds) => {
-  return new Promise(resolve => setTimeout(resolve, milliseconds))
+function msleep(n) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, n);
+}
+function sleep(n) {
+  msleep(n*1000);
 }
 
 function createWindow () {
@@ -249,20 +253,25 @@ daemonStatus = function(){
     return  (undefined !== this.daemonProcess && null !== this.daemonProcess);
 };
 
+process.on('unhandledRejection', function(err) {});
+process.on('uncaughtException', function(err) {});
 terminateDaemon = function() {
     app.daemonLastPid = app.daemonPid;
     try{
-        if (daemonStatus()) this.daemonProcess.kill('SIGINT');
-        //if (daemonStatus()) this.daemonProcess.kill('SIGTERM');
-        //if (app.daemonPid) process.kill(app.daemonPid, 'SIGTERM');
+        kill(1);
     }catch(e){}
 
-//    sleepMils(1000);
-//    if (this.daemonProcess) {
-//      log.warn(`SIGKILLing ${config.daemonBinaryFilename}`);
-//      if (daemonStatus()) try{this.daemonProcess.kill('SIGKILL');}catch(err){}
-//      if (app.daemonPid) try{process.kill(app.daemonPid, 'SIGKILL');}catch(err){}
-//    }
+    // give it 5 seconds to exit - it does need 5 seconds on some platforms...
+    sleep(5);
+
+    // now try all available means to kill it for good...
+    if (this.daemonProcess !== null) {
+      try{kill(1, 'SIGKILL');}catch(err){}
+      if (app.daemonPid !== null) {
+        try{this.daemonProcess.kill('SIGKILL');}catch(err){}
+        try{process.kill(app.daemonPid, 'SIGKILL');}catch(err){}
+      }
+    }
 
     this.daemonProcess = null;
     app.daemonPid = null;
@@ -358,6 +367,16 @@ const checkSyncTimer = setIntervalAsync(() => {
             Agent: myAgent
         };
 
+        // when was the last time we had console output?
+        var newTimeStamp = Math.floor(Date.now());
+        if (newTimeStamp - app.timeStamp > 250000) {  // 250 seconds
+          // if no response for over 4 mins then reset daemon...
+          log.warn("daemon reset...");
+          terminateDaemon();
+          runDaemon();
+          return;
+        }
+
         request(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`, {
             method: 'GET',
             headers: headers,
@@ -374,7 +393,7 @@ const checkSyncTimer = setIntervalAsync(() => {
             win.webContents.send('daemoncoreready', 'false');
         }).catch(function(e){}); // Just eat the error as race condition expected anyway...
     }
-}, 5000);
+}, 6000); // must be at least 1 second longer than terminateDaemon sleep time...
 
 /*
 const checkFallback = setIntervalAsync(() => {
@@ -472,6 +491,14 @@ app.on('window-all-closed', () => {
     // On macOS it is common for applications and their menu bar
     // to stay active until the user quits explicitly with Cmd + Q
     //if (platform !== 'darwin') 
+
+      if (win) {
+            // yes, this needs to be done again...
+            if(!win.isVisible()) win.show();
+            if(win.isMinimized()) win.restore();
+            win.focus();
+      }
+
     app.quit();
 });
 
@@ -496,7 +523,7 @@ process.on('beforeExit', (code) => {
 
 process.on('exit', (code) => {
     terminateDaemon();
-    log.debug(`exit with code: ${code}`);
+    //log.debug(`exit with code: ${code}`);
 });
 
 process.on('warning', (warning) => {

@@ -15,7 +15,7 @@ const settings = new Store({name: 'Settings'});
 const wsession = new WalletShellSession();
 
 const SERVICE_LOG_DEBUG = wsession.get('debug');
-const SERVICE_LOG_LEVEL_DEFAULT = 1;
+const SERVICE_LOG_LEVEL_DEFAULT = 0;
 const SERVICE_LOG_LEVEL_DEBUG = 4;
 const SERVICE_LOG_LEVEL = (SERVICE_LOG_DEBUG ? SERVICE_LOG_LEVEL_DEBUG : SERVICE_LOG_LEVEL_DEFAULT);
 const ERROR_WALLET_EXEC = `Failed to start ${config.walletServiceBinaryFilename}.`;
@@ -164,10 +164,11 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
 
     if(this.syncWorker) this.stopSyncWorker();
 
+    // SERVICE_LOG_LEVEL,
     let serviceArgs = this.serviceArgsDefault.concat([
         '-w', walletFile,
         '-p', password,
-        '--log-level', SERVICE_LOG_LEVEL,
+        '--log-level', 0,
         '--address'
     ]);
 
@@ -177,7 +178,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
     }
 
     let wsm = this;
-    
+   
     childProcess.execFile(this.serviceBin, serviceArgs, {timeout:5000}, (error, stdout, stderr) => {
             if(stderr) log.error(stderr);
 
@@ -220,17 +221,19 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--container-password', password,
         '--bind-address', '127.0.0.1',
         '--bind-port', this.walletdPort,
-        '--log-level', 2
+        '--daemon-address', '127.0.0.1',
+        '--daemon-port', settings.get('daemon_port'),
+        '--log-level', 0 
         ]);
 
         //'--rpc-user', 'admin',
         //'--rpc-password', password
         //'--enable-cors', '*',
 
-        serviceArgs = serviceArgs.concat([
-          '--daemon-address', '127.0.0.1',
-          '--daemon-port', settings.get('daemon_port')
-        ]);
+//        serviceArgs = serviceArgs.concat([
+//          '--daemon-address', '127.0.0.1',
+//          '--daemon-port', settings.get('daemon_port')
+//        ]);
 
     let wsm = this;
     log.warn("Walletd is binding daemon on port: "+settings.get('daemon_port'));

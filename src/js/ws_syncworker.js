@@ -148,11 +148,16 @@ function checkBlockUpdate(){
     return true;
 }
 
-//var TX_CHECK_COUNTER = 0;
+function reset() {
+  log.warn("syncworker detects reset()");
+  TX_CHECK_STARTED = false;
+  wsapi.reset({});
+}
+
 function checkTransactionsUpdate(){
     if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) return;
 
-    logDebug("checkTransactionsUpdate()");
+    log.warn("checkTransactionsUpdate()");
     wsapi.getBalance().then((balance)=> {
             STATE_PENDING_SAVE = false;
             process.send({
@@ -163,15 +168,21 @@ function checkTransactionsUpdate(){
             //log.warn(balance);
 
             if(LAST_BLOCK_COUNT > 1){
-                //log.warn('checkTransactionsUpdate: checking tx update');
-                let currentBLockCount = LAST_BLOCK_COUNT-1;
+                log.warn('checkTransactionsUpdate: checking tx update');
+                let currentBlockCount = LAST_BLOCK_COUNT-1;
                 let startIndex = (!TX_CHECK_STARTED ? 1 : TX_LAST_INDEX);
-                let searchCount = currentBLockCount;
+
+                // jojapoppa, would prefer if this got a smaller number on a
+                //   initial reset() request... but can't figure it out...
+                //   and it's not a big deal for now...
+                let searchCount = currentBlockCount;
+
                 let needCountMargin = false;
                 let blockMargin = 10;
                 if(TX_CHECK_STARTED){
-                    searchCount = (currentBLockCount - TX_LAST_COUNT);
+                    searchCount = (currentBlockCount - TX_LAST_COUNT);
                     needCountMargin = true;
+                    log.warn("we need a count margin: "+blockMargin);
                 }
 
                 let startIndexWithMargin = (startIndex === 1 ? 1 : (startIndex-blockMargin));
@@ -180,7 +191,7 @@ function checkTransactionsUpdate(){
                     firstBlockIndex: startIndexWithMargin,
                     blockCount: searchCountWithMargin
                 };
-                //log.warn(`checkTransactionsUpdate: args=${JSON.stringify(trx_args)}`);
+                log.warn(`checkTransactionsUpdate: args=${JSON.stringify(trx_args)}`);
                 wsapi.getTransactions( trx_args ).then((trx) => {
                     process.send({
                         type: 'transactionUpdated',
@@ -191,15 +202,15 @@ function checkTransactionsUpdate(){
                     //log.warn('done');
                     return true;
                 }).catch((err)=>{
-                    logDebug(`checkTransactionsUpdate: getTransactions FAILED, ${err.message}`);
+                    log.warn(`checkTransactionsUpdate: getTransactions FAILED, ${err.message}`);
                     return false;
                 });
                 TX_CHECK_STARTED = true;
-                TX_LAST_INDEX = currentBLockCount;
-                TX_LAST_COUNT = currentBLockCount;
+                TX_LAST_INDEX = currentBlockCount;
+                TX_LAST_COUNT = currentBlockCount;
             }
     }).catch((err)=> {
-        logDebug(`checkTransactionsUpdate: getBalance FAILED, ${err.message}`);
+        log.warn(`checkTransactionsUpdate: getBalance FAILED, ${err.message}`);
         return false;
     });
 
@@ -291,15 +302,13 @@ process.on('message', (msg) => {
                 logDebug('Running in debug mode.');
             }
             break;
+        case 'reset':
+            reset();
+            break;
         case 'start':
-            logDebug('Starting');
+            log.warn('Starting');
             try { clearInterval(taskWorker);} catch (err) {}
-            // initial block check;
             checkBlockUpdate();
-
-            // initial check
-            checkTransactionsUpdate(); // just to get balance
-
             setTimeout(workOnTasks, 5000);
             break;
         case 'pause':

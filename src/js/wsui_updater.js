@@ -43,13 +43,11 @@ function triggerTxRefresh(){
 function updateSyncProgress(data){
     const iconSync = document.getElementById('navbar-icon-sync');
     let blockCount = data.displayBlockCount+1;
-    let daemonHeight = data.displayDaemonHeight+1;
+    let daemonHeight = data.displayDaemonHeight;
     let knownBlockCount = data.displayKnownBlockCount+1;
     let blockSyncPercent = data.syncPercent;
     let uiMessage = data.uiMessage;
     let statusText = '';
-
-    //log.warn("Updating GUI height at: "+daemonHeight);
 
     // Sanity check on spurious values at start/restart of syncs
     if (knownBlockCount < 0 || daemonHeight < 0 || blockCount < 0) {
@@ -61,19 +59,19 @@ function updateSyncProgress(data){
 
     if (data.knownBlockCount === SYNC_STATUS_RESCAN) {
 
-        // sync status text
-        statusText = 'SCAN ';
-        var lc = uiMessage.search("INFO ");
-        if (lc > -1) {
-          uiMessage = uiMessage.substring(lc+4);
+        if (uiMessage.search("New ") > -1) {
+          statusText = 'SYNCED ';
+          syncDiv.className = 'synced';
+          iconSync.setAttribute('data-icon', 'check');
+          iconSync.classList.remove('slow-spin');
+        } else {
+          statusText = 'SCAN ';
+          // sync info bar class
+          syncDiv.className = '';
+          iconSync.setAttribute('data-icon', 'pause-circle');
         }
 
-        syncInfoBar.textContent = statusText + uiMessage;
-
-        // sync info bar class
-        syncDiv.className = '';
-        // sync status icon
-        iconSync.setAttribute('data-icon', 'pause-circle');
+        syncInfoBar.textContent = statusText + uiMessage; 
 
     } else if(data.knownBlockCount === SYNC_STATUS_NET_CONNECTED){
         // sync status text
@@ -162,7 +160,7 @@ function updateSyncProgress(data){
             // note: don't call setProgressBar, or it really kills performance
 
             syMsg = "daemon SYNCING ";
-            if (daemonHeight+2 >= knownBlockCount) {
+            if (daemonHeight+3 >= knownBlockCount) {
               syMsg = "SYNCED "
               syncDiv.className = 'synced';
               iconSync.setAttribute('data-icon', 'check');
@@ -257,7 +255,7 @@ function updateBalance(data){
 
 function updateTransactions(result){
 
-    //log.warn('updateTransactions: result...', result.items);
+    log.warn("updateTransactions result items received: "+result.items.length);
 
     let txlistExisting = wsession.get('txList');
     const blockItems = result.items;
@@ -324,7 +322,8 @@ function updateTransactions(result){
     let rememberedLastHash = settings.get('last_notification', '');
     let notify = true;
 
-    // jojapoppa, are these conditions correct? run extensive UI test do receiving transactions notify in OS UI
+    // jojapoppa, are these desktop conditions correct? 
+    // run extensive UI test do receiving transactions notify in OS UI
     if(lastTxDate !== currentDate || (newTxAmount < 0) || rememberedLastHash === newLastHash ){
         notify = false;
     }
@@ -457,7 +456,7 @@ function updateUiState(msg){
             updateSyncProgress(msg.data);
             break;
         case 'transactionUpdated':
-            //log.warn('transactionUpdated in updateUiState...');
+            log.warn('transactionUpdated in updateUiState...');
             updateTransactions(msg.data);
             break;
         case 'nodeFeeUpdated':

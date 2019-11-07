@@ -281,17 +281,26 @@ class WalletShellApi {
         });
     }
     reset(params) {
-        log.warn("sending api reset to walletd...");
+        log.warn("in service API reset");
         return new Promise((resolve, reject) => {
             params = params || {};
-            //params.viewSecretKey = params.viewSecretKey || false;
-            params.scanHeight = params.scanHeight || 0;
             let req_params = {};
-            if (params.scanHeight && params.scanHeight > 1) {
-                req_params = { scanHeight: params.scanHeight };
+
+            // server does not expect a scanHeight at the moment...
+            //params.scanHeight = params.scanHeight || 0;
+            //if (params.scanHeight && params.scanHeight > 1) {
+            //    req_params = { scanHeight: params.scanHeight };
+            //}
+
+            params.viewSecretKey = params.viewSecretKey || false;
+            if (params.viewSecretKey) {
+              log.warn("reset: secret key supplied... creating new wallet from secret key");
+              req_params.viewSecretKey = params.viewSecretKey;
             }
-            //if(params.viewSecretKey) req_params.viewSecretKey = params.viewSecretKey;
+
+            log.warn("sending request for reset...");
             this._sendRequest('reset', false, req_params).then(() => {
+                log.warn("sent api reset to walletd...");
                 return resolve(true);
             }).catch((err) => {
                 return reject(err);

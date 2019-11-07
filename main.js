@@ -6,6 +6,7 @@ const killer = require('tree-kill');
 const screen = require('screen');
 const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
+const ps = require('ps-node');
 const request = require('request-promise-native');
 const platform = require('os').platform();
 const crypto = require('crypto');
@@ -61,7 +62,9 @@ app.chunkBuf = '';
 app.daemonPid = null;
 app.daemonLastPid = null;
 app.localDaemonRunning = false;
+
 let win = null;
+let daemonProcess = null;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
@@ -258,29 +261,68 @@ process.on('uncaughtException', function(err) {});
 terminateDaemon = function() {
     app.daemonLastPid = app.daemonPid;
     try{
-        killer(app.daemonPid);
+      if (this.daemonProcess !== null)
+        this.daemonProcess.kill('SIGINT');
+
+//      this.daemonProcess.setEncoding('utf-8');
+//      this.daemonProcess.stdin.write("exit\n");
+//      this.daemonProcess.end(); 
     }catch(e){}
 
-    // give it 5 seconds to exit - it does need 5 seconds on some platforms...
-    sleep(5);
+    // give it 10 seconds to exit - it does need diff time on some platforms...
+    var terminateTimeStamp = Math.floor(Date.now());
+    while (this.daemonProcess !== null) {
+/*
+        ps.lookup({ pid: app.daemonPid }, function(err, resultList) {
+          if (!err && (this.daemonProcess !== null)) {
+            var proc = resultList[0];
+            if (!proc) {
+              this.daemonProcess = null;
+              log.warn("fedoragold_daemon process halted");
+            } else {
+              var procName = proc.command + ".";
+              log.warn(procName);
+              if (procName.search("fedoragold_daemon") === -1) {
+                this.daemonProcess = null;
+                log.warn("fedoragold_daemon halting...");
+              } else {
+                try{this.daemonProcess.kill('SIGTERM');}catch(e){}
+              } 
+            }
+          }
+        });
+*/
+      if (this.daemonProcess !== null) {
+        // this just keeps us from floading the daemon's signal queue
+        //   with messages, it does not result in the promise running 
+        sleep(1);
+      }
 
-    // now try all available means to kill it for good...
-    if (this.daemonProcess !== null) {
-      if (app.daemonPid !== null) {
-        try{killer(app.daemonPid, 'SIGKILL');}catch(err){}
-        try{this.daemonProcess.kill('SIGKILL');}catch(err){}
-        try{process.kill(app.daemonPid, 'SIGKILL');}catch(err){}
+      // this puts 10 ps.lookups into the process queue resulting in
+      //   10 SIGTERM messages appended to the daemon's signal queue.
+      //   Also guarantees that we have 10 seconds for the original
+      //   SIGINT to do its magic synchronously.
+      var aTimeStamp = Math.floor(Date.now());
+      if (aTimeStamp-terminateTimeStamp > 10000) {
+        break;
       }
     }
 
+    // now append 3 differnt SIGKILL's to the daemons signal queue
+    //  if the 10 messages above don't do the trick, these will
+    if (this.daemonProcess !== null) {
+      if (app.daemonPid !== null) {
+//        try{killer(app.daemonPid, 'SIGKILL');}catch(err){}
+//        try{this.daemonProcess.kill('SIGKILL');}catch(err){}
+//        try{process.kill(app.daemonPid, 'SIGKILL');}catch(err){}
+      }
+    }
+
+    // Just set the values to null, and assume that one of the 
+    // 13 signals we set above actually does kill it off
     this.daemonProcess = null;
     app.daemonPid = null;
 };
-
-//process.on('unhandledRejection', error => {
-  // Will print "unhandledRejection err is not defined"
-  //console.log('unhandledRejection', error.message);
-//});
 
 function runDaemon() {
 
@@ -297,7 +339,6 @@ function runDaemon() {
         return;
     }
 
-    try { this.daemonProcess.kill(); } catch(e) {} // just eat and ignore any errors
     require('events').EventEmitter.prototype._maxListeners = 100;
 
     let daemonArgs = [
@@ -356,7 +397,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
 }, 5000);
 
 const checkSyncTimer = setIntervalAsync(() => {
-    if (app.localDaemonRunning) {
+    if (app.localDaemonRunning && (app.daemonPid !== null)) {
 
         var myAgent = new http.Agent({
             keepAlive: true,
@@ -369,8 +410,8 @@ const checkSyncTimer = setIntervalAsync(() => {
 
         // when was the last time we had console output?
         var newTimeStamp = Math.floor(Date.now());
-        if (newTimeStamp - app.timeStamp > 125000) {  // 125 seconds (2mins)
-          // if no response for over 4 mins then reset daemon...
+        if (newTimeStamp - app.timeStamp > 175000) {  // 175 seconds (about 2.5mins)
+          // if no response for over x mins then reset daemon...
           log.warn("daemon reset...");
           terminateDaemon();
           runDaemon();
@@ -393,7 +434,7 @@ const checkSyncTimer = setIntervalAsync(() => {
             win.webContents.send('daemoncoreready', 'false');
         }).catch(function(e){}); // Just eat the error as race condition expected anyway...
     }
-}, 6000); // must be at least 1 second longer than terminateDaemon sleep time...
+}, 4000);
 
 /*
 const checkFallback = setIntervalAsync(() => {
@@ -523,7 +564,6 @@ process.on('beforeExit', (code) => {
 
 process.on('exit', (code) => {
     terminateDaemon();
-    //log.debug(`exit with code: ${code}`);
 });
 
 process.on('warning', (warning) => {

@@ -1683,7 +1683,7 @@ function handleTransactions(){
             txLen = wsession.get('txLen');
         }
 
-        //log.warn('listTransactions Len:', txLen);
+        log.warn('listTransactions Len:', txLen);
 
         if (txLen <= 0) {
             if (TXLIST_OBJ === null || TXLIST_OBJ.size() <= 0) setTxFiller(true);
@@ -1812,9 +1812,11 @@ function handleTransactions(){
     });
 
     txButtonReset.addEventListener('click', () => {
-        log.warn("walletd reset() function called...");
-        wsmanager.reset();
-        listTransactions();
+        var cresult = confirm("Reset your wallet transactions list?");
+        if (cresult == true) {
+          wsmanager.reset();
+          listTransactions();
+        }
     });
 
     txButtonExport.addEventListener('click', () => {
@@ -2291,7 +2293,21 @@ ipcRenderer.on('console', (event, sChunk) => {
       }
     }
 
-    if (!wsmanager.daemonCoreReady) {
+    var lc = firstline.search("INFO ");
+    if (lc > -1) {
+      firstline = firstline.substring(lc+4);
+    }
+
+    if (wsmanager.daemonCoreReady) {
+      if (firstline.search("Block:") !== -1) {
+        firstline = "New " + firstline;
+      }
+    }
+
+    if ( (firstline.search("failed")===-1) && (firstline.search("rejected")===-1) && 
+         (firstline.search("unknown")===-1) && (firstline.search("Exception")===-1) && 
+         (firstline.search("error")===-1) && (firstline.search("load")===-1) &&
+         (firstline.search("WARNING")===-1) && (firstline.search("Load")===-1) ) {
       let rescandata = {
         type: 'rescan',
         data: {

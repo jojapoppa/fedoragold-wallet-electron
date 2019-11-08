@@ -60,7 +60,7 @@ function updateSyncProgress(data){
     if (data.knownBlockCount === SYNC_STATUS_RESCAN) {
 
         if (uiMessage.search("New ") !== -1) {
-          statusText = 'SYNCED ';
+          statusText = '';
           syncDiv.className = 'synced';
           iconSync.setAttribute('data-icon', 'check');
           iconSync.classList.remove('slow-spin');

@@ -262,22 +262,28 @@ terminateDaemon = function() {
     app.daemonLastPid = app.daemonPid;
     try{
       if (this.daemonProcess !== null)
-        // this offers clean exit even on windows
+
+        // this also sends a ctrl-c, which is captured
+        // by daemon to provide a clean exit, seems to
+        // help on certain types of systems
+        //try{this.daemonProcess.kill('SIGINT');}catch(err){}
+        killer(app.daemonPid,'SIGINT');
+
+        // this offers clean exit, best to send this
+        // after the SIGINT as the exit text will
+        // just be disregarded if the above works 
         this.daemonProcess.stdin.write("exit");
         this.daemonProcess.stdin.write(os.EOL);
-        this.daemonProcess.stdin.write("\n");
-        this.daemonProcess.end();
-    }catch(e){try{killer(app.daemonPid,'SIGKILL');}catch(err){}}
+
+    }catch(e){/*eat any errors, no reporting nor recovery needed...*/}
 
     // give it 10 seconds to exit - it does need diff time on some platforms...
     var terminateTimeStamp = Math.floor(Date.now());
     while (this.daemonProcess !== null) {
-
       if (this.daemonProcess !== null) {
         // this just keeps us from floading the daemon's signal queue
         sleep(1);
       }
-
       // guarantees that we have 10 seconds for the
       //   'exit' to do its magic
       var aTimeStamp = Math.floor(Date.now());
@@ -285,7 +291,6 @@ terminateDaemon = function() {
         break;
       }
     }
-
     this.daemonProcess = null;
     app.daemonPid = null;
 };
@@ -361,7 +366,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
             app.daemonPid = null;
         }
     });
-}, 5000);
+}, 3000);
 
 const checkSyncTimer = setIntervalAsync(() => {
     if (app.localDaemonRunning && (app.daemonPid !== null)) {

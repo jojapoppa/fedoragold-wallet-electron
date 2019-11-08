@@ -2341,6 +2341,8 @@ ipcRenderer.on('promptexit', () => {
       return;
     }
 
+    remote.app.emit('exit');
+
     if(!win.isVisible()) win.show();
     if(win.isMinimized()) win.restore();
     win.focus();
@@ -2359,12 +2361,10 @@ ipcRenderer.on('promptexit', () => {
     wsmanager.stopService().then(() => {
         setTimeout(function(){
             dialog.innerHTML = 'Good bye!';
-            remote.app.emit('exit');
             wsmanager.terminateService(true);
             win.close();
         }, 1200);
     }).catch((err) => {
-        remote.app.emit('exit');
         wsmanager.terminateService(true);
         win.close();
         console.log(err);

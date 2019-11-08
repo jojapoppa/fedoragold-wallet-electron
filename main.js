@@ -2,11 +2,9 @@ const {app, dialog, Tray, Menu} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
-const killer = require('tree-kill');
 const screen = require('screen');
 const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
-const ps = require('ps-node');
 const request = require('request-promise-native');
 const platform = require('os').platform();
 const crypto = require('crypto');
@@ -263,39 +261,22 @@ terminateDaemon = function() {
     try{
       if (this.daemonProcess !== null)
 
-        // this also sends a ctrl-c, which is captured
-        // by daemon to provide a clean exit, seems to
-        // help on certain types of systems
-        //try{this.daemonProcess.kill('SIGINT');}catch(err){}
-        killer(app.daemonPid,'SIGINT');
-
-        // this offers clean exit, best to send this
-        // after the SIGINT as the exit text will
-        // just be disregarded if the above works 
-        this.daemonProcess.stdin.write("exit");
-        this.daemonProcess.stdin.write(os.EOL);
+        // this offers clean exit on all platforms
+        this.daemonProcess.stdin.write("exit\n");
 
     }catch(e){/*eat any errors, no reporting nor recovery needed...*/}
-
-    // give it 10 seconds to exit - it does need diff time on some platforms...
-    var terminateTimeStamp = Math.floor(Date.now());
-    while (this.daemonProcess !== null) {
-      if (this.daemonProcess !== null) {
-        // this just keeps us from floading the daemon's signal queue
-        sleep(1);
-      }
-      // guarantees that we have 10 seconds for the
-      //   'exit' to do its magic
-      var aTimeStamp = Math.floor(Date.now());
-      if (aTimeStamp-terminateTimeStamp > 10000) {
-        break;
-      }
-    }
-    this.daemonProcess = null;
-    app.daemonPid = null;
 };
 
 function runDaemon() {
+
+    // if there is a daemon already running, then retry later, after
+    //   it has been terminated, it could just be a relauch of this
+    //   wallet gui prior to the full termination of its daemon...
+    checkDaemonStat();
+    if (app.localDaemonRunning) {
+      app.emit('run-daemon');
+      return;
+    }
 
     var daemonPath;
     if (process.platform === 'darwin') {
@@ -319,8 +300,9 @@ function runDaemon() {
 
     try {
       return new Promise(function(resolve, reject) {
+        // daemon must run detached, otherwise windows will not exit cleanly
         this.daemonProcess = spawn(daemonPath, daemonArgs, 
-          {detached: false, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+          {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
         app.daemonPid = this.daemonProcess.pid;
 
         this.daemonProcess.stdout.on('data', function(chunk) {
@@ -344,8 +326,7 @@ function runDaemon() {
     }
 }
 
-const checkDaemonTimer = setIntervalAsync(() => {
-
+function checkDaemonStat() {
     var cmd = `ps -ex`;
     switch (process.platform) {
         case 'win32' : cmd = `tasklist`; break;
@@ -353,10 +334,10 @@ const checkDaemonTimer = setIntervalAsync(() => {
         case 'linux' : cmd = `ps -A`; break;
         default: break;
     }
-
+    
     var status = false;
     exec(cmd, {
-        maxBuffer: 2000 * 1024
+        maxBuffer: 2000 * 1024 
     }, function(error, stdout, stderr) {
         if (stdout.toLowerCase().indexOf('fedoragold_daem') > -1) {
             app.localDaemonRunning = true;
@@ -366,6 +347,12 @@ const checkDaemonTimer = setIntervalAsync(() => {
             app.daemonPid = null;
         }
     });
+}
+
+const checkDaemonTimer = setIntervalAsync(() => {
+
+  checkDaemonStat();
+
 }, 3000);
 
 const checkSyncTimer = setIntervalAsync(() => {

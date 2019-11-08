@@ -262,64 +262,30 @@ terminateDaemon = function() {
     app.daemonLastPid = app.daemonPid;
     try{
       if (this.daemonProcess !== null)
-        this.daemonProcess.kill('SIGINT');
-
-//      this.daemonProcess.setEncoding('utf-8');
-//      this.daemonProcess.stdin.write("exit\n");
-//      this.daemonProcess.end(); 
-    }catch(e){}
+        // this offers clean exit even on windows
+        this.daemonProcess.stdin.write("exit");
+        this.daemonProcess.stdin.write(os.EOL);
+        this.daemonProcess.stdin.write("\n");
+        this.daemonProcess.end();
+    }catch(e){try{killer(app.daemonPid,'SIGKILL');}catch(err){}}
 
     // give it 10 seconds to exit - it does need diff time on some platforms...
     var terminateTimeStamp = Math.floor(Date.now());
     while (this.daemonProcess !== null) {
-/*
-        ps.lookup({ pid: app.daemonPid }, function(err, resultList) {
-          if (!err && (this.daemonProcess !== null)) {
-            var proc = resultList[0];
-            if (!proc) {
-              this.daemonProcess = null;
-              log.warn("fedoragold_daemon process halted");
-            } else {
-              var procName = proc.command + ".";
-              log.warn(procName);
-              if (procName.search("fedoragold_daemon") === -1) {
-                this.daemonProcess = null;
-                log.warn("fedoragold_daemon halting...");
-              } else {
-                try{this.daemonProcess.kill('SIGTERM');}catch(e){}
-              } 
-            }
-          }
-        });
-*/
+
       if (this.daemonProcess !== null) {
         // this just keeps us from floading the daemon's signal queue
-        //   with messages, it does not result in the promise running 
         sleep(1);
       }
 
-      // this puts 10 ps.lookups into the process queue resulting in
-      //   10 SIGTERM messages appended to the daemon's signal queue.
-      //   Also guarantees that we have 10 seconds for the original
-      //   SIGINT to do its magic synchronously.
+      // guarantees that we have 10 seconds for the
+      //   'exit' to do its magic
       var aTimeStamp = Math.floor(Date.now());
       if (aTimeStamp-terminateTimeStamp > 10000) {
         break;
       }
     }
 
-    // now append 3 differnt SIGKILL's to the daemons signal queue
-    //  if the 10 messages above don't do the trick, these will
-    if (this.daemonProcess !== null) {
-      if (app.daemonPid !== null) {
-//        try{killer(app.daemonPid, 'SIGKILL');}catch(err){}
-//        try{this.daemonProcess.kill('SIGKILL');}catch(err){}
-//        try{process.kill(app.daemonPid, 'SIGKILL');}catch(err){}
-      }
-    }
-
-    // Just set the values to null, and assume that one of the 
-    // 13 signals we set above actually does kill it off
     this.daemonProcess = null;
     app.daemonPid = null;
 };
@@ -349,11 +315,10 @@ function runDaemon() {
     try {
       return new Promise(function(resolve, reject) {
         this.daemonProcess = spawn(daemonPath, daemonArgs, 
-          {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
+          {detached: false, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
         app.daemonPid = this.daemonProcess.pid;
 
         this.daemonProcess.stdout.on('data', function(chunk) {
-
           // limit to 1 msg every 1/4 second to avoid overwhelming message bus
           app.chunkBuf += chunk;
           var newTimeStamp = Math.floor(Date.now());
@@ -392,6 +357,8 @@ const checkDaemonTimer = setIntervalAsync(() => {
             app.localDaemonRunning = true;
         } else {
             app.localDaemonRunning = false;
+            this.daemonProcess = null;
+            app.daemonPid = null;
         }
     });
 }, 5000);
@@ -410,7 +377,7 @@ const checkSyncTimer = setIntervalAsync(() => {
 
         // when was the last time we had console output?
         var newTimeStamp = Math.floor(Date.now());
-        if (newTimeStamp - app.timeStamp > 175000) {  // 175 seconds (about 2.5mins)
+        if (newTimeStamp - app.timeStamp > 200000) {  // 200 seconds (about 3mins)
           // if no response for over x mins then reset daemon...
           log.warn("daemon reset...");
           terminateDaemon();

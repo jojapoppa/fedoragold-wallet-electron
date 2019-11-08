@@ -59,13 +59,19 @@ function updateSyncProgress(data){
 
     if (data.knownBlockCount === SYNC_STATUS_RESCAN) {
 
-        if (uiMessage.search("New ") > -1) {
+        if (uiMessage.search("New ") !== -1) {
           statusText = 'SYNCED ';
           syncDiv.className = 'synced';
           iconSync.setAttribute('data-icon', 'check');
           iconSync.classList.remove('slow-spin');
         } else {
-          statusText = 'SCAN ';
+          // only skip label if Block: is in char position zero
+          if (uiMessage.search("Block:") === -1) {
+            statusText = 'SCAN ';
+          } else {
+            statusText = '';
+          }
+
           // sync info bar class
           syncDiv.className = '';
           iconSync.setAttribute('data-icon', 'pause-circle');
@@ -255,7 +261,7 @@ function updateBalance(data){
 
 function updateTransactions(result){
 
-    log.warn("updateTransactions result items received: "+result.items.length);
+    logDebug("updateTransactions result items received: "+result.items.length);
 
     let txlistExisting = wsession.get('txList');
     const blockItems = result.items;
@@ -456,7 +462,7 @@ function updateUiState(msg){
             updateSyncProgress(msg.data);
             break;
         case 'transactionUpdated':
-            log.warn('transactionUpdated in updateUiState...');
+            logDebug('transactionUpdated in updateUiState...');
             updateTransactions(msg.data);
             break;
         case 'nodeFeeUpdated':

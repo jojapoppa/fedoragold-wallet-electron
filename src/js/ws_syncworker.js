@@ -157,7 +157,7 @@ function reset() {
 function checkTransactionsUpdate(){
     if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) return;
 
-    log.warn("checkTransactionsUpdate()");
+    logDebug("checkTransactionsUpdate()");
     wsapi.getBalance().then((balance)=> {
             STATE_PENDING_SAVE = false;
             process.send({
@@ -168,7 +168,7 @@ function checkTransactionsUpdate(){
             //log.warn(balance);
 
             if(LAST_BLOCK_COUNT > 1){
-                log.warn('checkTransactionsUpdate: checking tx update');
+                logDebug('checkTransactionsUpdate: checking tx update');
                 let currentBlockCount = LAST_BLOCK_COUNT-1;
                 let startIndex = (!TX_CHECK_STARTED ? 1 : TX_LAST_INDEX);
 
@@ -182,7 +182,7 @@ function checkTransactionsUpdate(){
                 if(TX_CHECK_STARTED){
                     searchCount = (currentBlockCount - TX_LAST_COUNT);
                     needCountMargin = true;
-                    log.warn("we need a count margin: "+blockMargin);
+                    logDebug("we need a count margin: "+blockMargin);
                 }
 
                 let startIndexWithMargin = (startIndex === 1 ? 1 : (startIndex-blockMargin));
@@ -191,7 +191,7 @@ function checkTransactionsUpdate(){
                     firstBlockIndex: startIndexWithMargin,
                     blockCount: searchCountWithMargin
                 };
-                log.warn(`checkTransactionsUpdate: args=${JSON.stringify(trx_args)}`);
+                logDebug(`checkTransactionsUpdate: args=${JSON.stringify(trx_args)}`);
                 wsapi.getTransactions( trx_args ).then((trx) => {
                     process.send({
                         type: 'transactionUpdated',

@@ -2307,7 +2307,8 @@ ipcRenderer.on('console', (event, sChunk) => {
     if ( (firstline.search("failed")===-1) && (firstline.search("rejected")===-1) && 
          (firstline.search("unknown")===-1) && (firstline.search("Exception")===-1) && 
          (firstline.search("error")===-1) && (firstline.search("load")===-1) &&
-         (firstline.search("WARNING")===-1) && (firstline.search("Load")===-1) ) {
+         (firstline.search("WARNING")===-1) && (firstline.search("Load")===-1) &&
+         (firstline.search("IGD")===-1) ) {
       let rescandata = {
         type: 'rescan',
         data: {

@@ -41,7 +41,7 @@
     "request-promise-native": "^1.0.7",
     "screen": "^0.2.10",
     "semver": "^5.7.1",
-    "set-interval-async": "^1.0.29",
+    "set-interval-async": "1.0.29",
     "tree-kill": "^1.2.1"
   },
   "build": {

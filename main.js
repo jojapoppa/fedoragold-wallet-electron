@@ -1,10 +1,11 @@
-const {app, dialog, Tray, Menu} = require('electron');
+const {app, dialog, ipcRenderer, Tray, Menu} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
 const screen = require('screen');
 const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
+const killer = require('tree-kill');
 const request = require('request-promise-native');
 const platform = require('os').platform();
 const crypto = require('crypto');
@@ -164,6 +165,78 @@ function createWindow () {
     });
 }
 
+const checkDaemonTimer = setIntervalAsync(() => {
+    var cmd = `ps -ex`;
+    switch (process.platform) {
+        case 'win32' : cmd = `tasklist`; break;
+        case 'darwin' : cmd = `ps -ax`; break;
+        case 'linux' : cmd = `ps -A`; break;
+        default: break;
+    }
+
+    var status = false;
+    exec(cmd, {
+        maxBuffer: 2000 * 1024
+    }, function(error, stdout, stderr) {
+        if (stdout.toLowerCase().indexOf('fedoragold_daem') > -1) {
+            if (this.daemonProcess === null) {
+              if (win !== null) {
+                win.webContents.send('console', "A fedoragold_daemon process is already running. Trying again..."); 
+              }
+              return;
+            } else {
+              app.localDaemonRunning = true;
+            }
+        } else {
+            app.localDaemonRunning = false;
+            this.daemonProcess = null;
+            app.daemonPid = null;
+            runDaemon();
+        }
+    });
+}, 13000);
+
+const checkSyncTimer = setIntervalAsync(() => {
+    if (app.localDaemonRunning && (app.daemonPid !== null)) {
+
+        var myAgent = new http.Agent({
+            keepAlive: true,
+            keepAliveMsecs: 8000
+        });
+        let headers = {
+            Connection: 'Keep-Alive',
+            Agent: myAgent
+        };
+
+        // when was the last time we had console output?
+        var newTimeStamp = Math.floor(Date.now());
+        if (newTimeStamp - app.timeStamp > 200000) {  // 200 seconds (about 3mins)
+          // if no response for over x mins then reset daemon... 
+          log.warn("daemon reset...");
+          try{killer(app.daemonPid,'SIGKILL');}catch(err){}
+          this.daemonProcess = null;
+          app.daemonPid = null;
+          return;
+        }
+
+        request(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`, {
+            method: 'GET',
+            headers: headers,
+            body: {jsonrpc: '2.0'},
+            json: true,
+            timeout: 10000
+        }, (error, response, body) => {
+            if (!error && response.statusCode == 200) {
+              if (body.iscoreready) {
+                win.webContents.send('daemoncoreready', 'true');
+                return;
+              }
+            }
+            win.webContents.send('daemoncoreready', 'false');
+        }).catch(function(e){}); // Just eat the error as race condition expected anyway...
+    }
+}, 4000);
+
 function storeNodeList(pnodes){
     pnodes = pnodes || settings.get('pubnodes_data');
     let validNodes = [];
@@ -259,24 +332,15 @@ process.on('uncaughtException', function(err) {});
 terminateDaemon = function() {
     app.daemonLastPid = app.daemonPid;
     try{
-      if (this.daemonProcess !== null)
+      if (this.daemonProcess !== null) {
 
         // this offers clean exit on all platforms
         this.daemonProcess.stdin.write("exit\n");
-
+      }
     }catch(e){/*eat any errors, no reporting nor recovery needed...*/}
 };
 
 function runDaemon() {
-
-    // if there is a daemon already running, then retry later, after
-    //   it has been terminated, it could just be a relauch of this
-    //   wallet gui prior to the full termination of its daemon...
-    checkDaemonStat();
-    if (app.localDaemonRunning) {
-      app.emit('run-daemon');
-      return;
-    }
 
     var daemonPath;
     if (process.platform === 'darwin') {
@@ -325,75 +389,6 @@ function runDaemon() {
       log.error(e.message);
     }
 }
-
-function checkDaemonStat() {
-    var cmd = `ps -ex`;
-    switch (process.platform) {
-        case 'win32' : cmd = `tasklist`; break;
-        case 'darwin' : cmd = `ps -ax | grep ${query}`; break;
-        case 'linux' : cmd = `ps -A`; break;
-        default: break;
-    }
-    
-    var status = false;
-    exec(cmd, {
-        maxBuffer: 2000 * 1024 
-    }, function(error, stdout, stderr) {
-        if (stdout.toLowerCase().indexOf('fedoragold_daem') > -1) {
-            app.localDaemonRunning = true;
-        } else {
-            app.localDaemonRunning = false;
-            this.daemonProcess = null;
-            app.daemonPid = null;
-        }
-    });
-}
-
-const checkDaemonTimer = setIntervalAsync(() => {
-
-  checkDaemonStat();
-
-}, 3000);
-
-const checkSyncTimer = setIntervalAsync(() => {
-    if (app.localDaemonRunning && (app.daemonPid !== null)) {
-
-        var myAgent = new http.Agent({
-            keepAlive: true,
-            keepAliveMsecs: 8000
-        });
-        let headers = {
-            Connection: 'Keep-Alive',
-            Agent: myAgent
-        };
-
-        // when was the last time we had console output?
-        var newTimeStamp = Math.floor(Date.now());
-        if (newTimeStamp - app.timeStamp > 200000) {  // 200 seconds (about 3mins)
-          // if no response for over x mins then reset daemon...
-          log.warn("daemon reset...");
-          terminateDaemon();
-          runDaemon();
-          return;
-        }
-
-        request(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`, {
-            method: 'GET',
-            headers: headers,
-            body: {jsonrpc: '2.0'},
-            json: true,
-            timeout: 10000
-        }, (error, response, body) => {
-            if (!error && response.statusCode == 200) {
-              if (body.iscoreready) {
-                win.webContents.send('daemoncoreready', 'true');
-                return;
-              }
-            }
-            win.webContents.send('daemoncoreready', 'false');
-        }).catch(function(e){}); // Just eat the error as race condition expected anyway...
-    }
-}, 4000);
 
 /*
 const checkFallback = setIntervalAsync(() => {
@@ -482,8 +477,6 @@ app.on('ready', () => {
     let tx = Math.ceil((primaryDisp.workAreaSize.width - DEFAULT_SIZE.width)/2);
     let ty = Math.ceil((primaryDisp.workAreaSize.height - (DEFAULT_SIZE.height))/2);
     if(tx > 0 && ty > 0) win.setPosition(parseInt(tx, 10), parseInt(ty,10));
-
-    app.emit('run-daemon');
 });
 
 // Quit when all windows are closed.
@@ -508,10 +501,6 @@ app.on('activate', () => {
     if (win === null) createWindow();
 });
 
-app.on('run-daemon', () => {
-    runDaemon();
-});
-
 process.on('uncaughtException', function (e) {
     log.error(`Uncaught exception: ${e.message}`);
     process.exit(1);
@@ -528,3 +517,4 @@ process.on('exit', (code) => {
 process.on('warning', (warning) => {
     log.warn(`${warning.code}, ${warning.name}`);
 });
+

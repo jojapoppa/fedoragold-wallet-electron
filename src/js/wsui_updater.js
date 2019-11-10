@@ -59,25 +59,24 @@ function updateSyncProgress(data){
 
     if (data.knownBlockCount === SYNC_STATUS_RESCAN) {
 
-        if (uiMessage.search("New ") !== -1) {
-          statusText = '';
-          syncDiv.className = 'synced';
-          iconSync.setAttribute('data-icon', 'check');
-          iconSync.classList.remove('slow-spin');
-        } else {
-          // only skip label if Block: is in char position zero
-          if (uiMessage.search("Block:") === -1) {
-            statusText = 'SCAN ';
-          } else {
-            statusText = '';
-          }
-
-          // sync info bar class
-          syncDiv.className = '';
-          iconSync.setAttribute('data-icon', 'pause-circle');
+        // do we know the block count yet?
+        var blockMsg = "";
+        if (knownBlockCount > 0) {
+          blockMsg = " of " + knownBlockCount;
         }
 
-        syncInfoBar.textContent = statusText + uiMessage; 
+        // only skip label if Block: is in char position zero
+        if (uiMessage.search("Block:") === -1) {
+          statusText = 'SCAN ' + uiMessage + blockMsg;
+        } else {
+          statusText = '' + uiMessage + blockMsg;
+        }
+
+        // sync info bar class
+        syncDiv.className = '';
+        //iconSync.setAttribute('data-icon', 'pause-circle');
+        iconSync.setAttribute('data-icon', 'check');
+        syncInfoBar.textContent = statusText;
 
     } else if(data.knownBlockCount === SYNC_STATUS_NET_CONNECTED){
         // sync status text
@@ -165,7 +164,7 @@ function updateSyncProgress(data){
 
             // note: don't call setProgressBar, or it really kills performance
 
-            syMsg = "daemon SYNCING ";
+            syMsg = "SYNCING ";
             if (daemonHeight+3 >= knownBlockCount) {
               syMsg = "SYNCED "
               syncDiv.className = 'synced';

@@ -236,8 +236,9 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
 //        ]);
 
     let wsm = this;
-    log.warn("Walletd is binding daemon on port: "+settings.get('daemon_port'));
-    log.warn("Starting walletd service on port: "+settings.get('daemon_port'));
+    log.warn("fedoragold's external network is accessed on port: 30158");
+    log.warn("this fedoragold_daemon is on port: "+settings.get('daemon_port'));
+    log.warn("this fedoragold_walletd is on port: "+this.walletdPort);
 
     try{
         this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs);

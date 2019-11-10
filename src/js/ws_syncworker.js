@@ -105,7 +105,12 @@ function checkBlockUpdate(){
         logDebug('checkBlockUpdate: block updated, notify block update');
         LAST_HEIGHTVAL = heightVal;
         LAST_BLOCK_COUNT = blockCount;
-        LAST_KNOWN_BLOCK_COUNT = knownBlockCount;
+
+        if (knownBlockCount > LAST_KNOWN_BLOCK_COUNT) {
+          LAST_KNOWN_BLOCK_COUNT = knownBlockCount;
+        } else {
+          knownBlockCount = LAST_KNOWN_BLOCK_COUNT;
+        }
 
         // add any extras here, so renderer is not doing too many things
         let dispKnownBlockCount = (knownBlockCount-1);

@@ -2298,18 +2298,13 @@ ipcRenderer.on('console', (event, sChunk) => {
       firstline = firstline.substring(lc+4);
     }
 
-    if (wsmanager.daemonCoreReady) {
-      if (firstline.search("Block:") !== -1) {
-        firstline = "New " + firstline;
-      }
-    }
-
     if ( (firstline.search("failed")===-1) && (firstline.search("rejected")===-1) && 
          (firstline.search("unknown")===-1) && (firstline.search("Exception")===-1) && 
          (firstline.search("error")===-1) && (firstline.search("load")===-1) &&
          (firstline.search("WARNING")===-1) && (firstline.search("Load")===-1) &&
          (firstline.search("IGD")===-1) && (firstline.search("Wrong")===-1) &&
-         (firstline.search("Failed")===-1) && (firstline.search("folder")===-1) ) {
+         (firstline.search("Failed")===-1) && (firstline.search("folder")===-1) && 
+         (firstline.search("wrong")===-1) ) {
       let rescandata = {
         type: 'rescan',
         data: {

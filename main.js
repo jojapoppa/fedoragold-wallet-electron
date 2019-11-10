@@ -1,4 +1,4 @@
-const {app, dialog, ipcRenderer, Tray, Menu} = require('electron');
+const {app, dialog, Tray, Menu} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
@@ -180,8 +180,10 @@ const checkDaemonTimer = setIntervalAsync(() => {
     }, function(error, stdout, stderr) {
         if (stdout.toLowerCase().indexOf('fedoragold_daem') > -1) {
             if (this.daemonProcess === null) {
+              var errmsg = 'A fedoragold_daemon process is already running. Trying again...';
+              log.warn(errmsg);
               if (win !== null) {
-                win.webContents.send('console', "A fedoragold_daemon process is already running. Trying again..."); 
+                win.webContents.send('console', errmsg);
               }
               return;
             } else {
@@ -194,7 +196,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
             runDaemon();
         }
     });
-}, 13000);
+}, 3000);
 
 const checkSyncTimer = setIntervalAsync(() => {
     if (app.localDaemonRunning && (app.daemonPid !== null)) {

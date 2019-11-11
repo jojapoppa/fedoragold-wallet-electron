@@ -1,3 +1,4 @@
+/* eslint no-empty: 0 */
 /*jshint bitwise: false*/
 /* globals iqwerty */
 /* globals List */
@@ -626,6 +627,7 @@ function initAddressCompletion(){
             suggest(matches);
         },
         renderItem: function(item, search){
+            // eslint-disable-next-line no-useless-escape
             search = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
             var re = new RegExp("(" + search.split(' ').join('|') + ")", "gi");
             var spl = item.split("###");
@@ -745,7 +747,8 @@ function handleAddressBook(){
         let perPage = 9;
     
         if(currentLength >= abookLength  && !force)  return;
-    
+   
+        var addressList; 
         let listOpts = {
             valueNames: [
                 {data: ['hash', 'nameval','walletval','paymentidval','qrcodeval']},
@@ -1760,10 +1763,12 @@ function handleTransactions(){
             };
         });
 
+        let txin = '';
+        let txout = '';
         let dialog = document.getElementById('ab-dialog');
         switch(mode){
             case 'in':
-                let txin = txlist.filter( (obj) => {return obj.txType === "in";});
+                txin = txlist.filter( (obj) => {return obj.txType === "in";});
                 if(!txin.length){
                     showToast('Transaction export failed, incoming transactions not available!');
                     if(dialog.hasAttribute('open')) dialog.close();
@@ -1779,7 +1784,7 @@ function handleTransactions(){
                 });
                 break;
             case 'out':
-                let txout = txlist.filter( (obj) => {return obj.txType === "out";});
+                txout = txlist.filter( (obj) => {return obj.txType === "out";});
                 if(!txout.length){
                     showToast('Transaction export failed, outgoing transactions not available!');
                     if(dialog.hasAttribute('open')) dialog.close();
@@ -2269,8 +2274,8 @@ ipcRenderer.on('console', (event, sChunk) => {
     var buffer = "";
     var buffin = el.innerHTML + ansi_up.ansi_to_html(sChunk);
 
-    for (i=0; i<buffin.length; i++) {
-      ch = buffin.charCodeAt(i);
+    for (let i=0; i<buffin.length; i++) {
+      let ch = buffin.charCodeAt(i);
       if (ch == 10) {
         buffer += "<br/>";
       } else {
@@ -2279,12 +2284,12 @@ ipcRenderer.on('console', (event, sChunk) => {
       }
     }
 
-    outlen = 0;
+    let outlen = 0;
     var lastline = "";
     var firstline = "";
     var updatedText = "";
     var lines = buffer.split(/<br\/>|<br>|<br \/>/g);
-    for (i=lines.length-1; (i>0) && (outlen < 1000); i--) {
+    for (let i=lines.length-1; (i>0) && (outlen < 1000); i--) {
       var thisline = lines[i].trim();
       if (thisline.length > 0) {
         if (firstline.length === 0) firstline = thisline;
@@ -2327,7 +2332,7 @@ ipcRenderer.on('promptexit', () => {
     if(remote.app.prompShown) return;
     let msg = 'Are you sure, want to exit?';
     remote.app.prompShown = true;
-    reslt = confirm(msg);
+    let reslt = confirm(msg);
     remote.app.prompShown = false;
 
     if (reslt == true) {

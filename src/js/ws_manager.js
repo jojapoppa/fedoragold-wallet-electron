@@ -1,3 +1,5 @@
+/* eslint no-empty: 0 */
+
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -27,6 +29,7 @@ const INFO_FUSION_DONE = 'Wallet optimization completed, your balance may appear
 const INFO_FUSION_SKIPPED = 'Wallet already optimized. No further optimization is needed.';
 const ERROR_FUSION_FAILED = 'Unable to optimize your wallet, please try again in a few seconds';
 
+let SVC_BIN = '';
 let plat = process.platform;
 let daemonCoreReady = false;
 

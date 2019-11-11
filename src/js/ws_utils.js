@@ -9,6 +9,7 @@ const ADDRESS_REGEX_STR = `^${config.addressPrefix}(?=[aA-zZ0-9]*$)(?:.{${config
 const ADDRESS_REGEX = new RegExp(ADDRESS_REGEX_STR);
 const PAYMENT_ID_REGEX = new RegExp(/^([aA-zZ0-9]{64})$/);
 const SECRET_KEY_REGEX = new RegExp(/^[aA-zZ0-9]{64}$/);
+// eslint-disable-next-line no-regex-spaces
 const MNEMONIC_SEED_REGEX = new RegExp(/^[aA-zZ]+(?!.*  )[a-zA-Z0-9 ]*$/);
 
 /***** * DOM util *****/

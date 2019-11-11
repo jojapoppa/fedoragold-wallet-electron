@@ -8,7 +8,7 @@
 var _WINDOW = {};
 try {
   if (typeof window !== 'undefined') _WINDOW = window;
-  
+/* eslint-disable-next-line no-empty */
 } catch (e) {}
 
 var _ref = _WINDOW.navigator || {};
@@ -36,6 +36,7 @@ var NAMESPACE_IDENTIFIER = '___FONT_AWESOME___';
 var PRODUCTION = function () {
   try {
     return "production" === 'production';
+  // eslint-disable-next-line no-unreachable
   } catch (e) {
     return false;
   }
@@ -953,6 +954,7 @@ try {
   if (typeof document !== 'undefined') _DOCUMENT = document;
   if (typeof MutationObserver !== 'undefined') _MUTATION_OBSERVER$1 = MutationObserver;
   if (typeof performance !== 'undefined') _PERFORMANCE = performance;
+/* eslint-disable-next-line no-empty */
 } catch (e) {}
 
 var _ref = _WINDOW.navigator || {};
@@ -980,6 +982,7 @@ var TAGNAMES_TO_SKIP_FOR_PSEUDOELEMENTS = ['HTML', 'HEAD', 'STYLE', 'SCRIPT'];
 var PRODUCTION = function () {
   try {
     return "production" === 'production';
+  // eslint-disable-next-line no-unreachable
   } catch (e) {
     return false;
   }
@@ -1058,6 +1061,7 @@ var slicedToArray = function () {
       try {
         if (!_n && _i["return"]) _i["return"]();
       } finally {
+        // eslint-disable-next-line no-unsafe-finally
         if (_d) throw _e;
       }
     }
@@ -2604,7 +2608,7 @@ function apiObject(val, abstractCreator) {
 
   Object.defineProperty(val, 'node', {
     get: function get() {
-      if (!IS_DOM) return;
+      if (!IS_DOM) return val;
 
       var container = DOCUMENT.createElement('div');
       container.innerHTML = val.html;

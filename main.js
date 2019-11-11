@@ -107,6 +107,8 @@ function createWindow () {
     });
 
     win.on('show', () => {
+      autoUpdater.logger = log;
+      autoUpdater.logger.transports.file.level = "info";
       autoUpdater.checkForUpdatesAndNotify();
       autoUpdater.addListener("update-available", function (event) {
         const dialogOpts = {

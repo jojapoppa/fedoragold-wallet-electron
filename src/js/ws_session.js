@@ -52,7 +52,7 @@ WalletShellSession.prototype.get = function(key){
         return JSON.parse(sessionStorage.getItem(this.sessKey)) || this.sessDefault;
     }
     
-    if(!this.sessDefault.hasOwnProperty(key)){
+    if(!Object.prototype.hasOwnProperty.call(this.sessDefault, key)){
         throw new Error(`Invalid session key: ${key}`);
     }
 
@@ -67,7 +67,7 @@ WalletShellSession.prototype.getDefault = function(key){
 };
 
 WalletShellSession.prototype.set = function(key, val){
-    if(!this.sessDefault.hasOwnProperty(key)){
+    if(!Object.prototype.hasOwnProperty.call(this.sessDefault, key)){
         throw new Error(`Invalid session key: ${key}`);
     }
 
@@ -78,7 +78,7 @@ WalletShellSession.prototype.set = function(key, val){
 
 WalletShellSession.prototype.reset = function(key){
     if(key){
-        if(!this.sessDefault.hasOwnProperty(key)){
+        if(!Object.prototype.hasOwnProperty.call(this.sessDefault, key)){
             throw new Error('Invalid session key');
         }
         let sessData = this.get(); // all current data obj

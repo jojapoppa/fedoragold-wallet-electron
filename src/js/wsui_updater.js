@@ -1,3 +1,5 @@
+/* eslint no-empty: 0 */
+
 /* globals iqwerty */
 const {webFrame, remote} = require('electron');
 const Store = require('electron-store');
@@ -48,6 +50,7 @@ function updateSyncProgress(data){
     let blockSyncPercent = data.syncPercent;
     let uiMessage = data.uiMessage;
     let statusText = '';
+    let syMsg = '';
 
     // Sanity check on spurious values at start/restart of syncs
     if (knownBlockCount < 0 || daemonHeight < 0 || blockCount < 0) {
@@ -193,7 +196,7 @@ function updateSyncProgress(data){
               iconSync.classList.remove('slow-spin');
               iconSync.setAttribute('data-icon', 'pause-circle');
               syncInfoBar.textContent = 'STARTING SYNC...';
-	    } else {
+            } else {
               brwin.setProgressBar(taskbarProgress);
             }
 
@@ -260,7 +263,7 @@ function updateBalance(data){
 
 function updateTransactions(result){
 
-    logDebug("updateTransactions result items received: "+result.items.length);
+    log.warn("updateTransactions result items received: "+result.items.length);
 
     let txlistExisting = wsession.get('txList');
     const blockItems = result.items;
@@ -450,6 +453,7 @@ function updateUiState(msg){
     //log.warn('in updateUiState: ', msg.type);
 
     // do something with msg
+    let notif = '';
     switch (msg.type) {
         case 'blockUpdated':
             updateSyncProgress(msg.data);
@@ -461,7 +465,7 @@ function updateUiState(msg){
             updateSyncProgress(msg.data);
             break;
         case 'transactionUpdated':
-            logDebug('transactionUpdated in updateUiState...');
+            log.warn('transactionUpdated in updateUiState...');
             updateTransactions(msg.data);
             break;
         case 'nodeFeeUpdated':
@@ -474,15 +478,15 @@ function updateUiState(msg){
             if(msg.data) resetFormState(msg.data);
             break;
         case 'fusionTxCompleted':
-            let notif = 'Optimization completed';
-            let toastOpts = {
+            notif = 'Optimization completed';
+            if(msg.data) notif = msg.data;
+
+            iqwerty.toast.Toast(notif, {
                 style: { main: {
                     'padding': '4px 6px','left': '3px','right':'auto','border-radius': '0px'
                 }},
                 settings: {duration: 5000}
-            };
-            if(msg.data) notif = msg.data;
-            iqwerty.toast.Toast(notif, toastOpts);
+            });
             break;
         default:
             log.warn('invalid command received by ui', msg.type);

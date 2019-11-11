@@ -1,3 +1,5 @@
+/* eslint no-empty: 0 */
+
 const log = require('electron-log');
 const WalletShellApi = require('./ws_api');
 const { setIntervalAsync } = require('set-interval-async/fixed');
@@ -65,22 +67,22 @@ function checkBlockUpdate(){
         let kbcReturn = parseInt(blockStatus.knownBlockCount, 10);
         if (kbcReturn < 100) {
 
-          // just eat this message, as connections with daemon can be intermittent
+          //this shouldn't happen... connections with daemon should be solid
           //log.warn('checkBlockUpdate: Bad known block count, mark connection as broken');
-          if (lastConStatus !== conFailed) {
-            let fakeStatus = {
-              blockCount: -200,
-              displayBlockCount: -200,
-              displayKnownBlockCount: -200,
-              syncPercent: -200,
-              knownBlockCount: -200,
-              uiMessage: ''
-            };
-            process.send({
-              type: 'blockUpdated',
-              data: fakeStatus
-            });
-          }
+          //if (lastConStatus !== conFailed) {
+          //  let fakeStatus = {
+          //    blockCount: -200,
+          //    displayBlockCount: -200,
+          //    displayKnownBlockCount: -200,
+          //    syncPercent: -200,
+          //    knownBlockCount: -200,
+          //    uiMessage: ''
+          //  };
+          //  process.send({
+          //    type: 'blockUpdated',
+          //    data: fakeStatus
+          //  });
+          //}
 
           STATE_CONNECTED = false;
           logDebug("STATE_CONNECTED == false!");
@@ -196,15 +198,15 @@ function checkTransactionsUpdate(){
                     firstBlockIndex: startIndexWithMargin,
                     blockCount: searchCountWithMargin
                 };
-                logDebug(`checkTransactionsUpdate: args=${JSON.stringify(trx_args)}`);
+                log.warn(`checkTransactionsUpdate: args=${JSON.stringify(trx_args)}`);
                 wsapi.getTransactions( trx_args ).then((trx) => {
                     process.send({
                         type: 'transactionUpdated',
                         data: trx
                     });
-                    //log.warn('saveWallet()...');
+                    log.warn('saveWallet()...');
                     saveWallet();
-                    //log.warn('done');
+                    log.warn('done');
                     return true;
                 }).catch((err)=>{
                     log.warn(`checkTransactionsUpdate: getTransactions FAILED, ${err.message}`);
@@ -314,6 +316,7 @@ process.on('message', (msg) => {
             log.warn('Starting');
             try { clearInterval(taskWorker);} catch (err) {}
             checkBlockUpdate();
+            //checkTransactionsUpdate();
             setTimeout(workOnTasks, 5000);
             break;
         case 'pause':

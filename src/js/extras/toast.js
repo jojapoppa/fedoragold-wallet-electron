@@ -144,7 +144,7 @@ iqwerty.toast = (function() {
 	Toast.prototype.mergeOptions = function(initialOptions, customOptions) {
 		var merged = customOptions;
 		for(var prop in initialOptions) {
-			if(merged.hasOwnProperty(prop)) {
+			if(Object.prototype.hasOwnProperty.call(merged, prop)) {
 				if(initialOptions[prop] !== null && initialOptions[prop].constructor === Object) {
 					merged[prop] = Toast.prototype.mergeOptions(initialOptions[prop], merged[prop]);
 				}
@@ -273,6 +273,6 @@ iqwerty.toast = (function() {
 })();
 
 if(typeof module !== 'undefined') {
-	/* global module */
+	// global module 
 	module.exports = iqwerty.toast;
 }

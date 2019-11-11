@@ -1,3 +1,4 @@
+/* eslint no-unexpected-multiline: 0 */
 /*! List.js v1.5.0 (http://listjs.com) by Jonny Strömberg (http://javve.com) */
 var List =
 /******/ (function(modules) { // webpackBootstrap
@@ -351,7 +352,8 @@ module.exports = function(id, options, values) {
     },
     handlers: function() {
       for (var handler in self.handlers) {
-        if (self[handler] && self.handlers.hasOwnProperty(handler)) {
+        //if (self[handler] && self.handlers.hasOwnProperty(handler)) {
+        if (self[handler] && Object.prototype.hasOwnProperty.call(self.handlers, handler)) {
           self.on(handler, self[handler]);
         }
       }
@@ -634,7 +636,8 @@ module.exports = function extend (object) {
     var args = Array.prototype.slice.call(arguments, 1);
 
     // For each extender, copy their properties on our object.
-    for (var i = 0, source; source = args[i]; i++) {
+    for (var i = 0, source; i<args.length; i++) {
+        source = args[i];
         if (!source) continue;
         for (var property in source) {
             object[property] = source[property];
@@ -1310,7 +1313,8 @@ var Templater = function(list) {
   this.set = function(item, values) {
     if (!templater.create(item)) {
       for (var v in values) {
-        if (values.hasOwnProperty(v)) {
+        //if (values.hasOwnProperty(v)) {
+        if (Object.prototype.hasOwnProperty.call(values, v)) {
           setValue(item, v, values[v]);
         }
       }
@@ -1447,7 +1451,8 @@ module.exports = function(list) {
       }
     },
     values: function(values, column) {
-      if (values.hasOwnProperty(column)) {
+      //if (values.hasOwnProperty(column)) {
+      if (Object.prototype.hasOwnProperty.call(values, column)) {
         text = list.utils.toString(values[column]);
         
         if(rawTerm){
@@ -1721,7 +1726,8 @@ module.exports = function(list, options) {
       item.found = found;
     },
     values: function(values, value, searchArgument) {
-      if (values.hasOwnProperty(value)) {
+      //if (values.hasOwnProperty(value)) {
+      if (Object.prototype.hasOwnProperty.call(values, value)) {
         var text = toString(values[value]).toLowerCase();
 
         if (fuzzy(text, searchArgument, options)) {

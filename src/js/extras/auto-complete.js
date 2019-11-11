@@ -39,13 +39,17 @@ var autoComplete = (function(){
             menuClass: '',
             renderItem: function (item, search){
                 // escape special characters
+                // eslint-disable-next-line no-useless-escape
                 search = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                 var re = new RegExp("(" + search.split(' ').join('|') + ")", "gi");
                 return '<div class="autocomplete-suggestion" data-val="' + item + '">' + item.replace(re, "<b>$1</b>") + '</div>';
             },
             onSelect: function(e, term, item){}
         };
-        for (var k in options) { if (options.hasOwnProperty(k)) o[k] = options[k]; }
+        for (var k in options) { 
+          if (Object.prototype.hasOwnProperty.call(options, k)) o[k] = options[k];
+          //if (options.hasOwnProperty(k)) o[k] = options[k]; 
+        }
 
         // init
         var elems = typeof o.selector == 'object' ? [o.selector] : document.querySelectorAll(o.selector);
@@ -105,12 +109,16 @@ var autoComplete = (function(){
             }, that.sc);
 
             that.blurHandler = function(){
-                try { var over_sb = document.querySelector('.autocomplete-suggestions:hover'); } catch(e){ var over_sb = 0; }
+                var over_sb;
+                try { over_sb = document.querySelector('.autocomplete-suggestions:hover'); } 
+                catch(e){ over_sb = 0; }
                 if (!over_sb) {
                     that.last_val = that.value;
                     that.sc.style.display = 'none';
-                    setTimeout(function(){ that.sc.style.display = 'none'; }, 350); // hide suggestions on fast input
-                } else if (that !== document.activeElement) setTimeout(function(){ that.focus(); }, 20);
+                    // hide suggestions on fast input
+                    setTimeout(function(){ that.sc.style.display = 'none'; }, 350);
+                } else if (that !== document.activeElement) 
+                         setTimeout(function(){ that.focus(); }, 20);
             };
             addEvent(that, 'blur', that.blurHandler);
 
@@ -152,8 +160,11 @@ var autoComplete = (function(){
                 else if (key == 27) { that.value = that.last_val; that.sc.style.display = 'none'; }
                 // enter
                 else if (key == 13 || key == 9) {
-                    var sel = that.sc.querySelector('.autocomplete-suggestion.selected');
-                    if (sel && that.sc.style.display != 'none') { o.onSelect(e, sel.getAttribute('data-val'), sel); setTimeout(function(){ that.sc.style.display = 'none'; }, 20); }
+                    var selt = that.sc.querySelector('.autocomplete-suggestion.selected');
+                    if (selt && that.sc.style.display != 'none') { 
+                      o.onSelect(e, selt.getAttribute('data-val'), selt); 
+                      setTimeout(function(){ that.sc.style.display = 'none'; }, 20); 
+                    }
                 }
             };
             addEvent(that, 'keydown', that.keydownHandler);
@@ -213,7 +224,9 @@ var autoComplete = (function(){
 })();
 
 (function(){
+    // eslint-disable-next-line no-undef
     if (typeof define === 'function' && define.amd)
+        // eslint-disable-next-line no-undef
         define('autoComplete', function () { return autoComplete; });
     else if (typeof module !== 'undefined' && module.exports)
         module.exports = autoComplete;

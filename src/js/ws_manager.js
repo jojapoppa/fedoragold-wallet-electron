@@ -233,7 +233,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--daemon-address', '127.0.0.1',
         '--daemon-port', settings.get('daemon_port'),
         '--log-level', 0,
-        '--local' 
+//        '--local' 
         ]);
 
         //'--rpc-user', 'admin',

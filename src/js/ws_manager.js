@@ -188,7 +188,8 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
             let addressLabel = "Address: "; 
             if(stdout && stdout.length && stdout.indexOf(addressLabel) !== -1){
                 let trimmed = stdout.trim();
-                let walletAddress = trimmed.substring(trimmed.indexOf(addressLabel)+addressLabel.length, trimmed.length);
+                let walletAddress = trimmed.substring(trimmed.indexOf(addressLabel)+
+                  addressLabel.length, trimmed.length);
                 wsession.set('loadedWalletAddress', walletAddress);
 
                 // the first call just got the address back... now we run it for reals
@@ -219,6 +220,11 @@ function logFile(walletFile) {
 WalletShellManager.prototype._spawnService = function(walletFile, password, onError, onSuccess, onDelay){
     this.init();
 
+    // all walletd's always run with --local, meaning it uses the seeds instead of
+    //   the local daemon.  this allows people with slow machines to work, and yet
+    //   still creates as many full daemons as physically possible.  once layer 3
+    //   is up, i will add a --seed param below and make the location of that
+    //   remote daemon dynamic.
     var serviceArgs = this.serviceArgsDefault.concat([
         '--container-file', walletFile,
         '--container-password', password,
@@ -226,17 +232,13 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--bind-port', this.walletdPort,
         '--daemon-address', '127.0.0.1',
         '--daemon-port', settings.get('daemon_port'),
-        '--log-level', 0 
+        '--log-level', 0,
+        '--local' 
         ]);
 
         //'--rpc-user', 'admin',
         //'--rpc-password', password
         //'--enable-cors', '*',
-
-//        serviceArgs = serviceArgs.concat([
-//          '--daemon-address', '127.0.0.1',
-//          '--daemon-port', settings.get('daemon_port')
-//        ]);
 
     let wsm = this;
     log.warn("fedoragold's external network is accessed on port: 30158");
@@ -244,16 +246,16 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     log.warn("this fedoragold_walletd is on port: "+this.walletdPort);
 
     try{
-        this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs);
-          // , {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
+        this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs,
+          {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
         this.servicePid = this.serviceProcess.pid;
 
-        //this.serviceProcess.stdout.on('data', function(chunk) {
+        this.serviceProcess.stdout.on('data', function(chunk) {
         //  log.warn(chunk.toString());
-        //});
-        //this.serviceProcess.stderr.on('data', function(chunk) {
+        });
+        this.serviceProcess.stderr.on('data', function(chunk) {
         //  log.warn(chunk.toString());
-        //});
+        });
     }catch(e){
         if(onError) onError(ERROR_WALLET_EXEC);
         log.error(`${config.walletServiceBinaryFilename} is not running`);
@@ -268,7 +270,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     this.serviceProcess.on('error', (err) => {
         this.terminateService(true);
         wsm.syncWorker.stopSyncWorker();
-        log.error(`${config.walletServiceBinaryFilename} error: ${err.message}`);
+        log.warn(`${config.walletServiceBinaryFilename} error: ${err.message}`);
     });
 
     if(!this.serviceStatus()){
@@ -382,6 +384,9 @@ WalletShellManager.prototype.terminateService = function(force) {
 };
 
 WalletShellManager.prototype.startSyncWorker = function(){
+
+    log.warn("startSyncWorker called...");
+
     this.init();
     let wsm = this;
     if(this.syncWorker !== null){

@@ -113,13 +113,14 @@ function createWindow () {
       autoUpdater.addListener("update-available", function (event) {
         const dialogOpts = {
           type: 'info',
-          buttons: ['OK'],
+          buttons: ['OK', 'Cancel'],
           title: 'Application Update',
           message: 'A new version of FedoraGold Wallet (FED) is available.',
         }
       
-        dialog.showMessageBox(dialogOpts, (response) => { });
-        //inside function-> if (response === 0) autoUpdater.quitAndInstall()
+        dialog.showMessageBox(dialogOpts, (response, checked) => {
+          if (response === 0) autoUpdater.quitAndInstall();
+        });
       });
     });
 

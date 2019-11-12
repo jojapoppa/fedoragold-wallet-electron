@@ -2321,6 +2321,9 @@ ipcRenderer.on('console', (event, sChunk) => {
           uiMessage: firstline
         }
       };
+
+      // jojapoppa, send these 1 line status messages someplace new, need to
+      //   figure out where to show them... on mining screen perhaps?
       wsmanager.notifyUpdate(rescandata);
     }
 

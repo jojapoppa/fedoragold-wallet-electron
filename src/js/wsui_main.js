@@ -1686,7 +1686,7 @@ function handleTransactions(){
             txLen = wsession.get('txLen');
         }
 
-        log.warn('listTransactions Len:', txLen);
+        //log.warn('listTransactions Len:', txLen);
 
         if (txLen <= 0) {
             if (TXLIST_OBJ === null || TXLIST_OBJ.size() <= 0) setTxFiller(true);
@@ -2322,8 +2322,6 @@ ipcRenderer.on('console', (event, sChunk) => {
         }
       };
 
-      // jojapoppa, send these 1 line status messages someplace new, need to
-      //   figure out where to show them... on mining screen perhaps?
       wsmanager.notifyUpdate(rescandata);
     }
 

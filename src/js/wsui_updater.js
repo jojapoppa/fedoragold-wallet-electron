@@ -62,6 +62,11 @@ function updateSyncProgress(data){
 
     if (data.knownBlockCount === SYNC_STATUS_RESCAN) {
 
+        // only show SCAN messages if wallet isn't opened yet
+        if ((wsession.get('serviceReady') || false)) {
+          return;
+        }
+
         // do we know the block count yet?
         var blockMsg = "";
         if (knownBlockCount > 0) {
@@ -168,7 +173,7 @@ function updateSyncProgress(data){
             // note: don't call setProgressBar, or it really kills performance
 
             syMsg = "SYNCING ";
-            if (daemonHeight+3 >= knownBlockCount) {
+            if (blockCount+3 >= knownBlockCount) {
               syMsg = "SYNCED "
               syncDiv.className = 'synced';
               iconSync.setAttribute('data-icon', 'check');
@@ -185,9 +190,10 @@ function updateSyncProgress(data){
             }
 
             // status text
-            statusText = `${syMsg} ${daemonHeight} : ${statusText} (${blockSyncPercent}%)`;
+            let percent = ((blockCount / knownBlockCount)*100).toFixed(1);
+            statusText = `${syMsg} ${statusText} (${percent}%)`;
             syncInfoBar.textContent = statusText;
-            let taskbarProgress = +(parseFloat(blockSyncPercent)/100).toFixed(2);
+            let taskbarProgress = +(parseFloat(percent)/100).toFixed(2);
             if (blockSyncPercent === 0) {
               syncDiv.className = '';
               connInfoDiv.classList.remove('conn-warning');
@@ -263,7 +269,7 @@ function updateBalance(data){
 
 function updateTransactions(result){
 
-    log.warn("updateTransactions result items received: "+result.items.length);
+    //log.warn("updateTransactions result items received: "+result.items.length);
 
     let txlistExisting = wsession.get('txList');
     const blockItems = result.items;
@@ -465,7 +471,7 @@ function updateUiState(msg){
             updateSyncProgress(msg.data);
             break;
         case 'transactionUpdated':
-            log.warn('transactionUpdated in updateUiState...');
+            //log.warn('transactionUpdated in updateUiState...');
             updateTransactions(msg.data);
             break;
         case 'nodeFeeUpdated':

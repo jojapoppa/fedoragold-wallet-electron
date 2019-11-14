@@ -230,11 +230,14 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--container-password', password,
         '--bind-address', '127.0.0.1',
         '--bind-port', this.walletdPort,
-        '--daemon-address', '127.0.0.1',
-        '--daemon-port', settings.get('daemon_port'),
         '--log-level', 0,
-//        '--local' 
+        '--daemon-address', '18.222.96.134',
+        '--daemon-port', 30159
         ]);
+
+//        '--daemon-address', '127.0.0.1',
+//        '--daemon-port', settings.get('daemon_port'),
+//        '--local'
 
         //'--rpc-user', 'admin',
         //'--rpc-password', password
@@ -345,7 +348,7 @@ WalletShellManager.prototype.stopService = function(){
                     resolve(false);
                 }
             }).catch((err) => {
-                log.warn(`Failed to save wallet: ${err.message}`);
+                //log.warn(`Failed to save wallet: ${err.message}`);
                 // try to wait for save to completed before force killing
                 setTimeout(()=>{
                     wsm.terminateService(true); // force kill
@@ -385,7 +388,7 @@ WalletShellManager.prototype.terminateService = function(force) {
 
 WalletShellManager.prototype.startSyncWorker = function(){
 
-    log.warn("startSyncWorker called...");
+    //log.warn("startSyncWorker called...");
 
     this.init();
     let wsm = this;

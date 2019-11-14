@@ -61,7 +61,7 @@ class WalletShellApi {
                 json: true,
                 timeout: timeout
             }).on('socket', function(socket){
-                socket.setTimeout(4000);
+                socket.setTimeout(9000);
             }).on('error', function(e) {
                 // just eat the error, don't throw or stop
                 // log.warn('error on socket: ', e);
@@ -281,7 +281,6 @@ class WalletShellApi {
         });
     }
     reset(params) {
-        log.warn("in service API reset");
         return new Promise((resolve, reject) => {
             params = params || {};
             let req_params = {};
@@ -298,14 +297,13 @@ class WalletShellApi {
               req_params.viewSecretKey = params.viewSecretKey;
             }
 
-            log.warn("sending request for reset...");
             this._sendRequest('reset', false, req_params).then(() => {
-                log.warn("sent api reset to walletd...");
-                return resolve(true);
+              log.warn("sent api reset to walletd...");
+              return resolve(true);
             }).catch((err) => {
-                return reject(err);
+              return reject(err);
             });
-        });
+        }).catch((err) => { /* just eat it... connection timeouts are common here */ });
     }
     estimateFusion(params) {
         return new Promise((resolve, reject) => {

@@ -45,7 +45,8 @@ function initApi(cfg){
 }
 
 function checkBlockUpdate(){
-    logDebug("checkBlockUpdate() called...");
+    var retVal = true;
+    //log.warn("checkBlockUpdate() called...");
 
     if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) {
       logDebug('invalid State'); 
@@ -58,7 +59,6 @@ function checkBlockUpdate(){
     }
 
     PENDING_SAVE_SKIP_COUNTER = 0;
-    //let svc = new WalletShellApi(SERVICE_CFG);
 
     wsapi.getStatus().then((blockStatus) => {
         STATE_PENDING_SAVE = false;
@@ -91,68 +91,78 @@ function checkBlockUpdate(){
           //}
 
           STATE_CONNECTED = false;
-          log.warn("STATE_CONNECTED == false!");
-          return false;
+          log.warn("fedoragold_walletd cannot reach fedoragold_daemon,");
+          log.warn("  possible network interruption");
+
+          // THIS NEEDS TO BE MADE DYNAMIC - AND RUN ON VPN
+          // bind the daemon to a seed server address
+          //wsapi.bindDaemon('18.222.96.134', 30159);
+
+          retVal = false;
         } else {
+          STATE_CONNECTED = true;
           knownBlockCount = kbcReturn;
+
+          // bind the daemon back to the local instance again
+          //wsapi.bindDaemon('127.0.0.1', settings.get('daemon_port'));
         }
 
-        logDebug("good connection...");
+        if (retVal) {
+          logDebug("good network connection...");
 
-        // we have good connection
-        STATE_CONNECTED = true;
-        let blockCount = parseInt(blockStatus.blockCount, 10);
+          // we have good connection
+          STATE_CONNECTED = true;
+          let blockCount = parseInt(blockStatus.blockCount, 10);
 
-        //log.warn("blockCount reported: "+blockCount);
-        //log.warn("knownBlockCount reported: "+knownBlockCount);
-        LAST_HEIGHTVAL = heightVal;
-        LAST_BLOCK_COUNT = blockCount;
+          //log.warn("blockCount reported: "+blockCount);
+          //log.warn("knownBlockCount reported: "+knownBlockCount);
+          LAST_HEIGHTVAL = heightVal;
+          LAST_BLOCK_COUNT = blockCount;
 
-        if (knownBlockCount > LAST_KNOWN_BLOCK_COUNT) {
-          LAST_KNOWN_BLOCK_COUNT = knownBlockCount;
-        } else {
-          knownBlockCount = LAST_KNOWN_BLOCK_COUNT;
-        }
+          if (knownBlockCount > LAST_KNOWN_BLOCK_COUNT) {
+            LAST_KNOWN_BLOCK_COUNT = knownBlockCount;
+          } else {
+            knownBlockCount = LAST_KNOWN_BLOCK_COUNT;
+          }
 
-        // add any extras here, so renderer is not doing too many things
-        let dispKnownBlockCount = (knownBlockCount-1);
-        let dispBlockCount = (blockCount > dispKnownBlockCount ? dispKnownBlockCount : blockCount);
-        let syncPercent = 0;
-        if (heightVal < (dispKnownBlockCount-2)) {
+          // add any extras here, so renderer is not doing too many things
+          let dispKnownBlockCount = (knownBlockCount-1);
+          let dispBlockCount = (blockCount>dispKnownBlockCount ? dispKnownBlockCount : blockCount);
+          let syncPercent = 0;
+          if (heightVal < (dispKnownBlockCount-2)) {
             syncPercent = ((heightVal / dispKnownBlockCount) * 100);
-        }
-        else {
+          }
+          else {
             syncPercent = ((dispBlockCount / dispKnownBlockCount) * 100);
-        }
-        if(syncPercent <=0 || syncPercent >= 99.995){
+          }
+          if(syncPercent <=0 || syncPercent >= 99.995){
             syncPercent = 100;
-        }else{
+          }else{
             syncPercent = syncPercent.toFixed(2);
-        }
+          }
 
-        logDebug("sending height value: "+heightVal);
+          logDebug("sending height value: "+heightVal);
 
-        blockStatus.displayDaemonHeight = heightVal;
-        blockStatus.displayBlockCount = blockCount;
-        blockStatus.displayKnownBlockCount = knownBlockCount;
-        blockStatus.uiMessage = '';
-        blockStatus.syncPercent = syncPercent;
-        process.send({
+          blockStatus.displayDaemonHeight = heightVal;
+          blockStatus.displayBlockCount = blockCount;
+          blockStatus.displayKnownBlockCount = knownBlockCount;
+          blockStatus.uiMessage = '';
+          blockStatus.syncPercent = syncPercent;
+          process.send({
             type: 'blockUpdated',
             data: blockStatus
-        });
-
-        checkTransactionsUpdate();
+          });
+        }
     }).catch((err) => {
         // just eat this as the connection with Daemon can be intermittent
         //log.warn(`checkBlockUpdate: FAILED, ${err.message}`);
-        return false;
+        retVal = false;
     });
 
     //log.warn("returning from checkBlockUpdate");
 
     // isWalletdSynching
-    return true;
+    return retVal;
 }
 
 function reset() {
@@ -162,62 +172,129 @@ function reset() {
   } catch(e) {}
 }
 
-function checkTransactionsUpdate(){
-    if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) return;
+function sendTransactionsRequest(trx_args) {
 
-    logDebug("checkTransactionsUpdate()");
-    wsapi.getBalance().then((balance)=> {
-            STATE_PENDING_SAVE = false;
-            //log.warn("Balance: " + balance);
-            process.send({
-                type: 'balanceUpdated',
-                data: balance
-            });
+  var retVal = true;
+  //log.warn(`getTransactions: args=${JSON.stringify(trx_args)}`);
 
-            if(LAST_BLOCK_COUNT > 1){
-                logDebug('checkTransactionsUpdate: checking tx update');
-                let currentBlockCount = LAST_BLOCK_COUNT-1;
-                let startIndex = (!TX_CHECK_STARTED ? 1 : TX_LAST_INDEX);
-                let searchCount = currentBlockCount;
+  wsapi.getTransactions(trx_args).then(function(trx) {
+    const blockItems = trx.items;
 
-                let needCountMargin = false;
-                let blockMargin = 10;
-                if(TX_CHECK_STARTED){
-                    searchCount = (currentBlockCount - TX_LAST_COUNT);
-                    needCountMargin = true;
-                    logDebug("we need a count margin: "+blockMargin);
-                }
-
-                let startIndexWithMargin = (startIndex === 1 ? 1 : (startIndex-blockMargin));
-                let searchCountWithMargin = needCountMargin ?  searchCount+blockMargin : searchCount;
-                let trx_args = {
-                    firstBlockIndex: startIndexWithMargin,
-                    blockCount: searchCountWithMargin
-                };
-                //log.warn(`checkTransactionsUpdate: args=${JSON.stringify(trx_args)}`);
-                wsapi.getTransactions( trx_args ).then((trx) => {
-                    process.send({
-                        type: 'transactionUpdated',
-                        data: trx
-                    });
-                    //log.warn('saveWallet()...');
-                    saveWallet();
-                    //log.warn('done');
-                    return true;
-                }).catch((err)=>{
-                    log.warn(`checkTransactionsUpdate: getTransactions FAILED, ${err.message}`);
-                    return false;
-                });
-                TX_CHECK_STARTED = true;
-                TX_LAST_INDEX = currentBlockCount;
-                TX_LAST_COUNT = currentBlockCount;
-            }
-    }).catch((err)=> {
-        //log.warn(`checkTransactionsUpdate: getBalance FAILED, ${err.message}`);
-        return false;
+    process.send({
+      type: 'transactionUpdated',
+      data: blockItems
     });
+  }, function(err) {
 
-    return true;
+    // If walletd has not resynced to the top block, then it will fail when it tries
+    //   to return transactions at its local top-block.  so setting TX_LAST_INDEX just
+    //   makes the system attempt to get that failed local-to block again... until
+    //   walletd is synched, when is when all of the blocks will have been returned
+    TX_LAST_INDEX = trx_args.firstBlockIndex; // force system to retry this way...
+    retVal = false;
+
+    //log.warn("getTransactions method of walletd returned error: "+err+" : "+
+    //  JSON.stringify(trx_args));
+  });
+
+  return retVal;
+}
+
+function checkBalanceUpdate() {
+  wsapi.getBalance().then((balance)=> {
+    STATE_PENDING_SAVE = false;
+    //log.warn("Balance: " + parseFloat(balance.availableBalance));
+    process.send({
+      type: 'balanceUpdated',
+      data: balance
+    });
+  }).catch((err) => {
+    // just eat the message, there will be timeouts and that's normal
+    //log.warn(`checkTransactionsUpdate: getBalance FAILED, ${err.message}`);
+  });
+}
+
+let lastGetTransactionsTimestamp = 0;
+function checkTransactionsUpdate(){
+  if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) return;
+
+    if (! STATE_CONNECTED) {
+      // Network is down...
+      return false;
+    }
+
+    if (LAST_BLOCK_COUNT > 1) {
+      logDebug('checkTransactionsUpdate: checking tx update');
+      let currentBlockCount = LAST_BLOCK_COUNT-1;
+      let startIndex = (!TX_CHECK_STARTED ? 1 : TX_LAST_INDEX);
+      let searchCount = currentBlockCount;
+
+      let needCountMargin = false;
+      let blockMargin = 10;
+      if (TX_CHECK_STARTED) {
+        searchCount = (currentBlockCount - TX_LAST_COUNT);
+        needCountMargin = true;
+        logDebug("we need a count margin: "+blockMargin);
+      }
+
+      let startIndexWithMargin = (startIndex === 1 ? 1 : (startIndex-blockMargin));
+      let searchCountWithMargin = needCountMargin ?  
+        searchCount+blockMargin : searchCount;
+
+      // ask for a little more than you think is likely avail
+      // walletd can always just send back less if it hasn't synced
+      // to that height yet.  this keeps the ave req amount
+      // from gradually diminishing over time, as the amt requested
+      // is based on the amount received in the last response
+      let requestNumBlocks = searchCountWithMargin;
+      if (requestNumBlocks < 10000) { requestNumBlocks+=10; }
+
+      // only save wallet if not in the middle of a resync
+      // and only save if your not in the middle of a massive
+      // wallet initiation downloading lots of blocks...
+      let curGetTransactionsTimestamp = Math.floor(Date.now());
+      if ((curGetTransactionsTimestamp - lastGetTransactionsTimestamp) > 1000) {
+        lastGetTransactionsTimestamp = curGetTransactionsTimestamp;
+        if (searchCountWithMargin < 100) {
+          saveWallet();
+        }
+      }
+
+      // send the blocks in groups of 10,000 so that you don't
+      //   overwhelm the msg buffer and slow the UI down. 
+      var chunk=10000;
+      for (var i=0;i<requestNumBlocks;i+=chunk) {
+        if (requestNumBlocks<=chunk) {
+          let trx_args = {
+            firstBlockIndex: startIndexWithMargin, 
+            blockCount: requestNumBlocks
+          };
+          // return values don't matter as the getTransactions Promise
+          // has it's own 'thread', so we just set TX_LAST_INDEX instead
+          sendTransactionsRequest(trx_args);
+        } else {
+          var rq = chunk;
+          var chend = i+chunk;
+          if (chend>(requestNumBlocks-1)) { rq = (requestNumBlocks-1)-i; }
+          let trx_args = {
+            firstBlockIndex: startIndexWithMargin+i, 
+            blockCount: rq
+          };
+          // return values don't matter as the getTransactions Promise
+          // has it's own 'thread', so we just set TX_LAST_INDEX instead
+          sendTransactionsRequest(trx_args);
+        }
+      }
+
+      TX_CHECK_STARTED = true;
+      TX_LAST_COUNT = currentBlockCount;
+
+      // will be reset if any getTransactions Promises fail
+      //  which happens on a different thread...
+      TX_LAST_INDEX = currentBlockCount;
+    }
+
+  return true;
 }
 
 function delayReleaseSaveState(){
@@ -235,22 +312,23 @@ function saveWallet(){
     STATE_SAVING = true;
     //log.warn(`saveWallet: trying to save wallet`);
 
+    var retVal = true;
     setTimeout(() => {
         wsapi.save().then(()=> {
             //log.warn(`saveWallet: OK`);
             STATE_SAVING = false;
             STATE_PENDING_SAVE = false;
-            return true;
+            retVal = true;
         }).catch((err)=>{
             STATE_PENDING_SAVE = true;
             //just eat the message, they won't all succeed... expected behavior
             //log.warn(`saveWallet: FAILED, ${err.message}`);
             delayReleaseSaveState();
-            return false;
+            retVal = false;
         });
     }, 10222);
 
-    return true;
+    return retVal;
 }
 
 function workOnTasks(){
@@ -272,6 +350,7 @@ function workOnTasks(){
 
         checkBlockUpdate();
         checkTransactionsUpdate();
+        checkBalanceUpdate();
 
         // no more saving wallet for no reason...
         //if(SAVE_COUNTER > 500 && isWalletdSynching){
@@ -314,6 +393,7 @@ process.on('message', (msg) => {
             try { clearInterval(taskWorker);} catch (err) {}
             checkBlockUpdate();
             checkTransactionsUpdate();
+            checkBalanceUpdate();
             setTimeout(workOnTasks, 10000);
             break;
         case 'pause':

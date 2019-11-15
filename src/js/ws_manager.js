@@ -235,9 +235,10 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--daemon-port', 30159
         ]);
 
-//        '--daemon-address', '127.0.0.1',
-//        '--daemon-port', settings.get('daemon_port'),
-//        '--local'
+        //'--daemon-address', '127.0.0.1',
+        //'--daemon-port', settings.get('daemon_port')
+        //'--daemon-address', '18.222.96.134',
+        //'--daemon-port', 30159
 
         //'--rpc-user', 'admin',
         //'--rpc-password', password
@@ -286,7 +287,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     let MAX_CHECK = 48;
     function testConnection(retry){
         wsm.serviceApi.getAddress().then((address) => {
-            log.warn('Got an address, connection ok!');
+            log.warn('Got an address, wallet is ok!');
             if(!TEST_OK){
                 wsm.serviceActiveArgs = serviceArgs;
                 // update session

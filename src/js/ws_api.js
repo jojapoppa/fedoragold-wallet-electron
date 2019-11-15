@@ -18,11 +18,11 @@ class WalletShellApi {
         this.daemonCoreReady = args.daemonCoreReady || false;
     }
 
-    _sendRequest(method, todaemon, params, timeout) {
+    _sendRequest(method, todaemon, paramsIn, timeoutIn) {
         return new Promise((resolve, reject) => {
             if (method.length === 0) return reject(new Error('Invalid Method'));
-            params = params || {};
-            timeout = timeout || 10000;
+            var params = paramsIn || {};
+            var timeout = timeoutIn || 10000;
             let data = {
                 jsonrpc: '2.0',
                 method: method,
@@ -97,7 +97,7 @@ class WalletShellApi {
     // used to determine state of sync for daemon fullnode
     getHeight() {
         return new Promise((resolve, reject) => {
-            this._sendRequest('getheight', true).then((result) => {
+            this._sendRequest('getheight', true, {}, 10000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -107,7 +107,7 @@ class WalletShellApi {
     // only get single addres only, no multi address support for this wallet, yet
     getAddress() {
         return new Promise((resolve, reject) => {
-            this._sendRequest('getAddresses', false).then((result) => {
+            this._sendRequest('getAddresses', false, {}, 10000).then((result) => {
                 return resolve(result.addresses[0]);
             }).catch((err) => {
                 return reject(err);
@@ -116,7 +116,7 @@ class WalletShellApi {
     }
     getFeeInfo() {
         return new Promise((resolve, reject) => {
-            this._sendRequest('getFeeInfo', false).then((result) => {
+            this._sendRequest('getFeeInfo', false, {}, 10000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -130,7 +130,7 @@ class WalletShellApi {
             let req_params = {
                 address: params.address
             };
-            this._sendRequest('getBalance', false, req_params, 5000).then((result) => {
+            this._sendRequest('getBalance', false, req_params, 9000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -139,7 +139,8 @@ class WalletShellApi {
     }
     getStatus() {
         return new Promise((resolve, reject) => {
-            this._sendRequest('getStatus', false).then((result) => {
+            let req_params = {};
+            this._sendRequest('getStatus', false, req_params, 15000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -149,7 +150,7 @@ class WalletShellApi {
     getInfo() {
         //let req_params = {};
         return new Promise((resolve, reject) => {
-            this._sendRequest('getinfo', true).then((result) => {
+            this._sendRequest('getinfo', true, {}, 10000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 // Just eat any errors...
@@ -168,7 +169,7 @@ class WalletShellApi {
     }
     getViewKey() {
         return new Promise((resolve, reject) => {
-            this._sendRequest('getViewKey', false).then((result) => {
+            this._sendRequest('getViewKey', false, {}, 10000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -184,7 +185,7 @@ class WalletShellApi {
             var req_params = {
                 address: params.address
             };
-            this._sendRequest('getSpendKeys', false, req_params).then((result) => {
+            this._sendRequest('getSpendKeys', false, req_params, 10000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -200,7 +201,7 @@ class WalletShellApi {
             var req_params = {
                 address: params.address
             };
-            this._sendRequest('getMnemonicSeed', false, req_params).then((result) => {
+            this._sendRequest('getMnemonicSeed', false, req_params, 10000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -222,9 +223,9 @@ class WalletShellApi {
                 return vkres;
             }).then((vsres) => {
                 return this.getSpendKeys(req_params).then((vsres) => {
-                      backupKeys.spendSecretKey = vsres.spendSecretKey;
-                      return vsres;
-                }).catch((err) => { return reject(err); });
+                  backupKeys.spendSecretKey = vsres.spendSecretKey;
+                  return vsres;
+                }).catch((err) => { return reject(err); }); 
             }).then(() => {
                 //confirm(`viewSecretKey: ${backupKeys.viewSecretKey}`);
                 //confirm(`spendSecretKey: ${backupKeys.spendSecretKey}`);
@@ -241,8 +242,8 @@ class WalletShellApi {
             params.firstBlockIndex = params.firstBlockIndex || 1;
             params.blockCount = params.blockCount || 100;
             var req_params = {
-                firstBlockIndex: (params.firstBlockIndex >= 1) ? params.firstBlockIndex : 1,
-                blockCount: (params.blockCount >= 1) ? params.blockCount : 100
+              firstBlockIndex: params.firstBlockIndex,
+              blockCount: params.blockCount
             };
             this._sendRequest('getTransactions', false, req_params, 20000).then((result) => {
                 return resolve(result);
@@ -297,8 +298,8 @@ class WalletShellApi {
               req_params.viewSecretKey = params.viewSecretKey;
             }
 
-            this._sendRequest('reset', false, req_params).then(() => {
-              log.warn("sent api reset to walletd...");
+            this._sendRequest('reset', false, req_params, 10000).then(() => {
+              //log.warn("sent api reset to walletd...");
               return resolve(true);
             }).catch((err) => {
               return reject(err);
@@ -309,7 +310,7 @@ class WalletShellApi {
         return new Promise((resolve, reject) => {
             params = params || {};
             if (!params.threshold) return reject(new Error('Missing threshold parameter'));
-            this._sendRequest('estimateFusion', false, params).then((result) => {
+            this._sendRequest('estimateFusion', false, params, 10000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -321,7 +322,7 @@ class WalletShellApi {
             params = params || {};
             if (!params.threshold) return reject(new Error('Missing threshold parameter'));
             if (!params.anonimity) params.anonimity = this.anonimity;
-            this._sendRequest('sendFusionTransaction', false, params).then((result) => {
+            this._sendRequest('sendFusionTransaction', false, params, 10000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -335,7 +336,7 @@ class WalletShellApi {
                 return reject(new Error('Address and Payment Id parameters are required'));
             }
             
-            this._sendRequest('createIntegratedAddress', false, params).then((result) => {
+            this._sendRequest('createIntegratedAddress', false, params, 10000).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);

@@ -190,7 +190,7 @@ function updateSyncProgress(data){
             }
 
             // status text
-            let percent = ((blockCount / knownBlockCount)*100).toFixed(1);
+            let percent = ((blockCount / knownBlockCount)*100).toFixed(2);
             statusText = `${syMsg} ${statusText} (${percent}%)`;
             syncInfoBar.textContent = statusText;
             let taskbarProgress = +(parseFloat(percent)/100).toFixed(2);
@@ -267,12 +267,10 @@ function updateBalance(data){
     }
 }
 
-function updateTransactions(result){
+function updateTransactions(blockItems){
 
-    //log.warn("updateTransactions result items received: "+result.items.length);
-
+    //log.warn("updateTransactions result items received: "+blockItems.length);
     let txlistExisting = wsession.get('txList');
-    const blockItems = result.items;
 
     if(!txlistExisting.length && !blockItems.length){
         document.getElementById('transaction-export').classList.remove('hidden');
@@ -285,7 +283,6 @@ function updateTransactions(result){
    }
 
     if(!blockItems.length) return;
-
     let txListNew = [];
 
     Array.from(blockItems).forEach((block) => {
@@ -304,6 +301,8 @@ function updateTransactions(result){
             }
         });
     });
+
+    //log.warn("primary processing of transaction block completed");
 
     if(!txListNew.length) return;
 
@@ -336,12 +335,12 @@ function updateTransactions(result){
     let rememberedLastHash = settings.get('last_notification', '');
     let notify = true;
 
-    // jojapoppa, are these desktop conditions correct? 
-    // run extensive UI test do receiving transactions notify in OS UI
+    // test for invalid desktop notifications
     if(lastTxDate !== currentDate || (newTxAmount < 0) || rememberedLastHash === newLastHash ){
         notify = false;
     }
 
+    // desktop notification
     if(notify){
 
         settings.set('last_notification', newLastHash);

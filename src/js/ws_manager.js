@@ -65,7 +65,7 @@ var WalletShellManager = function(){
     this.fusionTxHash = [];
 };
 
-WalletShellManager.prototype.init = function(){
+WalletShellManager.prototype.init = function(password){
     this._getSettings();
     if(this.serviceApi !== null) return;
     
@@ -74,7 +74,7 @@ WalletShellManager.prototype.init = function(){
         daemon_port: this.daemonPort,
         walletd_host: this.walletdHost,
         walletd_port: this.walletdPort,
-        walletd_password: this.walletdPassword,
+        walletd_password: password,
         daemonCoreReady: this.daemonCoreReady
     };
     this.serviceApi = new WalletShellApi(cfg);
@@ -102,7 +102,6 @@ WalletShellManager.prototype.serviceStatus = function(){
 };
 
 WalletShellManager.prototype.isRunning = function () {
-    this.init();
     let proc = path.basename(this.serviceBin);
     let platform = process.platform;
     let cmd = '';
@@ -155,7 +154,7 @@ WalletShellManager.prototype._writeConfig = function(cfg){
 };
 
 WalletShellManager.prototype.startService = function(walletFile, password, onError, onSuccess, onDelay){
-    this.init();
+    this.init(password);
 
     if(null !== this.serviceLastPid){
         // try to kill last process, in case it was stalled
@@ -218,30 +217,45 @@ function logFile(walletFile) {
 }
 
 WalletShellManager.prototype._spawnService = function(walletFile, password, onError, onSuccess, onDelay){
-    this.init();
+
+    // permanent priority - needs assignment to be dynamic within
+    // layer 3 once that is working...
+    var priority = "18.222.96.134:"+"30159";
 
     // all walletd's always run with --local, meaning it uses the seeds instead of
     //   the local daemon.  this allows people with slow machines to work, and yet
     //   still creates as many full daemons as physically possible.  once layer 3
     //   is up, i will add a --seed param below and make the location of that
-    //   remote daemon dynamic.
+    //   remote daemon dynamic, instead of relying on hardcoded seed addresses.
     var serviceArgs = this.serviceArgsDefault.concat([
+
+//p2pstate.bin  -> goes here - use config folder location
+        '--data-dir', '/home/jojapoppa/tmp',
+
         '--container-file', walletFile,
         '--container-password', password,
         '--bind-address', '127.0.0.1',
         '--bind-port', this.walletdPort,
-        '--log-level', 0,
+        '--rpc-user', 'fedadmin',
+        '--rpc-password', password,
+        '--add-priority-node', priority,
+        '--allow-local-ip','',
         '--daemon-address', '18.222.96.134',
-        '--daemon-port', 30159
+        '--daemon-port', 30159,
+        '--log-level', 0
         ]);
 
-        //'--daemon-address', '127.0.0.1',
-        //'--daemon-port', settings.get('daemon_port')
-        //'--daemon-address', '18.222.96.134',
-        //'--daemon-port', 30159
+        // NOTE: jojapoppa, the --daemon-address needs to be changed to
+        //        '--daemon-address', '127.0.0.1',
+        //        '--daemon-port', settings.get('daemon_port'),
+        //  after the local has completely synced.  however, the initial
+        //  value of this IP needs to be dynamic based on layer 3 (later)
+        //  once set the priority node set becomes permanent for the user
+        //  session, but not the --daemon-address which gets switched to
+        //  local host once a full sync is completed
 
-        //'--rpc-user', 'admin',
-        //'--rpc-password', password
+log.warn("walletFile: "+walletFile);
+
         //'--enable-cors', '*',
 
     let wsm = this;
@@ -295,7 +309,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
                 wsession.set('serviceReady', true);
                 wsession.set('connectedNode', `${settings.get('daemon_host')}:${settings.get('daemon_port')}`);
                 // start the worker here?
-                wsm.startSyncWorker();
+                wsm.startSyncWorker(password);
                 wsm.notifyUpdate({
                     type: 'addressUpdated',
                     data: address
@@ -331,12 +345,11 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
 };
 
 WalletShellManager.prototype.stopService = function(){
-    this.init();
     let wsm = this;
     return new Promise(function (resolve){
         if(wsm.serviceStatus()){
             wsm.serviceLastPid = wsm.serviceProcess.pid;
-            wsm.stopSyncWorker(true);
+            wsm.stopSyncWorker();
             wsm.serviceApi.save().then(() =>{
                 try{
                     wsm.terminateService(true);
@@ -387,11 +400,8 @@ WalletShellManager.prototype.terminateService = function(force) {
     this.servicePid = null;
 };
 
-WalletShellManager.prototype.startSyncWorker = function(){
+WalletShellManager.prototype.startSyncWorker = function(password){
 
-    //log.warn("startSyncWorker called...");
-
-    this.init();
     let wsm = this;
     if(this.syncWorker !== null){
         this.syncWorker = null;
@@ -439,7 +449,7 @@ WalletShellManager.prototype.startSyncWorker = function(){
             daemon_port: this.daemonPort,
             walletd_host: this.walletdHost,
             walletd_port: this.walletdPort,
-            walletd_password: this.walletdPassword
+            walletd_password: password
         },
         debug: SERVICE_LOG_DEBUG
     };
@@ -497,7 +507,6 @@ WalletShellManager.prototype.genIntegratedAddress = function(paymentId, address)
 };
 
 WalletShellManager.prototype.createWallet = function(walletFile, password){
-    this.init();
     let wsm = this;
     let walletLog = `.${walletFile}.log`;
     return new Promise((resolve, reject) => {
@@ -535,7 +544,6 @@ WalletShellManager.prototype.createWallet = function(walletFile, password){
 };
 
 WalletShellManager.prototype.importFromKeys = function(walletFile, password, viewKey, spendKey, scanHeight){
-    this.init();
     let wsm = this;
     return new Promise((resolve, reject) => {
         scanHeight = scanHeight || 0;
@@ -568,7 +576,6 @@ WalletShellManager.prototype.importFromKeys = function(walletFile, password, vie
 };
 
 WalletShellManager.prototype.importFromSeed = function(walletFile, password, mnemonicSeed, scanHeight){
-    this.init();
     let wsm = this;
     return new Promise((resolve, reject) => {
         scanHeight = scanHeight || 0;
@@ -751,7 +758,8 @@ WalletShellManager.prototype.optimizeWallet = function(){
 //            data: null
 //        });
 //    }else{
-//        this.init();
+// WHY CALL INIT() HERE?        this.init();
+//
 //        // looks like fedoragold_walletd always stalled after disconnected, just kill & relaunch it
 //        let pid = this.serviceProcess.pid || null;
 //        this.terminateService();

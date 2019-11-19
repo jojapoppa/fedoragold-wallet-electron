@@ -45,7 +45,7 @@ npm run dist-win --no-bin-link --rollback=false
 
 rm -r bin
 
-cp dist/FedoraGoldWallet-v*AppImage /media/sharedv
-cp dist/FedoraGoldWallet-v*exe /media/sharedv
-cp dist/mac/FedoraGoldWalletMac.zip /media/sharedv/FedoraGoldWalletMac-v.zip
-cp dist/*.yml /media/sharedv
+cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv
+cp dist/FedoraGoldWallet-v*exe /media/sf_sharedv
+cp dist/mac/FedoraGoldWalletMac.zip /media/sf_sharedv/FedoraGoldWalletMac-v.zip
+cp dist/*.yml /media/sf_sharedv

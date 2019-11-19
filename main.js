@@ -217,7 +217,6 @@ const checkSyncTimer = setIntervalAsync(() => {
         var newTimeStamp = Math.floor(Date.now());
         if (newTimeStamp - app.timeStamp > 200000) {  // 200 seconds (about 3mins)
           // if no response for over x mins then reset daemon... 
-          log.warn("daemon reset...");
           try{killer(app.daemonPid,'SIGKILL');}catch(err){}
           this.daemonProcess = null;
           app.daemonPid = null;
@@ -364,7 +363,8 @@ function runDaemon() {
 
     let daemonArgs = [
       '--rpc-bind-ip', '127.0.0.1',
-      '--rpc-bind-port', settings.get('daemon_port') 
+      '--rpc-bind-port', settings.get('daemon_port'),
+      '--allow-local-ip'
     ];
 
     try {

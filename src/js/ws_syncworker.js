@@ -63,7 +63,9 @@ function checkBlockUpdate(){
     wsapi.getStatus().then((blockStatus) => {
         STATE_PENDING_SAVE = false;
         let lastConStatus = STATE_CONNECTED;
-        let kbcReturn = parseInt(blockStatus.knownBlockCount, 10);
+        let kbcReturn = parseInt(blockStatus.knownBlockCount, 10) - 1;
+
+        log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
 
         // jojapoppa
         // We should use this peercount to create a "Signal" display sort
@@ -91,7 +93,7 @@ function checkBlockUpdate(){
           //}
 
           STATE_CONNECTED = false;
-          log.warn("fedoragold_walletd cannot reach fedoragold_daemon,");
+          log.warn("fedoragold_walletd cannot reach fedoragold network,");
           log.warn("  possible network interruption");
 
           // THIS NEEDS TO BE MADE DYNAMIC - AND RUN ON VPN
@@ -100,7 +102,6 @@ function checkBlockUpdate(){
 
           retVal = false;
         } else {
-          STATE_CONNECTED = true;
           knownBlockCount = kbcReturn;
 
           // bind the daemon back to the local instance again
@@ -112,7 +113,7 @@ function checkBlockUpdate(){
 
           // we have good connection
           STATE_CONNECTED = true;
-          let blockCount = parseInt(blockStatus.blockCount, 10);
+          let blockCount = parseInt(blockStatus.localDaemonBlockCount, 10);
 
           //log.warn("blockCount reported: "+blockCount);
           //log.warn("knownBlockCount reported: "+knownBlockCount);
@@ -175,14 +176,17 @@ function reset() {
 function sendTransactionsRequest(trx_args) {
 
   var retVal = true;
-  //log.warn(`getTransactions: args=${JSON.stringify(trx_args)}`);
+  log.warn(`getTransactions: args=${JSON.stringify(trx_args)}`);
 
   wsapi.getTransactions(trx_args).then(function(trx) {
     const blockItems = trx.items;
 
-    process.send({
-      type: 'transactionUpdated',
-      data: blockItems
+    var prom = new Promise(function(resolve, reject) {
+      process.send({
+        type: 'transactionUpdated',
+        data: blockItems
+      });
+      resolve(true);
     });
   }, function(err) {
 
@@ -219,9 +223,11 @@ function checkTransactionsUpdate(){
   if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) return;
 
     if (! STATE_CONNECTED) {
-      // Network is down...
+      // walletd's network access to fedoragold_daemon is down...
       return false;
     }
+
+    log.warn("checkTransactionsUpdate()");
 
     if (LAST_BLOCK_COUNT > 1) {
       logDebug('checkTransactionsUpdate: checking tx update');

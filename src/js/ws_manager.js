@@ -12,6 +12,7 @@ const uiupdater = require('./wsui_updater');
 const wsutil = require('./ws_utils');
 const config = require('./ws_config');
 const remote = require('electron').remote;
+//const { setIntervalAsync } = require('set-interval-async/fixed');
 
 const settings = new Store({name: 'Settings'});
 const wsession = new WalletShellSession();
@@ -89,6 +90,7 @@ WalletShellManager.prototype._reinitSession = function(){
     wsession.reset();
     // remove wallet config
     let configFile = wsession.get('walletConfig');
+    //log.warn("configFile is: "+configFile);
     if(configFile) try{ fs.unlinkSync(configFile); }catch(e){}
     this.notifyUpdate({
         type: 'sectionChanged',
@@ -216,7 +218,16 @@ function logFile(walletFile) {
     return path.join( path.dirname(walletFile), `${file.split(' ').join('').split('.')[0]}.log`);
 }
 
-WalletShellManager.prototype._spawnService = function(walletFile, password, onError, onSuccess, onDelay){
+WalletShellManager.prototype._spawnService = function(walletFile, password, onError, onSuccess, onDelay) {
+
+    // if the local chain is synced to within 3 or 4 days, then use the local daemon
+    //if (this.syncWorker.LAST_BLOCKCOUNT + 10000 > this.syncWorker.LAST_HEIGHTVAL) {
+    //  if (blockcount > 0 && heightval > 0)
+    //    log.warn("walletd is synced to within the last week... run local");
+    //}
+
+log.warn("current_block is: "+settings.get('current_block'));
+log.warn("top_block is: "+settings.get('top_block'));
 
     // permanent priority - needs assignment to be dynamic within
     // layer 3 once that is working...
@@ -228,10 +239,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     //   is up, i will add a --seed param below and make the location of that
     //   remote daemon dynamic, instead of relying on hardcoded seed addresses.
     var serviceArgs = this.serviceArgsDefault.concat([
-
-//p2pstate.bin  -> goes here - use config folder location
-        '--data-dir', '/home/jojapoppa/tmp',
-
+        '--data-dir', remote.app.getPath('userData'),
         '--container-file', walletFile,
         '--container-password', password,
         '--bind-address', '127.0.0.1',
@@ -254,8 +262,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         //  session, but not the --daemon-address which gets switched to
         //  local host once a full sync is completed
 
-log.warn("walletFile: "+walletFile);
-
+        //log.warn("walletFile: "+walletFile);
         //'--enable-cors', '*',
 
     let wsm = this;

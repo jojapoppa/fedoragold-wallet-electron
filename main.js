@@ -61,9 +61,9 @@ app.chunkBuf = '';
 app.daemonPid = null;
 app.daemonLastPid = null;
 app.localDaemonRunning = false;
+app.daemonProcess = null;
 
 let win = null;
-let daemonProcess = null;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
@@ -115,7 +115,7 @@ function createWindow () {
           type: 'info',
           buttons: ['OK', 'Cancel'],
           title: 'Application Update',
-          message: 'A new version of FedoraGold Wallet (FED) is available.',
+          message: 'New version of FedoraGold is available from http://fedoragold.com',
         }
       
         dialog.showMessageBox(dialogOpts, (response, checked) => {
@@ -182,7 +182,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
         maxBuffer: 2000 * 1024
     }, function(error, stdout, stderr) {
         if (stdout.toLowerCase().indexOf('fedoragold_daem') > -1) {
-            if (this.daemonProcess === null) {
+            if (app.daemonProcess === null) {
               var errmsg = 'A fedoragold_daemon process is already running. Trying again...';
               log.warn(errmsg);
               if (win !== null) {
@@ -194,7 +194,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
             }
         } else {
             app.localDaemonRunning = false;
-            this.daemonProcess = null;
+            app.daemonProcess = null;
             app.daemonPid = null;
             runDaemon();
         }
@@ -215,11 +215,18 @@ const checkSyncTimer = setIntervalAsync(() => {
 
         // when was the last time we had console output?
         var newTimeStamp = Math.floor(Date.now());
-        if (newTimeStamp - app.timeStamp > 200000) {  // 200 seconds (about 3mins)
+        if (newTimeStamp - app.timeStamp > 300000) {  // (about 4mins)
           // if no response for over x mins then reset daemon... 
-          try{killer(app.daemonPid,'SIGKILL');}catch(err){}
-          this.daemonProcess = null;
-          app.daemonPid = null;
+          terminateDaemon();
+
+          // if the normal 'exit' command didn't work, then just wipe it out...
+          if (newTimeStamp - app.timeStamp > 400000) {  // (about 6mins)
+            /* eslint-disable-next-line no-empty */
+            try{killer(app.daemonPid,'SIGKILL');}catch(err){}
+            app.daemonProcess = null;
+            app.daemonPid = null;
+          }
+
           return;
         }
 
@@ -244,7 +251,9 @@ const checkSyncTimer = setIntervalAsync(() => {
 function storeNodeList(pnodes){
     pnodes = pnodes || settings.get('pubnodes_data');
     let validNodes = [];
-    if( pnodes.hasOwnProperty('nodes')){
+
+    //if( pnodes.hasOwnProperty('nodes')){
+    if(!Object.prototype.hasOwnProperty.call(pnodes, 'nodes')){
         pnodes.nodes.forEach(element => {
             let item = `${element.url}:${element.port}`;
             validNodes.push(item);
@@ -304,6 +313,7 @@ function serviceBinCheck(){
         fs.renameSync(daemonPath, `${daemonPath}.bak`, (err) => {
             if(err) log.error(err);
         });
+    /* eslint-disable-next-line no-empty */
     }catch(_e){}
     
     try{
@@ -324,25 +334,28 @@ function serviceBinCheck(){
           settings.set('service_bin', targetPath);
           log.debug(`walletd service binary copied to ${targetPath}`);
         });
+    /* eslint-disable-next-line no-empty */
     }catch(_e){}
 }
 
-daemonStatus = function(){
-    return  (undefined !== this.daemonProcess && null !== this.daemonProcess);
-};
+//daemonStatus = function(){
+//    return  (undefined !== app.daemonProcess && null !== app.daemonProcess);
+//};
 
 process.on('unhandledRejection', function(err) {});
 process.on('uncaughtException', function(err) {});
-terminateDaemon = function() {
+function terminateDaemon() {
+
     app.daemonLastPid = app.daemonPid;
     try{
-      if (this.daemonProcess !== null) {
+      if (app.daemonProcess !== null) {
 
         // this offers clean exit on all platforms
-        this.daemonProcess.stdin.write("exit\n");
+        app.daemonProcess.stdin.write("exit\n");
+        log.warn("exit command sent to fedoragold_daemon");
       }
     }catch(e){/*eat any errors, no reporting nor recovery needed...*/}
-};
+}
 
 function runDaemon() {
 
@@ -370,11 +383,11 @@ function runDaemon() {
     try {
       return new Promise(function(resolve, reject) {
         // daemon must run detached, otherwise windows will not exit cleanly
-        this.daemonProcess = spawn(daemonPath, daemonArgs, 
+        app.daemonProcess = spawn(daemonPath, daemonArgs, 
           {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
-        app.daemonPid = this.daemonProcess.pid;
+        app.daemonPid = app.daemonProcess.pid;
 
-        this.daemonProcess.stdout.on('data', function(chunk) {
+        app.daemonProcess.stdout.on('data', function(chunk) {
           // limit to 1 msg every 1/4 second to avoid overwhelming message bus
           app.chunkBuf += chunk;
           var newTimeStamp = Math.floor(Date.now());
@@ -384,7 +397,7 @@ function runDaemon() {
             app.chunkBuf = '';
           }
         });
-        this.daemonProcess.stderr.on('data', function(chunk) {
+        app.daemonProcess.stderr.on('data', function(chunk) {
           if (win !== null) {
             win.webContents.send('console',chunk);
           }
@@ -433,7 +446,7 @@ function initSettings(){
             if(DEFAULT_SETTINGS[k]===undefined){
 		log.debug(`value of default setting is undefined for: ${k}`); 
                 settings.set(k, '');
-	    } 
+            } 
             else {
                 settings.set(k, DEFAULT_SETTINGS[k]);
             }
@@ -516,7 +529,13 @@ process.on('beforeExit', (code) => {
 });
 
 process.on('exit', (code) => {
-    terminateDaemon();
+    try{
+      if (app.daemonProcess !== null) {
+        // this offers clean exit on all platforms
+        app.daemonProcess.stdin.write("exit\n");
+        log.warn("exit command sent to fedoragold_daemon");
+      }
+    }catch(e){/*eat any errors, no reporting nor recovery needed...*/}
 });
 
 process.on('warning', (warning) => {

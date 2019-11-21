@@ -65,7 +65,7 @@ function checkBlockUpdate(){
         let lastConStatus = STATE_CONNECTED;
         let kbcReturn = parseInt(blockStatus.knownBlockCount, 10) - 1;
 
-        log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
+        //log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
 
         // jojapoppa
         // We should use this peercount to create a "Signal" display sort
@@ -103,9 +103,6 @@ function checkBlockUpdate(){
           retVal = false;
         } else {
           knownBlockCount = kbcReturn;
-
-          // bind the daemon back to the local instance again
-          //wsapi.bindDaemon('127.0.0.1', settings.get('daemon_port'));
         }
 
         if (retVal) {
@@ -176,17 +173,24 @@ function reset() {
 function sendTransactionsRequest(trx_args) {
 
   var retVal = true;
-  log.warn(`getTransactions: args=${JSON.stringify(trx_args)}`);
+  //log.warn(`getTransactions: args=${JSON.stringify(trx_args)}`);
 
   wsapi.getTransactions(trx_args).then(function(trx) {
     const blockItems = trx.items;
 
     var prom = new Promise(function(resolve, reject) {
       process.send({
+        type: 'transactionStatus',
+        data: JSON.stringify(trx_args)
+      });
+      process.send({
         type: 'transactionUpdated',
         data: blockItems
       });
       resolve(true);
+    }).catch(function (err) {
+      TX_LAST_INDEX = trx_args.firstBlockIndex; // force system to retry this way...
+      retVal = false;
     });
   }, function(err) {
 
@@ -219,6 +223,37 @@ function checkBalanceUpdate() {
 }
 
 let lastGetTransactionsTimestamp = 0;
+function updateTransactionsList(startIndexWithMargin, requestNumBlocks) {
+
+      // send the blocks in groups of 10,000 so that you don't
+      //   overwhelm the msg buffer and slow the UI down.
+      var chunk=10000;
+      for (var i=0;i<requestNumBlocks;i+=chunk) {
+        if (requestNumBlocks<=chunk) {
+          let trx_args = {
+            firstBlockIndex: startIndexWithMargin,
+            blockCount: requestNumBlocks
+          };
+
+          // return values don't matter as the getTransactions Promise
+          // has it's own 'thread', so we just set TX_LAST_INDEX instead
+          sendTransactionsRequest(trx_args);
+        } else {
+          var rq = chunk;
+          var chend = i+chunk;
+          if (chend>(requestNumBlocks-1)) { rq = (requestNumBlocks-1)-i; }
+          let trx_args = {
+            firstBlockIndex: startIndexWithMargin+i,
+            blockCount: rq
+          };
+
+          // return values don't matter as the getTransactions Promise
+          // has it's own 'thread', so we just set TX_LAST_INDEX instead
+          sendTransactionsRequest(trx_args);
+        }
+      }
+}
+
 function checkTransactionsUpdate(){
   if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) return;
 
@@ -227,7 +262,7 @@ function checkTransactionsUpdate(){
       return false;
     }
 
-    log.warn("checkTransactionsUpdate()");
+    //log.warn("checkTransactionsUpdate()");
 
     if (LAST_BLOCK_COUNT > 1) {
       logDebug('checkTransactionsUpdate: checking tx update');
@@ -266,38 +301,17 @@ function checkTransactionsUpdate(){
         }
       }
 
-      // send the blocks in groups of 10,000 so that you don't
-      //   overwhelm the msg buffer and slow the UI down. 
-      var chunk=10000;
-      for (var i=0;i<requestNumBlocks;i+=chunk) {
-        if (requestNumBlocks<=chunk) {
-          let trx_args = {
-            firstBlockIndex: startIndexWithMargin, 
-            blockCount: requestNumBlocks
-          };
-          // return values don't matter as the getTransactions Promise
-          // has it's own 'thread', so we just set TX_LAST_INDEX instead
-          sendTransactionsRequest(trx_args);
-        } else {
-          var rq = chunk;
-          var chend = i+chunk;
-          if (chend>(requestNumBlocks-1)) { rq = (requestNumBlocks-1)-i; }
-          let trx_args = {
-            firstBlockIndex: startIndexWithMargin+i, 
-            blockCount: rq
-          };
-          // return values don't matter as the getTransactions Promise
-          // has it's own 'thread', so we just set TX_LAST_INDEX instead
-          sendTransactionsRequest(trx_args);
-        }
-      }
-
-      TX_CHECK_STARTED = true;
-      TX_LAST_COUNT = currentBlockCount;
-
       // will be reset if any getTransactions Promises fail
       //  which happens on a different thread...
       TX_LAST_INDEX = currentBlockCount;
+
+      var promo = new Promise(function(resolve, reject) {
+        updateTransactionsList(startIndexWithMargin, requestNumBlocks);
+        resolve(true);
+      }).catch(function (err) {});
+
+      TX_CHECK_STARTED = true;
+      TX_LAST_COUNT = currentBlockCount;
     }
 
   return true;

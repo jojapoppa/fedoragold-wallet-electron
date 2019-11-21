@@ -60,6 +60,18 @@ function updateSyncProgress(data){
         blockSyncPercent = 0;
     }
 
+    // this tells you if the local daemon is truly ready yet...
+    if (uiMessage.search("Block:") === 1) {
+       var blocknumber = uiMessage.substring(7);
+       var numm = parseInt(blocknumber, 10);  
+       settings.set('current_block', numm);
+       //log.warn("current_block set in settings to: "+numm);
+    }
+    if (knownBlockCount > 100) {
+        settings.set('top_block', knownBlockCount);
+        //log.warn("top_block set in settings to: "+knownBlockCount);
+    }
+
     if (data.knownBlockCount === SYNC_STATUS_RESCAN) {
 
         // only show SCAN messages if wallet isn't opened yet
@@ -67,18 +79,7 @@ function updateSyncProgress(data){
           return;
         }
 
-        // do we know the block count yet?
-        var blockMsg = "";
-        if (knownBlockCount > 0) {
-          blockMsg = " of " + knownBlockCount;
-        }
-
-        // only skip label if Block: is in char position zero
-        if (uiMessage.search("Block:") === -1) {
-          statusText = 'SCAN ' + uiMessage + blockMsg;
-        } else {
-          statusText = '' + uiMessage + blockMsg;
-        }
+        statusText = '' + uiMessage;
 
         // sync info bar class
         syncDiv.className = '';
@@ -268,7 +269,7 @@ function updateBalance(data){
 }
 
 function updateTransactions(blockItems){
-
+/*
     //log.warn("updateTransactions result items received: "+blockItems.length);
     let txlistExisting = wsession.get('txList');
 
@@ -361,6 +362,7 @@ function updateTransactions(blockItems){
             if(!brwin.isFocused()) brwin.focus();
         };
     }
+*/
 }
 
 function showFeeWarning(fee){
@@ -468,6 +470,10 @@ function updateUiState(msg){
             break;
         case 'rescan':
             updateSyncProgress(msg.data);
+            break;
+        case 'transactionStatus':
+            var transactionsInfoBar = document.getElementById('navbar-text-transactions');
+            transactionsInfoBar.innerHTML = "-Recieved new block of transactions: "+msg.data;
             break;
         case 'transactionUpdated':
             //log.warn('transactionUpdated in updateUiState...');

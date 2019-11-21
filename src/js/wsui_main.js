@@ -599,6 +599,7 @@ function initSettingVal(values){
         settings.set('pubnodes_custom', cnodes);
     }
 }
+
 // address book completions
 function initAddressCompletion(){
     var nodeAddress = [];
@@ -1012,7 +1013,8 @@ function handleWalletOpen(){
             daemon_port: daemonPortValue,
             walletd_port: walletdPortValue,
             tray_minimize: settings.get('tray_minimize'),
-            tray_close: settings.get('tray_close')
+            tray_close: settings.get('tray_close'),
+            top_block: settings.get('top_block')
         };
         initSettingVal(settingVals);
         initNodeCompletion();

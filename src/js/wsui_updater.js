@@ -33,6 +33,12 @@ function setWinTitle(title){
         newTitle = `${defaultTitle} ${title}`;
     }
     brwin.setTitle(newTitle);
+
+    // reinitialize the top block number...
+    // means it will be 0 until a RESCAN has completed
+    // won't assess the stored 'current_block' until
+    // the daemon is minimally ready
+    settings.set('top_block', 0);
 }
 
 function triggerTxRefresh(){
@@ -475,7 +481,6 @@ function updateUiState(msg){
             transactionsInfoBar.innerHTML = "-Recieved new block of transactions: "+msg.data;
             break;
         case 'transactionUpdated':
-            //log.warn('transactionUpdated in updateUiState...');
             updateTransactions(msg.data);
             break;
         case 'nodeFeeUpdated':

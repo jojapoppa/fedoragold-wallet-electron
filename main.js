@@ -63,6 +63,10 @@ app.daemonLastPid = null;
 app.localDaemonRunning = false;
 app.daemonProcess = null;
 
+app.primarySeedAddr = '18.222.96.134';
+app.primarySeedPort = 30159;
+app.primarySeedHeight = 0;
+
 let win = null;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
@@ -167,6 +171,39 @@ function createWindow () {
         log.debug('webcontent is unresponsive');
     });
 }
+
+const getHttpContent = function(url) {
+  // return new pending promise
+  return new Promise((resolve, reject) => {
+    // select http or https module, depending on reqested url
+    const lib = url.startsWith('https') ? require('https') : require('http');
+    const request = lib.get(url, (response) => {
+      // handle http errors
+      if (response.statusCode < 200 || response.statusCode > 299) {
+         reject(new Error('Failed to load page, status code: ' + response.statusCode));
+       }
+      // temporary data holder
+      const body = [];
+      // on every content chunk, push it to the data array
+      response.on('data', (chunk) => body.push(chunk));
+      // we are done, resolve promise with those joined chunks
+      response.on('end', () => resolve(body.join('')));
+    });
+    // handle connection errors of the request
+    request.on('error', (err) => reject(err))
+    })
+};
+
+const checkSeedTimer = setIntervalAsync(() => {
+
+  var aurl = "http://"+app.primarySeedAddr+":"+app.primarySeedPort+"/getheight";
+
+  getHttpContent(aurl)
+  //grab whateveris between the : and the ,
+  .then((html) => app.primarySeedHeight = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
+  .catch((err) => app.primarySeedHeight = 0);
+
+}, 3050);
 
 const checkDaemonTimer = setIntervalAsync(() => {
     var cmd = `ps -ex`;
@@ -338,10 +375,6 @@ function serviceBinCheck(){
     }catch(_e){}
 }
 
-//daemonStatus = function(){
-//    return  (undefined !== app.daemonProcess && null !== app.daemonProcess);
-//};
-
 process.on('unhandledRejection', function(err) {});
 process.on('uncaughtException', function(err) {});
 function terminateDaemon() {
@@ -391,7 +424,7 @@ function runDaemon() {
           // limit to 1 msg every 1/4 second to avoid overwhelming message bus
           app.chunkBuf += chunk;
           var newTimeStamp = Math.floor(Date.now());
-          if ((win !== null) && ((newTimeStamp-app.timeStamp) > 250)) {
+          if ((win !== null) && ((newTimeStamp-app.timeStamp) > 750)) {
             app.timeStamp = newTimeStamp;
             win.webContents.send('console', app.chunkBuf);
             app.chunkBuf = '';

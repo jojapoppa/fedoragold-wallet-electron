@@ -285,8 +285,15 @@ function checkTransactionsUpdate(){
       // is based on the amount received in the last response
       let requestNumBlocks = searchCountWithMargin;
       if (requestNumBlocks < (chunk-blockMargin)) { 
-        //startIndexWithMargin += blockMargin+1;
         requestNumBlocks += blockMargin;
+
+        // special case at the very end of the chunking algo
+        // causes it to taper off to find the overlap for end of blocks
+        // at the very end of the taper it will briefly jump past the
+        // top block, and then backtrack with the optimal overlap
+        if (requestNumBlocks > (2*blockMargin)) {
+          startIndexWithMargin += searchCount;
+        }
       }
 
       // only save wallet if not in the middle of a resync

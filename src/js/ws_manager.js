@@ -220,18 +220,25 @@ function logFile(walletFile) {
 
 WalletShellManager.prototype._spawnService = function(walletFile, password, onError, onSuccess, onDelay) {
 
-    // if the local chain is synced to within 3 or 4 days, then use the local daemon
-    //if (this.syncWorker.LAST_BLOCKCOUNT + 10000 > this.syncWorker.LAST_HEIGHTVAL) {
-    //  if (blockcount > 0 && heightval > 0)
-    //    log.warn("walletd is synced to within the last week... run local");
-    //}
+    var tblock = 0;
+    if (remote.app.primarySeedHeight > 0) {
+      tblock = remote.app.primarySeedHeight;
+    } else {
+      tblock = settings.get('top_block');
+    }
 
-log.warn("current_block is: "+settings.get('current_block'));
-log.warn("top_block is: "+settings.get('top_block'));
+    var cblock = settings.get('current_block');
+    var priority = remote.app.primarySeedAddr;
+    var pri = remote.app.primarySeedPort;
+    var daemonAd = priority;
+    var daemonPt = 30159;
+    if ((tblock > 0) && ((15000 + cblock) > tblock)) {
+      daemonAd = '127.0.0.1';
+      daemonPt = settings.get('daemon_port');
+    }
 
-    // permanent priority - needs assignment to be dynamic within
-    // layer 3 once that is working...
-    var priority = "18.222.96.134:"+"30159";
+    log.warn("daemonAd: "+daemonAd);
+    log.warn("daemonPt: "+daemonPt);
 
     // all walletd's always run with --local, meaning it uses the seeds instead of
     //   the local daemon.  this allows people with slow machines to work, and yet
@@ -246,29 +253,20 @@ log.warn("top_block is: "+settings.get('top_block'));
         '--bind-port', this.walletdPort,
         '--rpc-user', 'fedadmin',
         '--rpc-password', password,
-        '--add-priority-node', priority,
+        '--add-priority-node', pri,
         '--allow-local-ip','',
-        '--daemon-address', '18.222.96.134',
-        '--daemon-port', 30159,
+        '--daemon-address', daemonAd,
+        '--daemon-port', daemonPt,
         '--log-level', 0
         ]);
-
-        // NOTE: jojapoppa, the --daemon-address needs to be changed to
-        //        '--daemon-address', '127.0.0.1',
-        //        '--daemon-port', settings.get('daemon_port'),
-        //  after the local has completely synced.  however, the initial
-        //  value of this IP needs to be dynamic based on layer 3 (later)
-        //  once set the priority node set becomes permanent for the user
-        //  session, but not the --daemon-address which gets switched to
-        //  local host once a full sync is completed
 
         //log.warn("walletFile: "+walletFile);
         //'--enable-cors', '*',
 
     let wsm = this;
-    log.warn("fedoragold's external network is accessed on port: 30158");
-    log.warn("this fedoragold_daemon is on port: "+settings.get('daemon_port'));
-    log.warn("this fedoragold_walletd is on port: "+this.walletdPort);
+    //log.warn("fedoragold's external network is accessed on port: 30158");
+    //log.warn("this fedoragold_daemon is on port: "+settings.get('daemon_port'));
+    //log.warn("this fedoragold_walletd is on port: "+this.walletdPort);
 
     try{
         this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs,

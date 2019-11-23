@@ -269,7 +269,7 @@ function updateBalance(data){
 }
 
 function updateTransactions(blockItems){
-/*
+
     //log.warn("updateTransactions result items received: "+blockItems.length);
     let txlistExisting = wsession.get('txList');
 
@@ -362,7 +362,6 @@ function updateTransactions(blockItems){
             if(!brwin.isFocused()) brwin.focus();
         };
     }
-*/
 }
 
 function showFeeWarning(fee){

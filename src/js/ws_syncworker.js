@@ -188,22 +188,8 @@ function sendTransactionsRequest(trx_args) {
         data: blockItems
       });
       resolve(true);
-    }).catch(function (err) {
-      TX_LAST_INDEX = trx_args.firstBlockIndex; // force system to retry this way...
-      retVal = false;
-    });
-  }, function(err) {
-
-    // If walletd has not resynced to the top block, then it will fail when it tries
-    //   to return transactions at its local top-block.  so setting TX_LAST_INDEX just
-    //   makes the system attempt to get that failed local-to block again... until
-    //   walletd is synched, when is when all of the blocks will have been returned
-    TX_LAST_INDEX = trx_args.firstBlockIndex; // force system to retry this way...
-    retVal = false;
-
-    //log.warn("getTransactions method of walletd returned error: "+err+" : "+
-    //  JSON.stringify(trx_args));
-  });
+    }).catch(function (err) { retVal = false; });
+  }, function(err) { retVal = false; });
 
   return retVal;
 }
@@ -222,13 +208,22 @@ function checkBalanceUpdate() {
   });
 }
 
+let chunk=10000;
+let chunkCnt=3;
 let lastGetTransactionsTimestamp = 0;
 function updateTransactionsList(startIndexWithMargin, requestNumBlocks) {
 
       // send the blocks in groups of 10,000 so that you don't
       //   overwhelm the msg buffer and slow the UI down.
-      var chunk=10000;
       for (var i=0;i<requestNumBlocks;i+=chunk) {
+
+        // just handle 'chunkCnt' chunks at a time, otherwise we choke the network input buffer
+        // with too many responses, this is especially true when the wallet is running 'thin'
+        if (i > (chunkCnt*chunk)) {
+          TX_LAST_INDEX += chunk;
+          break;
+        }
+
         if (requestNumBlocks<=chunk) {
           let trx_args = {
             firstBlockIndex: startIndexWithMargin,
@@ -237,6 +232,7 @@ function updateTransactionsList(startIndexWithMargin, requestNumBlocks) {
 
           // return values don't matter as the getTransactions Promise
           // has it's own 'thread', so we just set TX_LAST_INDEX instead
+          TX_LAST_INDEX = trx_args.firstBlockIndex; // force system to retry this way...
           sendTransactionsRequest(trx_args);
         } else {
           var rq = chunk;
@@ -249,6 +245,7 @@ function updateTransactionsList(startIndexWithMargin, requestNumBlocks) {
 
           // return values don't matter as the getTransactions Promise
           // has it's own 'thread', so we just set TX_LAST_INDEX instead
+          TX_LAST_INDEX = trx_args.firstBlockIndex; // force system to retry this way...
           sendTransactionsRequest(trx_args);
         }
       }
@@ -275,7 +272,6 @@ function checkTransactionsUpdate(){
       if (TX_CHECK_STARTED) {
         searchCount = (currentBlockCount - TX_LAST_COUNT);
         needCountMargin = true;
-        logDebug("we need a count margin: "+blockMargin);
       }
 
       let startIndexWithMargin = (startIndex === 1 ? 1 : (startIndex-blockMargin));
@@ -288,7 +284,10 @@ function checkTransactionsUpdate(){
       // from gradually diminishing over time, as the amt requested
       // is based on the amount received in the last response
       let requestNumBlocks = searchCountWithMargin;
-      if (requestNumBlocks < 10000) { requestNumBlocks+=10; }
+      if (requestNumBlocks < (chunk-blockMargin)) { 
+        //startIndexWithMargin += blockMargin+1;
+        requestNumBlocks += blockMargin;
+      }
 
       // only save wallet if not in the middle of a resync
       // and only save if your not in the middle of a massive
@@ -311,7 +310,16 @@ function checkTransactionsUpdate(){
       }).catch(function (err) {});
 
       TX_CHECK_STARTED = true;
-      TX_LAST_COUNT = currentBlockCount;
+ 
+      // detects if you are at the end of a multi-chunk request 
+      if (requestNumBlocks > chunk) {
+        TX_LAST_COUNT = TX_LAST_INDEX;
+      } else { 
+        TX_LAST_COUNT = TX_LAST_INDEX + requestNumBlocks;
+        TX_LAST_INDEX += requestNumBlocks;
+        //log.warn("TX_LAST_INDEX: "+TX_LAST_INDEX);
+        //log.warn("TX_LAST_COUNT: "+TX_LAST_COUNT);
+      }
     }
 
   return true;

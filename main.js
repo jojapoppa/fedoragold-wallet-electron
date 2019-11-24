@@ -385,7 +385,7 @@ function terminateDaemon() {
 
         // this offers clean exit on all platforms
         app.daemonProcess.stdin.write("exit\n");
-        log.warn("exit command sent to fedoragold_daemon");
+        //log.warn("exit command sent to fedoragold_daemon");
       }
     }catch(e){/*eat any errors, no reporting nor recovery needed...*/}
 }
@@ -566,7 +566,7 @@ process.on('exit', (code) => {
       if (app.daemonProcess !== null) {
         // this offers clean exit on all platforms
         app.daemonProcess.stdin.write("exit\n");
-        log.warn("exit command sent to fedoragold_daemon");
+        //log.warn("exit command sent to fedoragold_daemon");
       }
     }catch(e){/*eat any errors, no reporting nor recovery needed...*/}
 });

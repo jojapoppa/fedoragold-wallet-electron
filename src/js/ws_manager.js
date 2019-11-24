@@ -12,7 +12,6 @@ const uiupdater = require('./wsui_updater');
 const wsutil = require('./ws_utils');
 const config = require('./ws_config');
 const remote = require('electron').remote;
-//const { setIntervalAsync } = require('set-interval-async/fixed');
 
 const settings = new Store({name: 'Settings'});
 const wsession = new WalletShellSession();
@@ -221,10 +220,11 @@ function logFile(walletFile) {
 WalletShellManager.prototype._spawnService = function(walletFile, password, onError, onSuccess, onDelay) {
 
     var tblock = 0;
-    if (remote.app.primarySeedHeight > 0) {
+    var topb = settings.get('top_block');
+    if (remote.app.primarySeedHeight > 0 && remote.app.primarySeedHeight > topb) {
       tblock = remote.app.primarySeedHeight;
     } else {
-      tblock = settings.get('top_block');
+      tblock = topb;
     }
 
     var cblock = settings.get('current_block');
@@ -232,13 +232,13 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     var pri = remote.app.primarySeedPort;
     var daemonAd = priority;
     var daemonPt = 30159;
-    if ((tblock > 0) && ((15000 + cblock) > tblock)) {
+
+    if ((cblock > 0) && (tblock > 0) && ((15000 + cblock) > tblock)) {
       daemonAd = '127.0.0.1';
       daemonPt = settings.get('daemon_port');
     }
 
-    log.warn("daemonAd: "+daemonAd);
-    log.warn("daemonPt: "+daemonPt);
+    log.warn("daemon address: "+daemonAd);
 
     // all walletd's always run with --local, meaning it uses the seeds instead of
     //   the local daemon.  this allows people with slow machines to work, and yet
@@ -306,7 +306,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     let MAX_CHECK = 48;
     function testConnection(retry){
         wsm.serviceApi.getAddress().then((address) => {
-            log.warn('Got an address, wallet is ok!');
+            //log.warn('Got an address, wallet is ok!');
             if(!TEST_OK){
                 wsm.serviceActiveArgs = serviceArgs;
                 // update session
@@ -642,16 +642,8 @@ WalletShellManager.prototype.sendTransaction = function(params){
 WalletShellManager.prototype.reset = function(){
     let wsm = this;
     let params = {};
-    log.warn("WalletShellManager: reset");
+    //log.warn("WalletShellManager: reset");
     wsm.syncWorker.send({ type: 'reset', data: {} });
-
-    //return new Promise((resolve, reject) => {
-    //    wsm.serviceApi.reset(params).then((result) => {
-    //        return resolve(result);
-    //    }).catch((err) => {
-    //        return reject(err);
-    //    });
-    //});
 };
 
 WalletShellManager.prototype._fusionGetMinThreshold = function(threshold, minThreshold, maxFusionReadyCount, counter){

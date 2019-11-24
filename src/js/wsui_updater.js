@@ -39,6 +39,7 @@ function setWinTitle(title){
     // won't assess the stored 'current_block' until
     // the daemon is minimally ready
     settings.set('top_block', 0);
+    settings.set('current_block', 0);
 }
 
 function triggerTxRefresh(){
@@ -74,8 +75,12 @@ function updateSyncProgress(data){
        //log.warn("current_block set in settings to: "+numm);
     }
     if (knownBlockCount > 100) {
-        settings.set('top_block', knownBlockCount);
-        //log.warn("top_block set in settings to: "+knownBlockCount);
+        // don't allow unnecessary disk writes
+        var tblk = settings.get('top_block');
+        if (knownBlockCount > tblk) {
+          settings.set('top_block', knownBlockCount);
+          //log.warn("top_block set in settings to: "+knownBlockCount);
+        }
     }
 
     if (data.knownBlockCount === SYNC_STATUS_RESCAN) {
@@ -114,7 +119,7 @@ function updateSyncProgress(data){
         brwin.setProgressBar(-1);
     }else if(data.knownBlockCount === SYNC_STATUS_NET_DISCONNECTED){
         // sync status text
-        statusText = 'PAUSED, NETWORK DISCONNECTED';
+        statusText = 'PAUSED, CONNECTING TO NETWORK';
         syncInfoBar.innerHTML = statusText;
         // sync info bar class
         syncDiv.className = '';
@@ -122,7 +127,7 @@ function updateSyncProgress(data){
         iconSync.setAttribute('data-icon', 'ban');
         iconSync.classList.remove('slow-spin');
         // connection status
-        connInfoDiv.innerHTML = 'Synchronization paused, please check your network connection!';
+        connInfoDiv.innerHTML = 'Synchronization paused, will continue once network connection is reestablished';
         connInfoDiv.classList.remove('empty');
         connInfoDiv.classList.remove('conn-warning');
         connInfoDiv.classList.add('conn-warning');

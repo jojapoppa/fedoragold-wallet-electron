@@ -44,6 +44,12 @@ function initApi(cfg){
     wsapi = new WalletShellApi(SERVICE_CFG);
 }
 
+//NOTE, jojapoppa: if settings('current_block') is non-zero that means the local
+// daemon is ready for processing.  an async timed function to check that
+// and then call the bindDaemon api would be very helpful... to do this
+// just implement similar logic, to see how close to synced the 'current_block'
+// is as you will find in the spawn function in ws_manager... TODO
+
 function checkBlockUpdate(){
     var retVal = true;
     //log.warn("checkBlockUpdate() called...");
@@ -75,26 +81,25 @@ function checkBlockUpdate(){
 
         if (kbcReturn < 100) {
 
-          // does this happen with network outages?
+          // Activates the "pause" symbol in the UI...
           //log.warn('checkBlockUpdate: Bad known block count, mark connection as broken');
-          //if (lastConStatus !== conFailed) {
-          //  let fakeStatus = {
-          //    blockCount: -200,
-          //    displayBlockCount: -200,
-          //    displayKnownBlockCount: -200,
-          //    syncPercent: -200,
-          //    knownBlockCount: -200,
-          //    uiMessage: ''
-          //  };
-          //  process.send({
-          //    type: 'blockUpdated',
-          //    data: fakeStatus
-          //  });
-          //}
+          if (lastConStatus !== false) {
+            let fakeStatus = {
+              blockCount: -50,
+              displayBlockCount: -50,
+              displayKnownBlockCount: -50,
+              syncPercent: -50,
+              knownBlockCount: -50,
+              uiMessage: ''
+            };
+            process.send({
+              type: 'blockUpdated',
+              data: fakeStatus
+            });
+          }
 
           STATE_CONNECTED = false;
-          log.warn("fedoragold_walletd cannot reach fedoragold network,");
-          log.warn("  possible network interruption");
+          //log.warn("fedoragold_walletd cannot reach fedoragold network,");
 
           // THIS NEEDS TO BE MADE DYNAMIC - AND RUN ON VPN
           // bind the daemon to a seed server address
@@ -208,7 +213,7 @@ function checkBalanceUpdate() {
   });
 }
 
-let chunk=10000;
+let chunk=4000; // strangely chunks of 10k are too much for the local daemon (remote is okay)
 let chunkCnt=3;
 let lastGetTransactionsTimestamp = 0;
 function updateTransactionsList(startIndexWithMargin, requestNumBlocks) {

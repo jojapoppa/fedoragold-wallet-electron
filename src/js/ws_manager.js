@@ -233,7 +233,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     var daemonAd = priority;
     var daemonPt = 30159;
 
-    if ((cblock > 0) && (tblock > 0) && ((15000 + cblock) > tblock)) {
+    if ((cblock > 0) && (tblock > 0) && ((5000 + cblock) > tblock)) {
       daemonAd = '127.0.0.1';
       daemonPt = settings.get('daemon_port');
     }

@@ -2,7 +2,6 @@ const {app, dialog, Tray, Menu} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
-const screen = require('screen');
 const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
 const killer = require('tree-kill');
@@ -522,11 +521,9 @@ app.on('ready', () => {
     }
     
     createWindow();
-    // try to target center pos of primary display
-    let eScreen = require('electron').screen;
-    let primaryDisp = eScreen.getPrimaryDisplay();
-    let tx = Math.ceil((primaryDisp.workAreaSize.width - DEFAULT_SIZE.width)/2);
-    let ty = Math.ceil((primaryDisp.workAreaSize.height - (DEFAULT_SIZE.height))/2);
+    var bounds = win.webContents.getOwnerBrowserWindow().getBounds();
+    let tx = Math.ceil((bounds.width - DEFAULT_SIZE.width)/2);
+    let ty = Math.ceil((bounds.height - (DEFAULT_SIZE.height))/2);
     if(tx > 0 && ty > 0) win.setPosition(parseInt(tx, 10), parseInt(ty,10));
 });
 

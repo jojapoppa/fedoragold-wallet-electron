@@ -153,7 +153,7 @@ class WalletShellApi {
     getStatus() {
         return new Promise((resolve, reject) => {
             let req_params = {};
-            this._sendRequest('getStatus', false, req_params, 20000, true).then((result) => {
+            this._sendRequest('getStatus', false, req_params, 15000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -312,7 +312,7 @@ class WalletShellApi {
             }
 
             this._sendRequest('reset', false, req_params, 10000, true).then(() => {
-              //log.warn("sent api reset to walletd...");
+              log.warn("sent api reset to walletd...");
               return resolve(true);
             }).catch((err) => {
               return reject(err);

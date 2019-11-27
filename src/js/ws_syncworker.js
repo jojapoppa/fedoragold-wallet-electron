@@ -213,7 +213,7 @@ function checkBalanceUpdate() {
   });
 }
 
-let chunk=4000; // strangely chunks of 10k are too much for the local daemon (remote is okay)
+let chunk=4000; // chunks of 10k are too much for the local daemon (remote is okay)
 let chunkCnt=3;
 let lastGetTransactionsTimestamp = 0;
 function updateTransactionsList(startIndexWithMargin, requestNumBlocks) {
@@ -222,8 +222,8 @@ function updateTransactionsList(startIndexWithMargin, requestNumBlocks) {
       //   overwhelm the msg buffer and slow the UI down.
       for (var i=0;i<requestNumBlocks;i+=chunk) {
 
-        // just handle 'chunkCnt' chunks at a time, otherwise we choke the network input buffer
-        // with too many responses, this is especially true when the wallet is running 'thin'
+        // handle 'chunkCnt' chunks at a time, otherwise we choke network input buffer
+        //   especially true when the wallet is running 'thin'
         if (i > (chunkCnt*chunk)) {
           TX_LAST_INDEX += chunk;
           break;
@@ -378,11 +378,11 @@ function workOnTasks(){
         // get block height of the daemon fullnode
         wsapi.getHeight().then((result) => {
             heightVal = parseInt(result.height, 10);
-            let isWalletdSynching = checkBlockUpdate();
-            if (isWalletdSynching)
-              logDebug("walletd is synching...");
-            else
-              logDebug("checkBlockUpdate() reported an error...");
+            //let isWalletdSynching = checkBlockUpdate();
+            //if (isWalletdSynching)
+            //  logDebug("walletd is synching...");
+            //else
+            //  logDebug("checkBlockUpdate() reported an error...");
         }).catch((err) => {
             //just eat this... sometimes daemon takes a while to start...
             //log.warn(`getHeight from Daemon: FAILED, ${err.message}`);

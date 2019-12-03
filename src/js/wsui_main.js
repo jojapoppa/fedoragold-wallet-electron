@@ -2311,7 +2311,7 @@ ipcRenderer.on('console', (event, sChunk) => {
          (firstline.search("WARNING")===-1) && (firstline.search("Load")===-1) &&
          (firstline.search("IGD")===-1) && (firstline.search("Wrong")===-1) &&
          (firstline.search("Failed")===-1) && (firstline.search("folder")===-1) && 
-         (firstline.search("wrong")===-1) ) {
+         (firstline.search("wrong")===-1) && (firstline.search("Block with id") ===-1) ) {
       let rescandata = {
         type: 'rescan',
         data: {

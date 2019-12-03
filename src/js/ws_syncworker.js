@@ -14,7 +14,6 @@ var heightVal = 0;
 var knownBlockCount = 0;
 var LAST_HEIGHTVAL = 1;
 var LAST_BLOCK_COUNT = 1;
-var LAST_KNOWN_BLOCK_COUNT = 1;
 
 var SERVICE_CFG = { daemon_host: '127.0.0.1', daemon_port: '31875', walletd_host: '127.0.0.1', walletd_port: '31876', walletd_password: 'xxx'};
 var SAVE_COUNTER = 0;
@@ -121,12 +120,6 @@ function checkBlockUpdate(){
           //log.warn("knownBlockCount reported: "+knownBlockCount);
           LAST_HEIGHTVAL = heightVal;
           LAST_BLOCK_COUNT = blockCount;
-
-          if (knownBlockCount > LAST_KNOWN_BLOCK_COUNT) {
-            LAST_KNOWN_BLOCK_COUNT = knownBlockCount;
-          } else {
-            knownBlockCount = LAST_KNOWN_BLOCK_COUNT;
-          }
 
           // add any extras here, so renderer is not doing too many things
           let dispKnownBlockCount = (knownBlockCount-1);

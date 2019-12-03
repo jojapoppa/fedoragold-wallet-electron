@@ -127,7 +127,7 @@ function updateSyncProgress(data){
         iconSync.setAttribute('data-icon', 'ban');
         iconSync.classList.remove('slow-spin');
         // connection status
-        connInfoDiv.innerHTML = 'Synchronization paused, will continue once network connection is reestablished';
+        connInfoDiv.innerHTML = 'Synchronization paused, will continue once blockchain connection is reestablished';
         connInfoDiv.classList.remove('empty');
         connInfoDiv.classList.remove('conn-warning');
         connInfoDiv.classList.add('conn-warning');

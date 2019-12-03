@@ -383,7 +383,8 @@ function terminateDaemon() {
       if (app.daemonProcess !== null) {
 
         // this offers clean exit on all platforms
-        app.daemonProcess.stdin.write("exit\n");
+        app.daemonProcess.stdin.write("exit\r\n");
+        app.daemonProcess.stdin.end();
         //log.warn("exit command sent to fedoragold_daemon");
       }
     }catch(e){/*eat any errors, no reporting nor recovery needed...*/}
@@ -559,10 +560,14 @@ process.on('beforeExit', (code) => {
 });
 
 process.on('exit', (code) => {
+    terminateDaemon();
+
+    // needs it twice for some reason on an application exit... unreliable otherwise...
     try{
       if (app.daemonProcess !== null) {
         // this offers clean exit on all platforms
         app.daemonProcess.stdin.write("exit\n");
+        app.daemonProcess.stdin.end();
         //log.warn("exit command sent to fedoragold_daemon");
       }
     }catch(e){/*eat any errors, no reporting nor recovery needed...*/}

@@ -169,25 +169,32 @@ function reset() {
 }
 
 function sendTransactionsRequest(trx_args) {
-
   var retVal = true;
-  //log.warn(`getTransactions: args=${JSON.stringify(trx_args)}`);
 
   wsapi.getTransactions(trx_args).then(function(trx) {
     const blockItems = trx.items;
+    log.warn(`getTransactions: args=${JSON.stringify(trx_args)}`);
 
     var prom = new Promise(function(resolve, reject) {
-      process.send({
-        type: 'transactionStatus',
-        data: JSON.stringify(trx_args)
-      });
       process.send({
         type: 'transactionUpdated',
         data: blockItems
       });
+      process.send({
+        type: 'transactionStatus',
+        data: JSON.stringify(trx_args)
+      });
       resolve(true);
-    }).catch(function (err) { retVal = false; });
-  }, function(err) { retVal = false; });
+    }).catch(function (err) { 
+      TX_LAST_INDEX = TX_LAST_INDEX - trx_args.blockCount; 
+      log.warn('error updating transaction list...'); 
+      retVal = false; 
+    });
+  }, function(err) { 
+    TX_LAST_INDEX = TX_LAST_INDEX - trx_args.blockCount; 
+    log.warn('Error updating transaction list.');
+    retVal = false; 
+  });
 
   return retVal;
 }
@@ -211,42 +218,42 @@ let chunkCnt=3;
 let lastGetTransactionsTimestamp = 0;
 function updateTransactionsList(startIndexWithMargin, requestNumBlocks) {
 
-      // send the blocks in groups of 10,000 so that you don't
-      //   overwhelm the msg buffer and slow the UI down.
-      for (var i=0;i<requestNumBlocks;i+=chunk) {
+  // send the blocks in groups of 10,000 so that you don't
+  //   overwhelm the msg buffer and slow the UI down.
+  for (var i=0;i<requestNumBlocks;i+=chunk) {
 
-        // handle 'chunkCnt' chunks at a time, otherwise we choke network input buffer
-        //   especially true when the wallet is running 'thin'
-        if (i > (chunkCnt*chunk)) {
-          TX_LAST_INDEX += chunk;
-          break;
-        }
+    // handle 'chunkCnt' chunks at a time, otherwise we choke network input buffer
+    //   especially true when the wallet is running 'thin'
+    if (i > (chunkCnt*chunk)) {
+      TX_LAST_INDEX += chunk;
+      break;
+    }
 
-        if (requestNumBlocks<=chunk) {
-          let trx_args = {
-            firstBlockIndex: startIndexWithMargin,
-            blockCount: requestNumBlocks
-          };
+    var trx_args = {};
+    if (requestNumBlocks<=chunk) {
+      trx_args = {
+        firstBlockIndex: startIndexWithMargin,
+        blockCount: requestNumBlocks
+      };
+    } else {
+      var rq = chunk;
+      var chend = i+chunk;
+      if (chend>(requestNumBlocks-1)) { rq = (requestNumBlocks-1)-i; }
+      trx_args = {
+        firstBlockIndex: startIndexWithMargin+i,
+        blockCount: rq
+      };
+    }
 
-          // return values don't matter as the getTransactions Promise
-          // has it's own 'thread', so we just set TX_LAST_INDEX instead
-          TX_LAST_INDEX = trx_args.firstBlockIndex; // force system to retry this way...
-          sendTransactionsRequest(trx_args);
-        } else {
-          var rq = chunk;
-          var chend = i+chunk;
-          if (chend>(requestNumBlocks-1)) { rq = (requestNumBlocks-1)-i; }
-          let trx_args = {
-            firstBlockIndex: startIndexWithMargin+i,
-            blockCount: rq
-          };
+    // return values don't matter as the getTransactions Promise
+    // has it's own 'thread', so we just set TX_LAST_INDEX instead
+    TX_LAST_INDEX = trx_args.firstBlockIndex; // force system to retry this way...
+    if (!sendTransactionsRequest(trx_args)) {
+      return false;
+    }
+  }
 
-          // return values don't matter as the getTransactions Promise
-          // has it's own 'thread', so we just set TX_LAST_INDEX instead
-          TX_LAST_INDEX = trx_args.firstBlockIndex; // force system to retry this way...
-          sendTransactionsRequest(trx_args);
-        }
-      }
+  return true;
 }
 
 function checkTransactionsUpdate(){
@@ -264,12 +271,16 @@ function checkTransactionsUpdate(){
       let currentBlockCount = LAST_BLOCK_COUNT-1;
       let startIndex = (!TX_CHECK_STARTED ? 1 : TX_LAST_INDEX);
       let searchCount = currentBlockCount;
-
       let needCountMargin = false;
       let blockMargin = 10;
       if (TX_CHECK_STARTED) {
-        searchCount = (currentBlockCount - TX_LAST_COUNT);
         needCountMargin = true;
+        if (currentBlockCount > TX_LAST_COUNT) {
+          searchCount = (currentBlockCount - TX_LAST_COUNT);
+        }
+        else {
+          searchCount = 0;
+        }
       }
 
       let startIndexWithMargin = (startIndex === 1 ? 1 : (startIndex-blockMargin));
@@ -292,6 +303,12 @@ function checkTransactionsUpdate(){
         if (requestNumBlocks > (2*blockMargin)) {
           startIndexWithMargin += searchCount;
         }
+
+        // this stops it from blowing past the top block at the end
+        if (startIndexWithMargin > knownBlockCount) {
+          startIndexWithMargin = knownBlockCount-blockMargin;
+          requestNumBlocks = 2*blockMargin;
+        }
       }
 
       // only save wallet if not in the middle of a resync
@@ -300,7 +317,7 @@ function checkTransactionsUpdate(){
       let curGetTransactionsTimestamp = Math.floor(Date.now());
       if ((curGetTransactionsTimestamp - lastGetTransactionsTimestamp) > 1000) {
         lastGetTransactionsTimestamp = curGetTransactionsTimestamp;
-        if (searchCountWithMargin < 100) {
+        if (searchCountWithMargin < 15) {
           saveWallet();
         }
       }
@@ -310,7 +327,9 @@ function checkTransactionsUpdate(){
       TX_LAST_INDEX = currentBlockCount;
 
       var promo = new Promise(function(resolve, reject) {
-        updateTransactionsList(startIndexWithMargin, requestNumBlocks);
+        if (!updateTransactionsList(startIndexWithMargin, requestNumBlocks)) {
+          TX_LAST_INDEX = TX_LAST_INDEX - requestNumBlocks;
+        }
         resolve(true);
       }).catch(function (err) {});
 

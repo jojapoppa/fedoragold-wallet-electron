@@ -24,6 +24,7 @@ class WalletShellApi {
             var params = paramsIn || {};
             var timeout = timeoutIn || 10000;
             var authoriz = "Basic " + Buffer.from("fedadmin:"+this.walletd_password).toString('base64');
+            //log.warn("authoriz: "+authoriz);
             let data = {
                 jsonrpc: '2.0',
                 method: method,
@@ -84,6 +85,12 @@ class WalletShellApi {
                     if (res.result) return resolve(res.result);
                     return resolve(res);
                 } else {
+                    // this is not actually an error...
+                    if (res.error.message == "Empty object list") {
+                      return resolve(res);
+                    }
+
+                    //log.warn("err msg is: "+res.error.message);
                     return reject(res.error.message);
                 }
             }).catch((err) => {
@@ -254,13 +261,10 @@ class WalletShellApi {
             params = params || {};
             params.firstBlockIndex = params.firstBlockIndex || 1;
             params.blockCount = params.blockCount || 100;
-            var req_params = {
-              firstBlockIndex: params.firstBlockIndex,
-              blockCount: params.blockCount
-            };
-            this._sendRequest('getTransactions', false, req_params, 20000, true).then((result) => {
+            this._sendRequest('getTransactions', false, params, 20000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
+
                 return reject(err);
             });
         });

@@ -21,7 +21,7 @@ const SERVICE_LOG_LEVEL_DEFAULT = 0;
 const SERVICE_LOG_LEVEL_DEBUG = 4;
 const SERVICE_LOG_LEVEL = (SERVICE_LOG_DEBUG ? SERVICE_LOG_LEVEL_DEBUG : SERVICE_LOG_LEVEL_DEFAULT);
 const ERROR_WALLET_EXEC = `Failed to start ${config.walletServiceBinaryFilename}.`;
-const ERROR_WALLET_PASSWORD = 'Failed to load your wallet, please check your password';
+const ERROR_WALLET_PASSWORD = 'Failed to load your wallet, possible password issue';
 const ERROR_WALLET_IMPORT = 'Import failed, please check that you have entered all information correctly';
 const ERROR_WALLET_CREATE = 'Wallet can not be created, please check your input and try again';
 
@@ -196,7 +196,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
                 wsm._spawnService(walletFile, password, onError, onSuccess, onDelay);
             }else{
                 // just stop here
-                onError(ERROR_WALLET_PASSWORD);
+                onError(ERROR_WALLET_PASSWORD+": "+stderr);
             }
         }
     );
@@ -232,12 +232,14 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     var pri = remote.app.primarySeedPort;
     var daemonAd = priority;
     var daemonPt = 30159;
+    var priNode = priority+":"+pri;
 
     if ((cblock > 0) && (tblock > 0) && ((5000 + cblock) > tblock)) {
       daemonAd = '127.0.0.1';
       daemonPt = settings.get('daemon_port');
     }
 
+    log.warn("priNode: "+priNode);
     log.warn("daemon address: "+daemonAd);
 
     // all walletd's always run with --local, meaning it uses the seeds instead of
@@ -253,7 +255,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--bind-port', this.walletdPort,
         '--rpc-user', 'fedadmin',
         '--rpc-password', password,
-        '--add-priority-node', pri,
+        '--add-priority-node', priNode,
         '--allow-local-ip','',
         '--daemon-address', daemonAd,
         '--daemon-port', daemonPt,

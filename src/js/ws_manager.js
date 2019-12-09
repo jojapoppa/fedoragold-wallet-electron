@@ -33,6 +33,9 @@ let SVC_BIN = '';
 let plat = process.platform;
 let daemonCoreReady = false;
 
+// make sure nodejs allocates enough threads for sending and receiving transactions
+process.env.UV_THREADPOOL_SIZE = 128;
+
 const SVC_FILENAME =  (plat === 'win32' ? `${config.walletServiceBinaryFilename}.exe` : config.walletServiceBinaryFilename );
 const SVC_OSDIR = (plat === 'win32' ? 'win' : (plat === 'darwin' ? 'mac' : 'linux'));
 const DEFAULT_SVC_BIN = path.join(process.resourcesPath,'bin', SVC_OSDIR, SVC_FILENAME);

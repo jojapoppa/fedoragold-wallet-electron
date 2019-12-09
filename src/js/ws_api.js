@@ -70,6 +70,7 @@ class WalletShellApi {
                 headers: headers,
                 body: data,
                 json: true,
+                pool: {maxSockets: 128},
                 timeout: timeout
             }).on('socket', function(socket){
                 socket.setTimeout(9000);

@@ -315,6 +315,7 @@ class WalletShellApi {
               req_params.viewSecretKey = params.viewSecretKey;
             }
 
+            log.warn("sending reset to walletd api.");
             this._sendRequest('reset', false, req_params, 10000, true).then(() => {
               log.warn("sent api reset to walletd...");
               return resolve(true);

@@ -168,31 +168,43 @@ function reset() {
   } catch(e) {}
 }
 
+var queue = [];
+let blockMargin = 10;
 function sendTransactionsRequest(trx_args) {
   var retVal = true;
 
   wsapi.getTransactions(trx_args).then(function(trx) {
     const blockItems = trx.items;
-    log.warn(`getTransactions: args=${JSON.stringify(trx_args)}`);
+    if (blockItems == null) {
+      if (!queue.includes(trx_args)) {
+        queue.push(trx_args);
+        retVal = false;
+      }
+      return;
+    } else if ((trx_args.blockCount > blockItems.length) && !queue.includes(trx_args)) {
+      // Partial success
+      if (trx_args.blockCount-blockItems.length > 2*blockMargin) queue.push(trx_args);
+    } 
+
+    log.warn(`getTransactions: args=${JSON.stringify(trx_args)} returned: ${blockItems.length} queue: ${queue.length}`);
 
     var prom = new Promise(function(resolve, reject) {
       process.send({
         type: 'transactionUpdated',
         data: blockItems
       });
+      var statTxt = JSON.stringify(trx_args) + " ret: " + blockItems.length;
       process.send({
         type: 'transactionStatus',
-        data: JSON.stringify(trx_args)
+        data: statTxt
       });
       resolve(true);
     }).catch(function (err) { 
-      TX_LAST_INDEX = TX_LAST_INDEX - trx_args.blockCount; 
-      log.warn('error updating transaction list...'); 
+      if (!queue.includes(trx_args)) queue.push(trx_args);
       retVal = false; 
     });
   }, function(err) { 
-    TX_LAST_INDEX = TX_LAST_INDEX - trx_args.blockCount; 
-    log.warn('Error updating transaction list.');
+    if (!queue.includes(trx_args)) queue.push(trx_args);
     retVal = false; 
   });
 
@@ -248,8 +260,21 @@ function updateTransactionsList(startIndexWithMargin, requestNumBlocks) {
     // return values don't matter as the getTransactions Promise
     // has it's own 'thread', so we just set TX_LAST_INDEX instead
     TX_LAST_INDEX = trx_args.firstBlockIndex; // force system to retry this way...
+    if (!queue.includes(trx_args)) queue.push(trx_args);
+    trx_args = queue.shift();
     if (!sendTransactionsRequest(trx_args)) {
       return false;
+    } else {
+      for (var tries=0; tries<3; tries++) {
+        trx_args = queue.shift();
+        if (trx_args != null) {
+          // as errors happen, and things get put on the queue, this double
+          // check allows us to eventually catch up again...
+          if (!sendTransactionsRequest(trx_args)) {
+            return false;
+          }
+        }
+      }
     }
   }
 
@@ -272,7 +297,6 @@ function checkTransactionsUpdate(){
       let startIndex = (!TX_CHECK_STARTED ? 1 : TX_LAST_INDEX);
       let searchCount = currentBlockCount;
       let needCountMargin = false;
-      let blockMargin = 10;
       if (TX_CHECK_STARTED) {
         needCountMargin = true;
         if (currentBlockCount > TX_LAST_COUNT) {
@@ -315,7 +339,7 @@ function checkTransactionsUpdate(){
       // and only save if your not in the middle of a massive
       // wallet initiation downloading lots of blocks...
       let curGetTransactionsTimestamp = Math.floor(Date.now());
-      if ((curGetTransactionsTimestamp - lastGetTransactionsTimestamp) > 1000) {
+      if ((curGetTransactionsTimestamp - lastGetTransactionsTimestamp) > 10000) {
         lastGetTransactionsTimestamp = curGetTransactionsTimestamp;
         if (searchCountWithMargin < 15) {
           saveWallet();

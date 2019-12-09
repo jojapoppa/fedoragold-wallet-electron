@@ -234,10 +234,11 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     var daemonPt = 30159;
     var priNode = priority+":"+pri;
 
-    if ((cblock > 0) && (tblock > 0) && ((5000 + cblock) > tblock)) {
-      daemonAd = '127.0.0.1';
-      daemonPt = settings.get('daemon_port');
-    }
+    // Determins if the local daemon is almost current
+    //if ((cblock > 0) && (tblock > 0) && ((5000 + cblock) > tblock)) {
+    //  daemonAd = '127.0.0.1';
+    //  daemonPt = settings.get('daemon_port');
+    //}
 
     log.warn("priNode: "+priNode);
     log.warn("daemon address: "+daemonAd);

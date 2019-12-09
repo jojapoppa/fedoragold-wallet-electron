@@ -170,41 +170,41 @@ function reset() {
 
 var queue = [];
 let blockMargin = 10;
-function sendTransactionsRequest(trx_args) {
+function sendTransactionsRequest(s_trx_args) {
   var retVal = true;
 
-  wsapi.getTransactions(trx_args).then(function(trx) {
+  wsapi.getTransactions(JSON.parse(s_trx_args)).then(function(trx) {
     const blockItems = trx.items;
     if (blockItems == null) {
-      if (!queue.includes(trx_args)) {
-        queue.push(trx_args);
+      if (!queue.includes(s_trx_args)) {
+        queue.push(s_trx_args);
         retVal = false;
       }
       return;
-    } else if ((trx_args.blockCount > blockItems.length) && !queue.includes(trx_args)) {
+    } else if ((s_trx_args.blockCount > blockItems.length) && !queue.includes(s_trx_args)) {
       // Partial success
-      if (trx_args.blockCount-blockItems.length > 2*blockMargin) queue.push(trx_args);
+      if (s_trx_args.blockCount-blockItems.length > 2*blockMargin) queue.push(s_trx_args);
     } 
 
-    log.warn(`getTransactions: args=${JSON.stringify(trx_args)} returned: ${blockItems.length} queue: ${queue.length}`);
+    log.warn(`getTransactions: args=${JSON.stringify(s_trx_args)} returned: ${blockItems.length} queue: ${queue.length}`);
 
     var prom = new Promise(function(resolve, reject) {
       process.send({
         type: 'transactionUpdated',
         data: blockItems
       });
-      var statTxt = JSON.stringify(trx_args) + " ret: " + blockItems.length;
+      var statTxt = JSON.stringify(s_trx_args) + " ret: " + blockItems.length;
       process.send({
         type: 'transactionStatus',
         data: statTxt
       });
       resolve(true);
     }).catch(function (err) { 
-      if (!queue.includes(trx_args)) queue.push(trx_args);
+      if (!queue.includes(s_trx_args)) queue.push(s_trx_args);
       retVal = false; 
     });
   }, function(err) { 
-    if (!queue.includes(trx_args)) queue.push(trx_args);
+    if (!queue.includes(s_trx_args)) queue.push(s_trx_args);
     retVal = false; 
   });
 
@@ -260,17 +260,17 @@ function updateTransactionsList(startIndexWithMargin, requestNumBlocks) {
     // return values don't matter as the getTransactions Promise
     // has it's own 'thread', so we just set TX_LAST_INDEX instead
     TX_LAST_INDEX = trx_args.firstBlockIndex; // force system to retry this way...
-    if (!queue.includes(trx_args)) queue.push(trx_args);
-    trx_args = queue.shift();
-    if (!sendTransactionsRequest(trx_args)) {
+    if (!queue.includes(JSON.stringify(trx_args))) queue.push(JSON.stringify(trx_args));
+    var s_trx_args = queue.shift();
+    if (!sendTransactionsRequest(s_trx_args)) {
       return false;
     } else {
-      for (var tries=0; tries<3; tries++) {
-        trx_args = queue.shift();
-        if (trx_args != null) {
+      for (var tries=0; (queue.length>0) && (tries<3); tries++) {
+        s_trx_args = queue.shift();
+        if (s_trx_args != null) {
           // as errors happen, and things get put on the queue, this double
           // check allows us to eventually catch up again...
-          if (!sendTransactionsRequest(trx_args)) {
+          if (!sendTransactionsRequest(s_trx_args)) {
             return false;
           }
         }

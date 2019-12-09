@@ -483,7 +483,7 @@ function updateUiState(msg){
             break;
         case 'transactionStatus':
             var transactionsInfoBar = document.getElementById('navbar-text-transactions');
-            transactionsInfoBar.innerHTML = "-Recieved new block of transactions: "+msg.data;
+            transactionsInfoBar.innerHTML = "-Recieved block of transactions: "+msg.data;
             break;
         case 'transactionUpdated':
             updateTransactions(msg.data);

@@ -77,6 +77,17 @@ function sleep(n) {
   msleep(n*1000);
 }
 
+function ensureSafeQuitAndInstall() {
+    const electron = require('electron');
+    const app = electron.app;
+    const BrowserWindow = electron.BrowserWindow;
+    app.removeAllListeners('window-all-closed');
+    var browserWindows = BrowserWindow.getAllWindows();
+    browserWindows.forEach(function(browserWindow) {
+        browserWindow.removeAllListeners('close');
+    });
+}
+
 function createWindow () {
 
     // Create the browser window.
@@ -110,19 +121,22 @@ function createWindow () {
     });
 
     win.on('show', () => {
+      autoUpdater.autoDownload = true;
+      autoUpdater.allowDowngrade = false;
+      autoUpdater.allowPrerelease = false;
       autoUpdater.logger = log;
       autoUpdater.logger.transports.file.level = "info";
       autoUpdater.checkForUpdatesAndNotify();
-      autoUpdater.addListener("update-available", function (event) {
-        const dialogOpts = {
-          type: 'info',
-          buttons: ['OK', 'Cancel'],
-          title: 'Application Update',
-          message: 'New version of FedoraGold is available from http://fedoragold.com',
-        }
-      
-        dialog.showMessageBox(dialogOpts, (response, checked) => {
-          if (response === 0) autoUpdater.quitAndInstall();
+      autoUpdater.on('update-downloaded', (versionInfo) => {
+        var dialogOptions = {
+          type: 'question',
+          defaultId: 0,
+          title: 'FED Update Downloaded and Ready for Install',
+          message: 'A FedoraGold (FED) update is ready to install, Version ${versionInfo.version} has been downloaded and will be automatically installed when you click OK.'
+        };
+        dialog.showMessageBox(win, dialogOptions, function() {
+          ensureSafeQuitAndInstall();
+          autoUpdater.quitAndInstall();
         });
       });
     });

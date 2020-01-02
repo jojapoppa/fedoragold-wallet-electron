@@ -15,8 +15,7 @@ var knownBlockCount = 0;
 var LAST_HEIGHTVAL = 1;
 var LAST_BLOCK_COUNT = 1;
 
-var SERVICE_CFG = { daemon_host: '127.0.0.1', daemon_port: '31875', walletd_host: '127.0.0.1', walletd_port: '31876', walletd_password: 'xxx'};
-var SAVE_COUNTER = 0;
+var SERVICE_CFG = { daemon_host: '127.0.0.1', daemon_port: '31875', walletd_host: '127.0.0.1', walletd_port: '31876', walletd_password: 'xxx', remote_daemon: 'false'};
 var TX_LAST_INDEX = 1;
 var TX_LAST_COUNT = 0;
 var TX_CHECK_STARTED = false;
@@ -24,97 +23,62 @@ var TX_SKIPPED_COUNT = 0;
 var STATE_CONNECTED = true;
 var STATE_SAVING = false;
 var STATE_PAUSED = false;
-var STATE_PENDING_SAVE = false;
-var PENDING_SAVE_SKIP_COUNTER = 0;
-var PENDING_SAVE_SKIP_MAX = 5;
 
 var wsapi = null;
-var taskWorker = null;
+var balanceTaskWorker = null;
+var heightTaskWorker = null; 
+var saveTaskWorker = null;
+var blockTaskWorker = null;
+var transactionTaskWorker = null;
 
 function logDebug(msg){
     if(!DEBUG) return;
-    log.debug(`[syncworker] ${msg}`);
+    log.warn(`[syncworker] ${msg}`);
 }
-
-function initApi(cfg){
-    if(wsapi instanceof WalletShellApi) return;
-    logDebug('Initializing WalletShellApi');
-    SERVICE_CFG = cfg;
-    wsapi = new WalletShellApi(SERVICE_CFG);
-}
-
-//NOTE, jojapoppa: if settings('current_block') is non-zero that means the local
-// daemon is ready for processing.  an async timed function to check that
-// and then call the bindDaemon api would be very helpful... to do this
-// just implement similar logic, to see how close to synced the 'current_block'
-// is as you will find in the spawn function in ws_manager... TODO
 
 function checkBlockUpdate(){
     var retVal = true;
-    //log.warn("checkBlockUpdate() called...");
-
-    if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) {
-      logDebug('invalid State'); 
+    if (STATE_SAVING || wsapi === null || STATE_PAUSED) {
       return false;
     }
-    if(STATE_PENDING_SAVE && (PENDING_SAVE_SKIP_COUNTER < PENDING_SAVE_SKIP_MAX)){
-        logDebug('checkBlockUpdate: there is pending saveWallet, delaying block update check');
-        PENDING_SAVE_SKIP_COUNTER += 1;
-        return false;
-    }
-
-    PENDING_SAVE_SKIP_COUNTER = 0;
 
     wsapi.getStatus().then((blockStatus) => {
-        STATE_PENDING_SAVE = false;
-        let lastConStatus = STATE_CONNECTED;
         let kbcReturn = parseInt(blockStatus.knownBlockCount, 10) - 1;
 
         //log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
 
-        // jojapoppa
-        // We should use this peercount to create a "Signal" display sort
-        // of like what you see on a cell phone with the bars...
-        //let peerCount = parseInt(blockStatus.peerCount, 10);
-        //log.warn("peerCount is: " + peerCount);
+        // jojapoppa, later show a "signal" like what you see on a cell phone with the bars...
+        let peerCount = parseInt(blockStatus.peerCount, 10);
+        if ((peerCount < 2) || (kbcReturn < 100)) {
 
-        if (kbcReturn < 100) {
-
-          // Activates the "pause" symbol in the UI...
-          //log.warn('checkBlockUpdate: Bad known block count, mark connection as broken');
-          if (lastConStatus !== false) {
-            let fakeStatus = {
-              blockCount: -50,
-              displayBlockCount: -50,
-              displayKnownBlockCount: -50,
-              syncPercent: -50,
-              knownBlockCount: -50,
-              uiMessage: ''
-            };
-            process.send({
-              type: 'blockUpdated',
-              data: fakeStatus
-            });
-          }
+          // Activates the "pause" symbol in the UI - show that network is disconnected
+          var peerMsg = " Peers: "+peerCount+" (2 minimum required)";
+          let fakeStatus = {
+            blockCount: -50,
+            displayBlockCount: -50,
+            displayKnownBlockCount: -50,
+            syncPercent: -50,
+            knownBlockCount: -50,
+            uiMessage: peerMsg
+          };
+          process.send({
+            type: 'blockUpdated',
+            data: fakeStatus
+          });
 
           STATE_CONNECTED = false;
-          //log.warn("fedoragold_walletd cannot reach fedoragold network,");
-
-          // THIS NEEDS TO BE MADE DYNAMIC - AND RUN ON VPN
-          // bind the daemon to a seed server address
-          //wsapi.bindDaemon('18.222.96.134', 30159);
-
           retVal = false;
         } else {
+          //log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
           knownBlockCount = kbcReturn;
+          STATE_CONNECTED = true;
         }
 
         if (retVal) {
-          logDebug("good network connection...");
+          //log.warn("good network connection...");
 
           // we have good connection
-          STATE_CONNECTED = true;
-          let blockCount = parseInt(blockStatus.localDaemonBlockCount, 10);
+          let blockCount = parseInt(blockStatus.blockCount, 10)-1;
 
           //log.warn("blockCount reported: "+blockCount);
           //log.warn("knownBlockCount reported: "+knownBlockCount);
@@ -137,13 +101,13 @@ function checkBlockUpdate(){
             syncPercent = syncPercent.toFixed(2);
           }
 
-          logDebug("sending height value: "+heightVal);
-
           blockStatus.displayDaemonHeight = heightVal;
           blockStatus.displayBlockCount = blockCount;
           blockStatus.displayKnownBlockCount = knownBlockCount;
           blockStatus.uiMessage = '';
           blockStatus.syncPercent = syncPercent;
+
+          //log.warn(`sending blockstatus: ${JSON.stringify(blockStatus)}`);
           process.send({
             type: 'blockUpdated',
             data: blockStatus
@@ -155,13 +119,13 @@ function checkBlockUpdate(){
         retVal = false;
     });
 
-    //log.warn("returning from checkBlockUpdate");
-
-    // isWalletdSynching
     return retVal;
 }
 
 function reset() {
+  if (wsapi === null)
+    return;
+
   TX_CHECK_STARTED = false;
   try {
     wsapi.reset({});
@@ -172,6 +136,14 @@ var queue = [];
 let blockMargin = 10;
 function sendTransactionsRequest(s_trx_args) {
   var retVal = true;
+  let syncPercent = (LAST_BLOCK_COUNT / knownBlockCount) * 100;
+  if (syncPercent <=0 || syncPercent >= 99.995)
+    syncPercent = 100;
+  //log.warn("syncPercent: "+syncPercent);
+  if (syncPercent < 98) {
+    if (!queue.includes(s_trx_args)) queue.push(s_trx_args);
+    return true;
+  }
 
   wsapi.getTransactions(JSON.parse(s_trx_args)).then(function(trx) {
     const blockItems = trx.items;
@@ -186,14 +158,14 @@ function sendTransactionsRequest(s_trx_args) {
       if (s_trx_args.blockCount-blockItems.length > 2*blockMargin) queue.push(s_trx_args);
     } 
 
-    log.warn(`getTransactions: args=${JSON.stringify(s_trx_args)} returned: ${blockItems.length} queue: ${queue.length}`);
+    //log.warn(`getTransactions: args=${JSON.stringify(s_trx_args)} returned: ${blockItems.length} queue: ${queue.length}`);
 
     var prom = new Promise(function(resolve, reject) {
       process.send({
         type: 'transactionUpdated',
         data: blockItems
       });
-      var statTxt = JSON.stringify(s_trx_args) + " ret: " + blockItems.length;
+      var statTxt = JSON.stringify(s_trx_args) + " ret: " + blockItems.length + " queue: " + queue.length;
       process.send({
         type: 'transactionStatus',
         data: statTxt
@@ -212,9 +184,16 @@ function sendTransactionsRequest(s_trx_args) {
 }
 
 function checkBalanceUpdate() {
+
+  if (!STATE_CONNECTED || wsapi === null || STATE_PAUSED || STATE_SAVING) {
+    return false;
+  }
+
+  //process.send({type: 'debug', data: {uiMessage: 'checkBalanceUpdate()'} });
+
   wsapi.getBalance().then((balance)=> {
-    STATE_PENDING_SAVE = false;
-    //log.warn("Balance: " + parseFloat(balance.availableBalance));
+    var bal = "Balance: " + parseFloat(balance.availableBalance);
+    //process.send({type: 'debug', data: {uiMessage: bal} });
     process.send({
       type: 'balanceUpdated',
       data: balance
@@ -222,6 +201,7 @@ function checkBalanceUpdate() {
   }).catch((err) => {
     // just eat the message, there will be timeouts and that's normal
     //log.warn(`checkTransactionsUpdate: getBalance FAILED, ${err.message}`);
+    //process.send({type: 'debug', data: {uiMessage: err.message} });
   });
 }
 
@@ -282,7 +262,7 @@ function updateTransactionsList(startIndexWithMargin, requestNumBlocks) {
 }
 
 function checkTransactionsUpdate(){
-  if(!SERVICE_CFG || STATE_SAVING || wsapi === null ) return;
+  if(STATE_SAVING || !STATE_CONNECTED || wsapi === null || STATE_PAUSED ) return;
 
     if (! STATE_CONNECTED) {
       // walletd's network access to fedoragold_daemon is down...
@@ -324,25 +304,14 @@ function checkTransactionsUpdate(){
         // causes it to taper off to find the overlap for end of blocks
         // at the very end of the taper it will briefly jump past the
         // top block, and then backtrack with the optimal overlap
-        if (requestNumBlocks > (2*blockMargin)) {
+        if (requestNumBlocks > ((2*blockMargin)+1)) {
           startIndexWithMargin += searchCount;
         }
 
         // this stops it from blowing past the top block at the end
-        if (startIndexWithMargin > knownBlockCount) {
+        if (startIndexWithMargin >= (knownBlockCount-1)) {
           startIndexWithMargin = knownBlockCount-blockMargin;
           requestNumBlocks = 2*blockMargin;
-        }
-      }
-
-      // only save wallet if not in the middle of a resync
-      // and only save if your not in the middle of a massive
-      // wallet initiation downloading lots of blocks...
-      let curGetTransactionsTimestamp = Math.floor(Date.now());
-      if ((curGetTransactionsTimestamp - lastGetTransactionsTimestamp) > 10000) {
-        lastGetTransactionsTimestamp = curGetTransactionsTimestamp;
-        if (searchCountWithMargin < 15) {
-          saveWallet();
         }
       }
 
@@ -376,12 +345,23 @@ function checkTransactionsUpdate(){
 function delayReleaseSaveState(){
     setTimeout(() => {
         STATE_SAVING = false;
+        //log.warn("saveWallet: reset");
     }, 3000);
 }
 
+function checkHeight() {
+      if(STATE_PAUSED || wsapi === null || !STATE_CONNECTED) return;
+      wsapi.getHeight().then((result) => {
+        heightVal = parseInt(result.height, 10);
+      }).catch((err) => {
+        //just eat this... sometimes daemon takes a while to start...
+        //log.warn(`getHeight from Daemon: FAILED, ${err.message}`);
+      });
+}
+
 function saveWallet(){
-    if(!SERVICE_CFG) return;
-    if(STATE_PENDING_SAVE){
+    if(wsapi === null || STATE_PAUSED || !STATE_CONNECTED) return;
+    if(STATE_SAVING){
         logDebug('saveWallet: skipped, last save operation still pending');
         return false;
     }
@@ -389,88 +369,79 @@ function saveWallet(){
     //log.warn(`saveWallet: trying to save wallet`);
 
     var retVal = true;
-    setTimeout(() => {
-        wsapi.save().then(()=> {
-            //log.warn(`saveWallet: OK`);
-            STATE_SAVING = false;
-            STATE_PENDING_SAVE = false;
-            retVal = true;
-        }).catch((err)=>{
-            STATE_PENDING_SAVE = true;
-            //just eat the message, they won't all succeed... expected behavior
-            //log.warn(`saveWallet: FAILED, ${err.message}`);
-            delayReleaseSaveState();
-            retVal = false;
-        });
-    }, 10222);
+    delayReleaseSaveState();
+
+    wsapi.save().then(()=> {
+      //log.warn(`saveWallet: OK`);
+      STATE_SAVING = false;
+      retVal = true;
+    }).catch((err)=>{
+      STATE_SAVING = false;
+      //just eat the message, they won't all succeed... expected behavior
+      //log.warn(`saveWallet: FAILED, ${err.message}`);
+      retVal = false;
+    });
 
     return retVal;
 }
 
-function workOnTasks(){
-    taskWorker = setIntervalAsync(() => {
-        if(STATE_PAUSED) return;
+heightTaskWorker = setIntervalAsync(()=>{
+  checkHeight();
+}, 900*2);
 
-        // get block height of the daemon fullnode
-        wsapi.getHeight().then((result) => {
-            heightVal = parseInt(result.height, 10);
-            //let isWalletdSynching = checkBlockUpdate();
-            //if (isWalletdSynching)
-            //  logDebug("walletd is synching...");
-            //else
-            //  logDebug("checkBlockUpdate() reported an error...");
-        }).catch((err) => {
-            //just eat this... sometimes daemon takes a while to start...
-            //log.warn(`getHeight from Daemon: FAILED, ${err.message}`);
-        });
+balanceTaskWorker = setIntervalAsync(()=>{
+  checkBalanceUpdate();
+}, 900);
 
-        checkBlockUpdate();
-        checkTransactionsUpdate();
-        checkBalanceUpdate();
+transactionTaskWorker = setIntervalAsync(()=>{
+  checkTransactionsUpdate();
+}, 900*3.5);
 
-        // no more saving wallet for no reason...
-        //if(SAVE_COUNTER > 500 && isWalletdSynching){
-            // This may not be useful anyway, as daemon
-            // keeps track of progress on a clean exit anyways
-            //saveWallet();
-            //SAVE_COUNTER = 0;
-        //}
-        //SAVE_COUNTER++;
-    }, CHECK_INTERVAL);
-}
+blockTaskWorker = setIntervalAsync(()=>{
+  checkBlockUpdate();
+}, 900*2);
+
+saveTaskWorker = setIntervalAsync(()=>{
+  saveWallet();
+}, 900*100);
 
 // {type: 'blah', msg: 'any'}
 process.on('message', (msg) => {
     let cmd = msg || '';
-    cmd.type = msg.type || 'cfg';
+    cmd.type = msg.type || '';
     cmd.data = msg.data || null;
 
     switch (cmd.type) {
-        case 'cfg':
-            if(cmd.data){
-                SERVICE_CFG = cmd.data;
-                initApi(SERVICE_CFG);
-                process.send({
-                    type: 'serviceStatus',
-                    data: 'OK'
-                });
-            }
-            if(cmd.debug){
-                DEBUG = true;
-                logDebug('Config received.');
-                logDebug('Running in debug mode.');
-            }
+        case 'start':
+            STATE_PAUSED = false;
+            SERVICE_CFG = cmd.data;
+            wsapi = new WalletShellApi(SERVICE_CFG);
+            //log.warn("starting with localDaemonMode: "+!SERVICE_CFG.remote_daemon);
+            var prm = new Promise(function(resolve, reject) {
+              process.send({
+                type: 'daemonMode',
+                data: !SERVICE_CFG.remote_daemon
+              });
+              resolve(true);
+            }).catch(function(err){});
             break;
+        case 'checkHeight':
+            checkHeight();
+            break;
+        case 'checkBalanceUpdate':
+            checkBalanceUpdate();
+            break;
+        case 'checkTransactionsUpdate':
+            checkTransactionsUpdate();
+            break;
+        case 'checkBlockUpdate':
+            checkBlockUpdate();
+            break;
+        case 'saveWallet':
+            saveWallet();
+            break; 
         case 'reset':
             reset();
-            break;
-        case 'start':
-            //log.warn('syncWorker Starting');
-            try { clearInterval(taskWorker);} catch (err) {}
-            checkBlockUpdate();
-            checkTransactionsUpdate();
-            checkBalanceUpdate();
-            setTimeout(workOnTasks, 10000);
             break;
         case 'pause':
             if(STATE_PAUSED) return;
@@ -491,9 +462,7 @@ process.on('message', (msg) => {
         case 'resume':
             logDebug('Got resume command');
             TX_SKIPPED_COUNT = 5;
-            SAVE_COUNTER = 0;
-            wsapi = null;
-            initApi(SERVICE_CFG);
+            wsapi = new WalletShellApi(SERVICE_CFG);
             setTimeout(() => {
                 wsapi.getBalance().then(() => {
                     logDebug(`Warming up: getBalance OK`);
@@ -518,11 +487,14 @@ process.on('message', (msg) => {
         case 'stop':
             logDebug('Got stop command, halting all tasks and exit...');
             TX_SKIPPED_COUNT = 0;
-            SERVICE_CFG = null;
             wsapi = null;
-            if(taskWorker === undefined || taskWorker === null){
+            if (balanceTaskWorker === undefined || balanceTaskWorker === null){
                 try{
-                    clearInterval(taskWorker);
+                    clearInterval(balanceTaskWorker);
+                    clearInterval(heightTaskWorker);
+                    clearInterval(saveTaskWorker);
+                    clearInterval(blockTaskWorker);
+                    clearInterval(transactionTaskWorker);
                     process.exit(0);
                 }catch(e){
                     logDebug(`FAILED, ${e.message}`);

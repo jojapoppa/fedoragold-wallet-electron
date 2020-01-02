@@ -25,6 +25,7 @@ const SYNC_STATUS_RESCAN = -300;
 
 const WFCLEAR_INTERVAL = 5;
 let WFCLEAR_TICK = 0;
+var bLocalDaemonMode = false;
 
 function setWinTitle(title){
     let defaultTitle = wsession.get('defaultTitle');
@@ -33,13 +34,6 @@ function setWinTitle(title){
         newTitle = `${defaultTitle} ${title}`;
     }
     brwin.setTitle(newTitle);
-
-    // reinitialize the top block number...
-    // means it will be 0 until a RESCAN has completed
-    // won't assess the stored 'current_block' until
-    // the daemon is minimally ready
-    settings.set('top_block', 0);
-    settings.set('current_block', 0);
 }
 
 function triggerTxRefresh(){
@@ -47,6 +41,26 @@ function triggerTxRefresh(){
     const txUpdateInputFlag = document.getElementById('transaction-updated');
     txUpdateInputFlag.value = 1;
     txUpdateInputFlag.dispatchEvent(new Event('change'));
+}
+
+function showRescan(data, bDbg) {
+  let uiMessage = data.uiMessage;
+  let statusText = '';
+
+  if (!bDbg && wsession.get('serviceReady')) return;
+  statusText = '' + uiMessage;
+
+  // sync info bar class
+  syncDiv.className = '';
+  const iconSync = document.getElementById('navbar-icon-sync');
+  iconSync.setAttribute('data-icon', 'check');
+  syncInfoBar.textContent = statusText;
+
+  if(WFCLEAR_TICK === 0 || WFCLEAR_TICK === WFCLEAR_INTERVAL){
+    webFrame.clearCache();
+    WFCLEAR_TICK = 0;
+  }
+  WFCLEAR_TICK++;
 }
 
 function updateSyncProgress(data){
@@ -67,13 +81,6 @@ function updateSyncProgress(data){
         blockSyncPercent = 0;
     }
 
-    // this tells you if the local daemon is truly ready yet...
-    if (uiMessage.search("Block:") === 1) {
-       var blocknumber = uiMessage.substring(7);
-       var numm = parseInt(blocknumber, 10);  
-       settings.set('current_block', numm);
-       //log.warn("current_block set in settings to: "+numm);
-    }
     if (knownBlockCount > 100) {
         // don't allow unnecessary disk writes
         var tblk = settings.get('top_block');
@@ -83,22 +90,7 @@ function updateSyncProgress(data){
         }
     }
 
-    if (data.knownBlockCount === SYNC_STATUS_RESCAN) {
-
-        // only show SCAN messages if wallet isn't opened yet
-        if ((wsession.get('serviceReady') || false)) {
-          return;
-        }
-
-        statusText = '' + uiMessage;
-
-        // sync info bar class
-        syncDiv.className = '';
-        //iconSync.setAttribute('data-icon', 'pause-circle');
-        iconSync.setAttribute('data-icon', 'check');
-        syncInfoBar.textContent = statusText;
-
-    } else if(data.knownBlockCount === SYNC_STATUS_NET_CONNECTED){
+    if(data.knownBlockCount === SYNC_STATUS_NET_CONNECTED){
         // sync status text
         statusText = 'RESUMING WALLET SYNC...';
         syncInfoBar.innerHTML = statusText;
@@ -127,7 +119,7 @@ function updateSyncProgress(data){
         iconSync.setAttribute('data-icon', 'ban');
         iconSync.classList.remove('slow-spin');
         // connection status
-        connInfoDiv.innerHTML = 'Paused, will continue once blockchain connection is reestablished';
+        connInfoDiv.innerHTML = 'Paused, will continue once blockchain connection is reestablished:'+uiMessage;
         connInfoDiv.classList.remove('empty');
         connInfoDiv.classList.remove('conn-warning');
         connInfoDiv.classList.add('conn-warning');
@@ -171,56 +163,56 @@ function updateSyncProgress(data){
         iconSync.setAttribute('data-icon', 'times');
         iconSync.classList.remove('slow-spin');
         // connection status
-        connInfoDiv.innerHTML = 'Connection failed, try switching to another Node in settings page, close and reopen your wallet';
+        connInfoDiv.innerHTML = 'Node connection failed.';
         connInfoDiv.classList.remove('empty');
         connInfoDiv.classList.remove('conn-warning');
         connInfoDiv.classList.add('conn-warning');
         wsession.set('connectedNode', '');
         brwin.setProgressBar(-1);
-    }else{
+    } else {
         // sync sess flags
         wsession.set('syncStarted', true);
-        statusText = `${blockCount}/${knownBlockCount}` ;
+        statusText = `${blockCount}/${knownBlockCount}`;
 
-            // note: don't call setProgressBar, or it really kills performance
+        // note: don't call setProgressBar, or it really kills performance
+        let percent = ((blockCount / knownBlockCount)*100)
+        if (percent > 100) percent = 100.00;
+        percent = percent.toFixed(2);
 
-            syMsg = "SYNCING ";
-            if (blockCount+3 >= knownBlockCount) {
-              syMsg = "SYNCED "
-              syncDiv.className = 'synced';
-              iconSync.setAttribute('data-icon', 'check');
-              iconSync.classList.remove('slow-spin');
-              // sync status sess flag
-              wsession.set('synchronized', true);
-            } else {
-              syncDiv.className = 'syncing';
-              iconSync.setAttribute('data-icon', 'sync');
-              iconSync.classList.remove('slow_spin');
-              iconSync.classList.add('slow-spin');
-              // sync status sess flag
-              wsession.set('synchronized', false);
-            }
+        if (bLocalDaemonMode) syMsg = "SYNCING* "; else syMsg = "SYNCING ";
+        if (percent > 99) {
+          if (bLocalDaemonMode) syMsg = "SYNCED* "; else syMsg = "SYNCED ";
+          syncDiv.className = 'synced';
+          iconSync.setAttribute('data-icon', 'check');
+          iconSync.classList.remove('slow-spin');
+          wsession.set('synchronized', true);
+        } else {
+          syncDiv.className = 'syncing';
+          iconSync.setAttribute('data-icon', 'sync');
+          iconSync.classList.remove('slow_spin');
+          iconSync.classList.add('slow-spin');
+          wsession.set('synchronized', false);
+        }
 
-            // status text
-            let percent = ((blockCount / knownBlockCount)*100).toFixed(2);
-            statusText = `${syMsg} ${statusText} (${percent}%)`;
-            syncInfoBar.textContent = statusText;
-            let taskbarProgress = +(parseFloat(percent)/100).toFixed(2);
-            if (blockSyncPercent === 0) {
-              syncDiv.className = '';
-              connInfoDiv.classList.remove('conn-warning');
-              connInfoDiv.classList.remove('empty');
-              connInfoDiv.classList.add('empty');
-              iconSync.classList.remove('slow-spin');
-              iconSync.setAttribute('data-icon', 'pause-circle');
-              syncInfoBar.textContent = 'STARTING SYNC...';
-            } else {
-              brwin.setProgressBar(taskbarProgress);
-            }
+        // status text
+        statusText = `${syMsg} ${statusText} (${percent}%)`;
+        syncInfoBar.textContent = statusText;
+        let taskbarProgress = +(parseFloat(percent)/100).toFixed(2);
+        if (blockSyncPercent === 0) {
+          syncDiv.className = '';
+          connInfoDiv.classList.remove('conn-warning');
+          connInfoDiv.classList.remove('empty');
+          connInfoDiv.classList.add('empty');
+          iconSync.classList.remove('slow-spin');
+          iconSync.setAttribute('data-icon', 'pause-circle');
+          syncInfoBar.textContent = 'STARTING SYNC...';
+        } else {
+          brwin.setProgressBar(taskbarProgress);
+        }
 
         let connStatusText = ' '; //`Connected to: <strong>${wsession.get('connectedNode')}</strong>`;
         let connNodeFee = wsession.get('nodeFee');
-        if(connNodeFee > 0 ){
+        if (connNodeFee > 0 ) {
             connStatusText += ` | Node fee: <strong>${connNodeFee.toFixed(config.decimalPlaces)} ${config.assetTicker}</strong>`;
         }
         connInfoDiv.innerHTML = connStatusText;
@@ -257,7 +249,6 @@ function updateBalance(data){
         if(availableBalance < 0) return;
     }
 
-    //let bUnlocked = (availableBalance / 100000000).toFixed(8);
     let bUnlocked = wsutil.amountForMortal(availableBalance);
     let bLocked = wsutil.amountForMortal(data.lockedAmount);
     balanceAvailableField.innerHTML = bUnlocked;
@@ -478,12 +469,19 @@ function updateUiState(msg){
         case 'balanceUpdated':
             updateBalance(msg.data);
             break;
+        case 'debug':
+            showRescan(msg.data, true);
+            break;
         case 'rescan':
-            updateSyncProgress(msg.data);
+            showRescan(msg.data, false);
+            break;
+        case 'daemonMode':
+            //log.warn("bLocalDaemonMode recieved: "+msg.data);
+            bLocalDaemonMode = msg.data;
             break;
         case 'transactionStatus':
             var transactionsInfoBar = document.getElementById('navbar-text-transactions');
-            transactionsInfoBar.innerHTML = "-Recieved block of transactions: "+msg.data;
+            transactionsInfoBar.innerHTML = "-Transactions: "+msg.data;
             break;
         case 'transactionUpdated':
             updateTransactions(msg.data);

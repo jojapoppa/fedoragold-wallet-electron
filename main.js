@@ -58,15 +58,17 @@ app.fsync = null;
 app.timeStamp = 0;
 app.chunkBuf = '';
 app.daemonPid = null;
+app.daemonProcess = null;
 app.daemonLastPid = null;
 app.localDaemonRunning = false;
-app.daemonProcess = null;
+app.integratedDaemon = false;
 
 app.primarySeedAddr = '18.222.96.134';
-app.primarySeedPort = 30159;
+app.secondarySeedAddr = '18.223.178.174'
 app.primarySeedHeight = 0;
 
-let win = null;
+// Special syntax for main window...
+let win, callback;
 
 log.info(`Starting WalletShell ${WALLETSHELL_VERSION}`);
 
@@ -96,11 +98,11 @@ function createWindow () {
 
     const winOpts = {
         title: `${config.appName} ${config.appDescription}`,
-        //title: `${config.appDescription}`,
         icon: path.join(__dirname,'src/assets/walletshell_icon.png'),
         frame: true,
         width: DEFAULT_SIZE.width,
         height: DEFAULT_SIZE.height,
+        transparent: false,
         minWidth: DEFAULT_SIZE.width,
         minHeight: DEFAULT_SIZE.height,
         show: false,
@@ -152,7 +154,7 @@ function createWindow () {
     }));
 
     // open devtools
-    if(IS_DEV ) win.webContents.openDevTools();
+    if(IS_DEV && (win!==null)) win.webContents.openDevTools();
 
     // show window
     win.once('ready-to-show', () => {
@@ -163,7 +165,7 @@ function createWindow () {
     win.on('close', (e) => {
         if(app.prompExit ){
           e.preventDefault();
-          win.webContents.send('promptexit','promptexit');
+          if (win!==null) win.webContents.send('promptexit','promptexit');
         }
     });
     
@@ -171,13 +173,15 @@ function createWindow () {
         win = null;
     });
 
-    win.setMenu(null);
+    if (win!=null) win.setMenu(null);
 
     // misc handler
-    win.webContents.on('crashed', () => { 
+    if (win !== null) {
+      win.webContents.on('crashed', () => { 
         // todo: prompt to restart
         log.debug('webcontent was crashed');
-    });
+      });
+    }
 
     win.on('unresponsive', () => {
         // todo: prompt to restart
@@ -209,15 +213,16 @@ const getHttpContent = function(url) {
 
 const checkSeedTimer = setIntervalAsync(() => {
 
-  var aurl = "http://"+app.primarySeedAddr+":"+app.primarySeedPort+"/getheight";
+  var aurl = "http://"+app.primarySeedAddr+":30159/getheight";
 
   getHttpContent(aurl)
   //grab whateveris between the : and the ,
   .then((html) => app.primarySeedHeight = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
   .catch((err) => app.primarySeedHeight = 0);
 
-}, 3050);
+}, 2500);
 
+function splitLines(t) { return t.split(/\r\n|\r|\n/); }
 const checkDaemonTimer = setIntervalAsync(() => {
     var cmd = `ps -ex`;
     switch (process.platform) {
@@ -231,22 +236,32 @@ const checkDaemonTimer = setIntervalAsync(() => {
     exec(cmd, {
         maxBuffer: 2000 * 1024
     }, function(error, stdout, stderr) {
-        if (stdout.toLowerCase().indexOf('fedoragold_daem') > -1) {
-            if (app.daemonProcess === null) {
-              var errmsg = 'A fedoragold_daemon process is already running. Trying again...';
-              log.warn(errmsg);
-              if (win !== null) {
-                win.webContents.send('console', errmsg);
-              }
-              return;
-            } else {
-              app.localDaemonRunning = true;
-            }
+        var procStr = stdout.toLowerCase();
+        if (procStr.indexOf('fedoragold_daem') > -1) {
+
+          var dloc = procStr.indexOf('fedoragold_daem');
+          procStr = procStr.substring(0, dloc);
+          var procAry = splitLines(procStr);
+          procStr = procAry[procAry.length-1];
+          procStr = procStr.trim();
+
+          if (app.daemonPid === null) {
+            app.daemonPid = parseInt(procStr.substr(0, procStr.indexOf(' ')), 10); 
+            var errmsg = "fedoragold_daemon process already running at process ID: "+app.daemonPid;
+            //log.warn(errmsg);
+            app.localDaemonRunning = true;
+            if (win!==null) win.webContents.send('console', errmsg);
+            /* eslint-disable-next-line no-empty */
+            try{killer(app.daemonPid,'SIGKILL');}catch(err){} 
+            return;
+          } else {
+            app.localDaemonRunning = true;
+          }
         } else {
-            app.localDaemonRunning = false;
-            app.daemonProcess = null;
-            app.daemonPid = null;
-            runDaemon();
+          app.localDaemonRunning = false;
+          app.daemonProcess = null;
+          app.daemonPid = null;
+          runDaemon();
         }
     });
 }, 3000);
@@ -289,11 +304,11 @@ const checkSyncTimer = setIntervalAsync(() => {
         }, (error, response, body) => {
             if (!error && response.statusCode == 200) {
               if (body.iscoreready) {
-                win.webContents.send('daemoncoreready', 'true');
+                if (win!==null) win.webContents.send('daemoncoreready', 'true');
                 return;
               }
             }
-            win.webContents.send('daemoncoreready', 'false');
+            if (win!==null) win.webContents.send('daemoncoreready', 'false');
         }).catch(function(e){}); // Just eat the error as race condition expected anyway...
     }
 }, 4000);
@@ -428,14 +443,17 @@ function runDaemon() {
       '--add-priority-node', '18.223.178.174:30158'
     ];
 
-   //'--allow-local-ip'
+    // unable to get this mode working yet, but seems to work for Meroex!
+    app.integratedDaemon = false;
 
     try {
       return new Promise(function(resolve, reject) {
         // daemon must run detached, otherwise windows will not exit cleanly
-        app.daemonProcess = spawn(daemonPath, daemonArgs, 
-          {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
-        app.daemonPid = app.daemonProcess.pid;
+        if (! app.integratedDaemon) { 
+          app.daemonProcess = spawn(daemonPath, daemonArgs, 
+            {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+          app.daemonPid = app.daemonProcess.pid;
+        }
 
         app.daemonProcess.stdout.on('data', function(chunk) {
           // limit to 1 msg every 1/4 second to avoid overwhelming message bus
@@ -448,9 +466,7 @@ function runDaemon() {
           }
         });
         app.daemonProcess.stderr.on('data', function(chunk) {
-          if (win !== null) {
-            win.webContents.send('console',chunk);
-          }
+          if (win!==null) win.webContents.send('console',chunk);
         });
       }); 
     } catch(e) {

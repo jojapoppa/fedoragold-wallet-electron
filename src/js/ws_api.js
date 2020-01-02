@@ -18,11 +18,15 @@ class WalletShellApi {
         this.daemonCoreReady = args.daemonCoreReady || false;
     }
 
+    setPassword(password) {
+        this.walletd_password = password;
+    }
+
     _sendRequest(method, todaemon, paramsIn, timeoutIn, needsAuth) {
         return new Promise((resolve, reject) => {
             if (method.length === 0) return reject(new Error('Invalid Method'));
             var params = paramsIn || {};
-            var timeout = timeoutIn || 10000;
+            var timeout = timeoutIn || 25000;
             var authoriz = "Basic " + Buffer.from("fedadmin:"+this.walletd_password).toString('base64');
             //log.warn("authoriz: "+authoriz);
             let data = {
@@ -31,10 +35,12 @@ class WalletShellApi {
                 params: params
             };
 
+            //log.warn("api using password: "+this.walletd_password);
+
             // needed to support certain systems that have very poor network latency
             var myAgent = new http.Agent({
                 keepAlive: true,
-                keepAliveMsecs: 10000
+                keepAliveMsecs: 25000
             });
 
             let headers = {
@@ -73,7 +79,7 @@ class WalletShellApi {
                 pool: {maxSockets: 128},
                 timeout: timeout
             }).on('socket', function(socket){
-                socket.setTimeout(9000);
+                socket.setTimeout(24000);
             }).on('error', function(e) {
                 // just eat the error, don't throw or stop
                 // log.warn('error on socket: ', e);
@@ -91,7 +97,7 @@ class WalletShellApi {
                       return resolve(res);
                     }
 
-                    //log.warn("err msg is: "+res.error.message);
+                    log.warn("err msg is: "+res.error.message);
                     return reject(res.error.message);
                 }
             }).catch((err) => {
@@ -125,10 +131,10 @@ class WalletShellApi {
             });
         });
     }
-    // only get single addres only, no multi address support for this wallet, yet
+    // only get a single address, no multi address support for this wallet, yet
     getAddress() {
         return new Promise((resolve, reject) => {
-            this._sendRequest('getAddresses', false, {}, 10000, true).then((result) => {
+            this._sendRequest('getAddresses', false, {}, 15000, true).then((result) => {
                 return resolve(result.addresses[0]);
             }).catch((err) => {
                 return reject(err);
@@ -265,7 +271,6 @@ class WalletShellApi {
             this._sendRequest('getTransactions', false, params, 20000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
-
                 return reject(err);
             });
         });
@@ -283,16 +288,27 @@ class WalletShellApi {
             if (!params.amount) return reject(new Error('Missing transaction amount parameter'));
             if (parseFloat(params.fee) < 0.1) return reject(new Error('Minimum fee is 0.1 FED'));
             //[{address: "FEDxxxx...", amount: 100}];
-            //jojapoppa added anonymity(mixin) and unlockTime below	
-            var req_params = {
+
+            var req_params = {};
+            if (params.paymentId) {
+              req_params = {
                 transfers: [{ address: params.address, amount: params.amount }],
+                paymentId: params.paymentId,
                 anonymity: 0, 
                 unlockTime: 0,
                 fee: params.fee
-            };
-            if (params.paymentId) req_params.paymentId = params.paymentId;
+              };
+            } else {
+              req_params = {
+                transfers: [{ address: params.address, amount: params.amount }],
+                anonymity: 0,
+                unlockTime: 0,
+                fee: params.fee
+              };
+            }
+
             // give extra long timeout
-            this._sendRequest('sendTransaction', false, req_params, 20000, true).then((result) => {
+            this._sendRequest('sendTransaction', false, req_params, 25000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);

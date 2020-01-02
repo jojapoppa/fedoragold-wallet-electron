@@ -960,6 +960,7 @@ function handleAddressBook(){
 function handleWalletOpen(){
     if(settings.has('recentWallet')){
         walletOpenInputPath.value = settings.get('recentWallet');
+        //log.warn("walletOpenInputPath: "+walletOpenInputPath.value);
     }
 
     function setOpenButtonsState(isInProgress){
@@ -1035,7 +1036,6 @@ function handleWalletOpen(){
             return false;
         }
 
-        //function onSuccess(theWallet, scanHeight){
         function onSuccess(){
             walletOpenInputPath.value = settings.get('recentWallet');
             overviewWalletAddress.value = wsession.get('loadedWalletAddress');
@@ -1053,6 +1053,8 @@ function handleWalletOpen(){
 
         let walletFile = walletOpenInputPath.value;
         let walletPass = walletOpenInputPassword.value;
+
+        //log.warn("walletPass: "+walletPass);
 
         fs.access(walletFile, fs.constants.R_OK, (err) => {
             if(err){
@@ -1442,8 +1444,10 @@ function handleSendTransfer(){
 
         let fee = sendInputFee.value ? parseFloat(sendInputFee.value) : 0;
         let minFee = config.minimumFee;
+        //log.warn("fee is: "+fee);
+        //log.warn("minFee is: "+minFee);
         if (fee < minFee) {
-            formMessageSet('send','error',`Fee can't be less than ${wsutil.amountForMortal(minFee)}`);
+            formMessageSet('send','error',`Fee: ${fee} can't be less than ${minFee}`);
             return;
         }
 
@@ -1894,18 +1898,19 @@ function handleTransactions(){
     //});
 }
 
-//function handleNetworkChange(){
-//    window.addEventListener('online', () => {
-//        let connectedNode = wsession.get('connectedNode');
-//        if(!connectedNode.length || connectedNode.startsWith('127.0.0.1')) return;
-//        wsmanager.networkStateUpdate(1);
-//    });
-//    window.addEventListener('offline',  () => {
-//        let connectedNode = wsession.get('connectedNode');
-//        if(!connectedNode.length || connectedNode.startsWith('127.0.0.1')) return;
-//        wsmanager.networkStateUpdate(0);
-//    });
-//}
+// only keep track of network outages if our daemon is running remotely...
+function handleNetworkChange(){
+    window.addEventListener('online', () => {
+        let connectedNode = wsession.get('connectedNode');
+        if(!connectedNode.length || connectedNode.startsWith('127.0.0.1')) return;
+        wsmanager.networkStateUpdate(1);
+    });
+    window.addEventListener('offline',  () => {
+        let connectedNode = wsession.get('connectedNode');
+        if(!connectedNode.length || connectedNode.startsWith('127.0.0.1')) return;
+        wsmanager.networkStateUpdate(0);
+    });
+}
 
 // event handlers
 function initHandlers(){
@@ -1913,10 +1918,7 @@ function initHandlers(){
     initSectionTemplates();
     let darkStart = settings.get('darkmode', false);
     setDarkMode(darkStart);
-   
-    // jojapoppa ... why was this call moved forword in the function ?!!! 
-    // netstatus
-    //handleNetworkChange();
+    handleNetworkChange();
 
     //external link handler
     wsutil.liveEvent('a.external', 'click', (event) => {
@@ -2124,8 +2126,7 @@ function initHandlers(){
     //});
 
     kswitch.addEventListener('click', showKeyBindings);
-
-    //handleNetworkChange();
+    handleNetworkChange();
 
     // settings handlers
     handleSettings();
@@ -2297,6 +2298,21 @@ ipcRenderer.on('console', (event, sChunk) => {
         if (firstline.length === 0) firstline = thisline;
         updatedText = thisline + "<br/>" + updatedText;
         outlen++;
+
+        // this tells you if the local daemon is truly ready yet... with its report block #
+        var posit = thisline.search("INFO Block:");
+        if (posit > -1) {
+          var blocknumber = thisline.substring(posit+12);
+          var numm = parseInt(blocknumber, 10);
+          var cblock = settings.get('current_block');
+          if (cblock === undefined) cblock = 0;
+          //log.warn("blocknumm: "+numm);
+          //log.warn("currentblock: "+cblock);
+          if (numm > cblock) {
+            settings.set('current_block', numm);
+            //log.warn("current_block set in settings to: "+numm);
+          }
+        }
       }
     }
 
@@ -2305,13 +2321,19 @@ ipcRenderer.on('console', (event, sChunk) => {
       firstline = firstline.substring(lc+4);
     }
 
+    // Change the label to "Rescan"...
+    if (firstline.search("Height ") === 1) {
+      firstline = "Rescan " + firstline.substring(8);
+    }
+
     if ( (firstline.search("failed")===-1) && (firstline.search("rejected")===-1) && 
          (firstline.search("unknown")===-1) && (firstline.search("Exception")===-1) && 
          (firstline.search("error")===-1) && (firstline.search("load")===-1) &&
          (firstline.search("WARNING")===-1) && (firstline.search("Load")===-1) &&
          (firstline.search("IGD")===-1) && (firstline.search("Wrong")===-1) &&
          (firstline.search("Failed")===-1) && (firstline.search("folder")===-1) && 
-         (firstline.search("wrong")===-1) && (firstline.search("Block with id") ===-1) ) {
+         (firstline.search("wrong")===-1) && (firstline.search("Block with id")===-1) &&
+         (firstline.search("CHECKPOINT")===-1) ) {
       let rescandata = {
         type: 'rescan',
         data: {
@@ -2330,6 +2352,26 @@ ipcRenderer.on('console', (event, sChunk) => {
     el.innerHTML = updatedText;
 });
 
+ipcRenderer.on('checkHeight', () => {
+  wsmanager.notifySyncWorker({ type: 'checkHeight', data: {} });
+});
+
+ipcRenderer.on('checkBalanceUpdate', () => {
+  wsmanager.notifySyncWorker({ type: 'checkBalanceUpdate', data: {} });
+});
+
+ipcRenderer.on('checkTransactionsUpdate', () => {
+  wsmanager.notifySyncWorker({ type: 'checkTransactionsUpdate', data: {} });
+});
+
+ipcRenderer.on('checkBlockUpdate', () => {
+  wsmanager.notifySyncWorker({ type: 'checkBlockUpdate', data: {} });
+});
+
+ipcRenderer.on('saveWallet', () => {
+  wsmanager.notifySyncWorker({ type: 'saveWallet', data: {} });
+});
+
 ipcRenderer.on('promptexit', () => {
 
     if(remote.app.prompShown) return;
@@ -2346,9 +2388,11 @@ ipcRenderer.on('promptexit', () => {
 
     remote.app.emit('exit');
 
-    if(!win.isVisible()) win.show();
-    if(win.isMinimized()) win.restore();
-    win.focus();
+    if (win != null) {
+      if(!win.isVisible()) win.show();
+      if(win.isMinimized()) win.restore();
+      win.focus();
+    }
 
     var dialog = document.getElementById('main-dialog');
     let htmlText = 'Terminating WalletShell...';
@@ -2365,11 +2409,11 @@ ipcRenderer.on('promptexit', () => {
         setTimeout(function(){
             dialog.innerHTML = 'Good bye!';
             wsmanager.terminateService(true);
-            win.close();
+            if (win != null) win.close();
         }, 1200);
     }).catch((err) => {
         wsmanager.terminateService(true);
-        win.close();
         console.log(err);
+        if (win != null) win.close();
     });
 });

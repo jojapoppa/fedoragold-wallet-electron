@@ -42,6 +42,7 @@ function checkBlockUpdate(){
       return false;
     }
 
+    STATE_CONNECTED = true;
     wsapi.getStatus().then((blockStatus) => {
         let kbcReturn = parseInt(blockStatus.knownBlockCount, 10) - 1;
 
@@ -71,7 +72,6 @@ function checkBlockUpdate(){
         } else {
           //log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
           knownBlockCount = kbcReturn;
-          STATE_CONNECTED = true;
         }
 
         if (retVal) {

@@ -21,7 +21,7 @@ const SERVICE_LOG_LEVEL_DEFAULT = 0;
 const SERVICE_LOG_LEVEL_DEBUG = 4;
 const SERVICE_LOG_LEVEL = (SERVICE_LOG_DEBUG ? SERVICE_LOG_LEVEL_DEBUG : SERVICE_LOG_LEVEL_DEFAULT);
 const ERROR_WALLET_EXEC = `Failed to start ${config.walletServiceBinaryFilename}.`;
-const ERROR_WALLET_PASSWORD = 'Failed to load your wallet, possible password issue, or a rescan is in progress...';
+const ERROR_WALLET_PASSWORD = 'Failed to load your wallet, failed password, or issue with daemon - see Settings Daemon Console...';
 const ERROR_WALLET_IMPORT = 'Import failed, please check that you have entered all information correctly';
 const ERROR_WALLET_CREATE = 'Wallet can not be created, please check your input and try again';
 

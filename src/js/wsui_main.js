@@ -1542,7 +1542,10 @@ function handleSendTransfer(){
                 sendInputPaymentId.value = '';
                 sendInputAmount.value = '';
             }).catch((err) => {
-                formMessageSet('send', 'error', `Failed to send transaction:<br><small>${err}</small>`);
+                // socket timeout is NOT a fatal error when sending a transaction
+                if (err.message.search("ESOCKETTIMEDOUT") > -1) {
+                  formMessageSet('send', 'error', `Failed to send transaction.  Check Transaction History to verify.<br><small>${err}</small>`);
+                }
             });
             wsutil.clearChild(md);
         });

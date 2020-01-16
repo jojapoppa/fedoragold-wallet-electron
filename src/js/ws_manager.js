@@ -110,9 +110,16 @@ WalletShellManager.prototype.init = function(password){
   this.serviceApi.setPassword(password);
 
   // One very quick check of local daemaon height specifically for login processing
-  getHttpContent("http://127.0.0.1:" + this.daemonPort + "/getheight")
-    .then((html) => heightVal = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
-    .catch((err) => heightVal = 0);
+  //getHttpContent("http://127.0.0.1:" + this.daemonPort + "/getheight")
+  //  .then((html) => heightVal = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
+  //  .catch((err) => heightVal = 0);
+
+  this.serviceApi.getHeight().then((result) => {
+    heightVal = parseInt(result.height, 10);
+  }).catch((err) => {
+    //just eat this... sometimes daemon takes a while to start...
+    //log.warn(`getHeight from Daemon: FAILED, ${err.message}`);
+  });
 };
 
 WalletShellManager.prototype._getSettings = function(){
@@ -228,7 +235,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
                 setTimeout(() => {
                   // the first call just got the address back... now we run it for reals
                   wsm._spawnService(walletFile, password, onError, onSuccess, onDelay);
-                }, 2000, wsm, walletFile, password, onError, onSuccess, onDelay);
+                }, 5000, wsm, walletFile, password, onError, onSuccess, onDelay);
             }else{
                 // just stop here
                 onError(ERROR_WALLET_PASSWORD+" "+stderr);

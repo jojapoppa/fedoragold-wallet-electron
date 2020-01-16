@@ -24,7 +24,7 @@ config.walletServiceBinaryVersion = "v0.10.0";
 config.walletServiceRpcPort = 31876;
 
 // block explorer url, the [[TX_HASH] will be substituted w/ actual transaction hash
-config.blockExplorerUrl = 'http://explorer.fedoragold.com:8080/gettransaction.php?hash=[[TX_HASH]]';
+config.blockExplorerUrl = 'http://explorer.fedoragold.com/gettransaction.php?hash=[[TX_HASH]]';
 
 // default remote node to connect to, set this to a known reliable node for 'just works' user experience
 config.remoteNodeDefaultHost = '127.0.0.1'; // then fallback to seed1 etc...

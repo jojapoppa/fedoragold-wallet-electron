@@ -3,35 +3,40 @@
 
         <div class="section-contents">
 
-                <div class="input-wrap">
-                  <div id="navbar-text-transactions" style="overflow-y: auto; display: flex; flex-direction: column-reverse; height:35px; border:1px solid #FFCC00"></div>
-                </div>
-
-        <div class="section-contents">
-            <div class="div-title"><h2 class="title">Transactions <span id="transaction-export" class="hidden">(Export as csv)</span> <span id="transaction-reset" class="hidden">(Reset transaction list)</span></h2></div>
+            <div class="input-wrap">
+              <div id="navbar-text-transactions" style="overflow-y: auto; display: flex; flex-direction: column-reverse; height:35px; border:1px solid #FFCC00"></div>
+            </div>
 
             <div id="txfiller" class="list-tables">
                 <p>Transaction data not available.<br>
                    Either you haven't made any transactions, or this list is still being synchronized.
                 </p>
             </div>
+
+            <div>
+              <span id="transaction-export" class="hidden" style="color:#FFCC00;">(Export as csv)</span> <span id="transaction-reset" class="hidden" style="color:#FFCC00;">(Reset list)</h2></span><br/>
+            </div>
+
+            <p/>
             <div id="transaction-lists" class="list-tables hidden">
                 <div class="tx-tools">
                     <div class="tx-search">
                     <input tabindex="0" id="tx-search" class="text-block search noenter" placeholder="Search by anything..." />
                     </div>
+
+                    <ul class="pagination"></ul><br/>
+
                     <div class="tx-sort">
                         Sort by:
                         <span  tabindex="0" class="csort" data-dir="0" id="txSortAmount">Amount</span>
                         <span  tabindex="0" class="csort" data-dir="0" id="txSortTime">Date</span>
                     </div>
                 </div>
-                <div class="transaction-table-wrapper">
+                <div class="transaction-table-wrapper" style="height:auto">
                     <table class="custom-table transaction-list-table" id="transaction-list-table">
                         <tbody class="list"></tbody>
                     </table>
                 </div>
-                <ul class="pagination"></ul>
             </div>
             <div class="input-wrap button-wrap" style="padding: 0;margin-top: 1rem;">
                 <input type="hidden" id="transaction-updated" value="0" />

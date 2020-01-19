@@ -1705,7 +1705,7 @@ function handleTransactions(){
         }
 
         setTxFiller(false);
-        let txsPerPage = 20;
+        let txsPerPage = 75;
         if(TXLIST_OBJ === null){
             if(txLen > txsPerPage){
                 txListOpts.page = txsPerPage;

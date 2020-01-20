@@ -219,7 +219,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
     ]);
 
     let wsm = this;
-    childProcess.execFile(this.serviceBin, serviceArgs, {timeout:5000}, (error, stdout, stderr) => {
+    childProcess.execFile(this.serviceBin, serviceArgs, {timeout:10000}, (error, stdout, stderr) => {
             if(stderr) log.error(stderr);
 
             let addressLabel = "Address: "; 

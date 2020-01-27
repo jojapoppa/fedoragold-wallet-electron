@@ -39,6 +39,7 @@ function logDebug(msg){
 function checkBlockUpdate(){
     var retVal = true;
     if (STATE_SAVING || wsapi === null || STATE_PAUSED) {
+      log.warn("checkBlockUpdate(): invalid state ... skipped");
       return false;
     }
 

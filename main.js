@@ -62,6 +62,7 @@ app.daemonProcess = null;
 app.daemonLastPid = null;
 app.localDaemonRunning = false;
 app.integratedDaemon = false;
+app.heightVal = 0;
 
 app.primarySeedAddr = '18.222.96.134';
 app.secondarySeedAddr = '18.223.178.174'
@@ -312,6 +313,14 @@ const checkSyncTimer = setIntervalAsync(() => {
         }).catch(function(e){}); // Just eat the error as race condition expected anyway...
     }
 }, 4000);
+
+const checkDaemonHeight = setIntervalAsync(() => {
+  var aurl = `http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/getheight`;
+  getHttpContent(aurl)
+  //grab whateveris between the : and the ,
+  .then((html) => app.primarySeedHeight = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
+  .catch((err) => app.primarySeedHeight = 0);
+}, 2500);
 
 function storeNodeList(pnodes){
     pnodes = pnodes || settings.get('pubnodes_data');

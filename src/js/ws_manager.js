@@ -109,17 +109,14 @@ WalletShellManager.prototype.init = function(password){
   this.serviceApi = new WalletShellApi(cfg);
   this.serviceApi.setPassword(password);
 
-  // One very quick check of local daemaon height specifically for login processing
-  //getHttpContent("http://127.0.0.1:" + this.daemonPort + "/getheight")
-  //  .then((html) => heightVal = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
-  //  .catch((err) => heightVal = 0);
-
-  this.serviceApi.getHeight().then((result) => {
-    heightVal = parseInt(result.height, 10);
-  }).catch((err) => {
-    //just eat this... sometimes daemon takes a while to start...
-    //log.warn(`getHeight from Daemon: FAILED, ${err.message}`);
-  });
+  if (remote.app.heightVal <=0) {
+    this.serviceApi.getHeight().then((result) => {
+      heightVal = parseInt(result.height, 10);
+    }).catch((err) => {
+      //just eat this... sometimes daemon takes a while to start...
+      //log.warn(`getHeight from Daemon: FAILED, ${err.message}`);
+    });
+  }
 };
 
 WalletShellManager.prototype._getSettings = function(){
@@ -219,7 +216,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
     ]);
 
     let wsm = this;
-    childProcess.execFile(this.serviceBin, serviceArgs, {timeout:10000}, (error, stdout, stderr) => {
+    childProcess.execFile(this.serviceBin, serviceArgs, {timeout:20000}, (error, stdout, stderr) => {
             if(stderr) log.error(stderr);
 
             let addressLabel = "Address: "; 
@@ -681,6 +678,7 @@ WalletShellManager.prototype.sendTransaction = function(params){
         wsm.serviceApi.sendTransaction(params).then((result) => {
             return resolve(result);
         }).catch((err) => {
+            //log.warn("walletshellmgr: "+err);
             return reject(err);
         });
     });

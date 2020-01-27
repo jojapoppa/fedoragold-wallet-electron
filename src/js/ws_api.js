@@ -98,10 +98,11 @@ class WalletShellApi {
                       return resolve(res);
                     }
 
-                    log.warn("err msg is: "+res.error.message);
+                    //log.warn("err msg is: "+res.error.message);
                     return reject(res.error.message);
                 }
             }).catch((err) => {
+                //log.warn(`sendRequest has FAILED, ${err.message}`);
                 return reject(err);
             });
 	});
@@ -312,6 +313,7 @@ class WalletShellApi {
             this._sendRequest('sendTransaction', false, req_params, 25000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
+                //log.warn("sendTransaction has FAILED: "+err);
                 return reject(err);
             });
         });

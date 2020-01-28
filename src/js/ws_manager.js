@@ -152,7 +152,10 @@ WalletShellManager.prototype.isRunning = function () {
     }
     if(cmd === '' || proc === '') return false;
 
-    childProcess.exec(cmd, (err, stdout, stderr) => {
+    childProcess.exec(cmd, {
+        maxBuffer: 2000 * 1024,
+        env: {x: 0}
+    }, (err, stdout, stderr) => {
         if(err) log.debug(err.message);
         if(stderr) log.debug(stderr.toLocaleLowerCase());
         let found = stdout.toLowerCase().indexOf(proc.toLowerCase()) > -1;

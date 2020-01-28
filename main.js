@@ -233,9 +233,11 @@ const checkDaemonTimer = setIntervalAsync(() => {
         default: break;
     }
 
+    // the x: 0 is a workaround for the ENOMEM bug in nodejs: https://github.com/nodejs/node/issues/29008
     var status = false;
     exec(cmd, {
-        maxBuffer: 2000 * 1024
+        maxBuffer: 2000 * 1024,
+        env: {x: 0}
     }, function(error, stdout, stderr) {
         var procStr = stdout.toLowerCase();
         if (procStr.indexOf('fedoragold_daem') > -1) {

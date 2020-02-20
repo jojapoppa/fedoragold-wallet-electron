@@ -1695,6 +1695,15 @@ function handleTransactions(){
         setTxFiller(true);
     }
 
+    var alreadySorting=false;
+    function runSort() {
+      if (alreadySorting) return;
+
+      alreadySorting = true;
+      TXLIST_OBJ.sort('timestamp', {order: 'desc'});
+      alreadySorting = false;
+    }
+
     function listTransactions(){
 
         let txs = wsession.get('txNew');
@@ -1708,7 +1717,7 @@ function handleTransactions(){
         }
 
         setTxFiller(false);
-        let txsPerPage = 75;
+        let txsPerPage = 25;
         if(TXLIST_OBJ === null){
             if(txLen > txsPerPage){
                 txListOpts.page = txsPerPage;
@@ -1719,17 +1728,22 @@ function handleTransactions(){
             }
 
             TXLIST_OBJ = new List('transaction-lists', txListOpts, txs);
+
+            resetTxSortMark();
+            txButtonSortDate.classList.add('desc');
+            txButtonSortDate.dataset.dir = 'desc';
         }else{
-            setTxFiller(false);
             // This guarantees that we don't have any duplicates in the transaction list...
-            for (var i=0; i<txs.length; i++) TXLIST_OBJ.remove('rawHash', txs[i].rawHash); 
+            for (var i=0; i<txs.length; i++) {
+              if (TXLIST_OBJ.get('rawHash', txs[i].rawHash).length > 0) {
+                TXLIST_OBJ.remove('rawHash', txs[i].rawHash); 
+              }
+            }
+
             TXLIST_OBJ.add(txs);
         }
 
-        TXLIST_OBJ.sort('timestamp', {order: 'desc'});
-        resetTxSortMark();
-        txButtonSortDate.classList.add('desc');
-        txButtonSortDate.dataset.dir = 'desc';
+        setTimeout(()=>{ runSort(); }, 500);
     }
 
     function exportAsCsv(mode){

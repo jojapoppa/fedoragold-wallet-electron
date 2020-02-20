@@ -334,8 +334,8 @@ function updateTransactions(blockItems){
     txlistExisting = txList.concat(txlistExisting);
     wsession.set('txLen', txlistExisting.length);
 
-    // handle refresh asynchronously...
-    setTimeout(triggerTxRefresh, 1000);
+    // Time must be shorter than the tx update time (3 seconds)
+    setTimeout(triggerTxRefresh, 500);
 
     // Desktop notification logic begins here...
     let currentDate = new Date();

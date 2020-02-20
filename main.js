@@ -19,6 +19,8 @@ const net = require('net');
 const { autoUpdater } = require("electron-updater");
 const { setIntervalAsync } = require('set-interval-async/fixed');
 
+process.env.UV_THREADPOOL_SIZE = 128;
+
 const IS_DEV  = (process.argv[1] === 'dev' || process.argv[2] === 'dev');
 const IS_DEBUG = IS_DEV || process.argv[1] === 'debug' || process.argv[2] === 'debug';
 const LOG_LEVEL = IS_DEBUG ? 'debug' : 'warn';
@@ -213,14 +215,20 @@ const getHttpContent = function(url) {
 };
 
 const checkSeedTimer = setIntervalAsync(() => {
-
   var aurl = "http://"+app.primarySeedAddr+":30159/getheight";
-
   getHttpContent(aurl)
   //grab whateveris between the : and the ,
   .then((html) => app.primarySeedHeight = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
   .catch((err) => app.primarySeedHeight = 0);
 
+}, 2500);
+
+const checkDaemonHeight = setIntervalAsync(() => {
+  var aurl = `http://127.0.0.1:${settings.get('daemon_port')}/getheight`;
+  getHttpContent(aurl)
+  //grab whateveris between the : and the ,
+  .then((html) => heightVal = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
+  .catch((err) => heightVal = 0);
 }, 2500);
 
 function splitLines(t) { return t.split(/\r\n|\r|\n/); }
@@ -315,14 +323,6 @@ const checkSyncTimer = setIntervalAsync(() => {
         }).catch(function(e){}); // Just eat the error as race condition expected anyway...
     }
 }, 4000);
-
-const checkDaemonHeight = setIntervalAsync(() => {
-  var aurl = `http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/getheight`;
-  getHttpContent(aurl)
-  //grab whateveris between the : and the ,
-  .then((html) => app.primarySeedHeight = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
-  .catch((err) => app.primarySeedHeight = 0);
-}, 2500);
 
 function storeNodeList(pnodes){
     pnodes = pnodes || settings.get('pubnodes_data');

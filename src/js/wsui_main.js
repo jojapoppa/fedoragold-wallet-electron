@@ -47,6 +47,8 @@ let genericFormMessage;
 let genericEnterableInputs;
 let genericEditableInputs;
 let firstTab;
+let isRescan = false;
+
 // settings page
 let settingsInputDaemonAddress;
 let settingsInputDaemonPort;
@@ -472,7 +474,6 @@ function changeSection(sectionId, isSettingRedir) {
         untoast = true;
     }
 
-    let isSynced = wsession.get('synchronized') || false;
     let isServiceReady = wsession.get('serviceReady') || false;
     let needServiceReady = ['section-transactions', 'section-send', 'section-overview'];
     let needServiceStopped = 'section-welcome';
@@ -484,16 +485,21 @@ function changeSection(sectionId, isSettingRedir) {
 
     let finalTarget = targetSection;
     let toastMsg = '';
-    
+   
+    let isSynched = wsession.get('synchronized', false);
+    if (isRescan) {
+      isSynched = false;
+    }
+ 
     if(needServiceReady.indexOf(targetSection) >=0 && !isServiceReady){
         // no access to wallet, send, tx when no wallet opened
         finalTarget = 'section-welcome';
         toastMsg = "Please create/open your wallet!";
     }else if(needServiceStopped.indexOf(targetSection) >=0 && isServiceReady){
         finalTarget = 'section-overview';
-    }else if(needSynced.indexOf(targetSection) >=0 && !isSynced){
+    }else if(needSynced.indexOf(targetSection) >=0 && !isSynched){
         // just return early
-        showToast("Please wait until syncing process completed!");
+        showToast("Please wait until rescan process completed!");
         return;
     }else{
         if(targetSection === 'section-overview-load'){
@@ -974,6 +980,11 @@ function handleWalletOpen(){
 
     walletOpenButtonOpen.addEventListener('click', () => {
         formMessageReset();
+        if (isRescan) {
+            showToast('Rescan is in progress, please wait.');
+            return;
+        }
+
         // node settings thingy
         let daemonHostValue = settingsInputDaemonAddress.value ? settingsInputDaemonAddress.value.trim() :'';
         let daemonPortValue = settingsInputDaemonPort.value ? parseInt(settingsInputDaemonPort.value.trim(),10) : '';
@@ -1543,15 +1554,15 @@ function handleSendTransfer(){
                 sendInputAmount.value = '';
             }).catch((err) => {
 
-                log.warn("error with sendTransaction: "+err);
+                let sEMsg = "Send transaction: <br><small>"+err+"</small>";
+                log.warn(sEMsg);
 
-                // socket timeout is NOT a fatal error when sending a transaction
-                if (err.search("ESOCKETTIMEDOUT") > -1) {
-                  let sMs1 = "Failed to send transaction.  Check Transaction History to verify.<br><small>";
+                // socket timeout is NOT always a fatal error when sending a transaction
+                if (sEMsg.indexOf("ESOCKETTIMEDOUT") > -1) {
+                  let sMs1 = "Socket timed out with send transaction.  Check Transaction History to verify.<br><small>";
                   sMs1 = sMs1 + err + "</small>";
                   formMessageSet('send', 'error', sMs1);
                 } else {
-                  let sEMsg = "Failed to send transaction:<br><small>"+err+"</small>";
                   formMessageSet('send', 'error', sEMsg);
                 }
             });
@@ -1559,11 +1570,9 @@ function handleSendTransfer(){
         });
     });
 
-    //jojapoppa, this is the Optimize Transaction button (button-send-optimize)
-    /* that's commented out in the html for now...
     sendOptimize.addEventListener('click', () => {
-        if(!wsession.get('synchronized', false)){
-            showToast('Synchronization is in progress, please wait.');
+        if((!wsession.get('synchronized', false)) || isRescan){
+            showToast('Synchronization or Rescan is in progress, please wait.');
             return;
         }
 
@@ -1576,7 +1585,7 @@ function handleSendTransfer(){
             FUSION_IN_PROGRESS = false;
         });
         return; // just return, it will notify when its done.
-    }); */
+    }); 
 }
 
 function handleTransactions(){
@@ -1673,12 +1682,6 @@ function handleTransactions(){
         });
     }
 
-    //jojapoppa, i'm not sure that it's worth it to incrementally add entries to the transactions
-    //  history list.  for now, i'll just wipe it each time.  if the list grows large and it
-    //  starts to "flicker" then i'll figure out why duplicates keep showing up.  but unless
-    //  the screen flickers it's just not worth the added logic.
-    //  If I decide to keep it this way then I should just remove the incremental logic below
-    //  and simplify the listTransactions() function
     function wipeList() {
         try {
               if(null !== TXLIST_OBJ){
@@ -1694,14 +1697,8 @@ function handleTransactions(){
 
     function listTransactions(){
 
-        wipeList();
-
         let txs = wsession.get('txNew');
-        let txLen = wsession.get('txLenNew');
-        if (TXLIST_OBJ === null || txLen <= 0) {
-            txs = wsession.get('txList');
-            txLen = wsession.get('txLen');
-        }
+        let txLen = wsession.get('txLen');
 
         //log.warn('listTransactions Len:', txLen);
 
@@ -1722,18 +1719,17 @@ function handleTransactions(){
             }
 
             TXLIST_OBJ = new List('transaction-lists', txListOpts, txs);
-            TXLIST_OBJ.sort('timestamp', {order: 'desc'});
-            resetTxSortMark();
-            txButtonSortDate.classList.add('desc');
-            txButtonSortDate.dataset.dir = 'desc';
         }else{
             setTxFiller(false);
+            // This guarantees that we don't have any duplicates in the transaction list...
+            for (var i=0; i<txs.length; i++) TXLIST_OBJ.remove('rawHash', txs[i].rawHash); 
             TXLIST_OBJ.add(txs);
-            TXLIST_OBJ.sort('timestamp', {order: 'desc'});
-            resetTxSortMark();
-            txButtonSortDate.classList.add('desc');
-            txButtonSortDate.dataset.dir = 'desc';
         }
+
+        TXLIST_OBJ.sort('timestamp', {order: 'desc'});
+        resetTxSortMark();
+        txButtonSortDate.classList.add('desc');
+        txButtonSortDate.dataset.dir = 'desc';
     }
 
     function exportAsCsv(mode){
@@ -1765,7 +1761,7 @@ function handleTransactions(){
                 {id: 'blockIndex', title: 'Block Height'}
             ]
         });
-        let rawTxList = wsession.get('txList');
+        let rawTxList = wsession.get('txNew');
         let txlist = rawTxList.map((obj) => {
             return {
                 timeStr: obj.timeStr,
@@ -1837,6 +1833,9 @@ function handleTransactions(){
         var cresult = confirm("Reset your wallet transactions list?");
         if (cresult == true) {
           wsmanager.reset();
+          wipeList();
+          wsession.set('txNew', '');
+          wsession.set('txLen', 0);
           listTransactions();
         }
     });
@@ -1903,10 +1902,6 @@ function handleTransactions(){
             order: targetDir
         });
     });
-
-    //txButtonRefresh.addEventListener('click', (event)=>{
-    //    listTransactions(false);
-    //});
 }
 
 // only keep track of network outages if our daemon is running remotely...
@@ -2335,6 +2330,11 @@ ipcRenderer.on('console', (event, sChunk) => {
     // Change the label to "Rescan"...
     if (firstline.search("Height ") === 1) {
       firstline = "Rescan " + firstline.substring(8);
+
+      // disables the Open button for now...
+      isRescan = true;
+    } else {
+      isRescan = false;
     }
 
     if ( (firstline.search("failed")===-1) && (firstline.search("rejected")===-1) && 

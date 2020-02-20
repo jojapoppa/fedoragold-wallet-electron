@@ -38,7 +38,7 @@ function setWinTitle(title){
 
 function triggerTxRefresh(){
     //log.warn('in triggerTxRefresh()');
-    const txUpdateInputFlag = document.getElementById('transaction-updated');
+    var txUpdateInputFlag = document.getElementById('transaction-updated');
     txUpdateInputFlag.value = 1;
     txUpdateInputFlag.dispatchEvent(new Event('change'));
 }
@@ -270,10 +270,10 @@ function updateBalance(data){
     }
 }
 
+let txlistExisting = [];
 function updateTransactions(blockItems){
 
     //log.warn("updateTransactions result items received: "+blockItems.length);
-    let txlistExisting = wsession.get('txList');
 
     if(!txlistExisting.length && !blockItems.length){
         document.getElementById('transaction-export').classList.remove('hidden');
@@ -286,11 +286,13 @@ function updateTransactions(blockItems){
    }
 
     if(!blockItems.length) return;
-    let txListNew = [];
+    var txListNew = [];
 
     Array.from(blockItems).forEach((block) => {
         block.transactions.map((tx) => {
-            if(tx.amount !== 0 && !wsutil.objInArray(txlistExisting, tx, 'transactionHash')){
+
+              if (tx.amount !== 0) {
+
                 tx.amount = wsutil.amountForMortal(tx.amount);
                 tx.timeStr = new Date(tx.timestamp*1000).toUTCString();
                 tx.fee = wsutil.amountForMortal(tx.fee);
@@ -300,8 +302,13 @@ function updateTransactions(blockItems){
                 tx.rawFee = tx.fee;
                 tx.rawPaymentId = tx.paymentId;
                 tx.rawHash = tx.transactionHash;
-                txListNew.unshift(tx);
-            }
+
+                // Shallow copy
+                let newObj = {};
+                newObj = Object.assign(newObj, tx);
+                txListNew.unshift(newObj);
+              }
+
         });
     });
 
@@ -317,22 +324,24 @@ function updateTransactions(blockItems){
     // store it
     wsession.set('txLastHash',newLastHash);
     wsession.set('txLastTimestamp', newLastTimestamp);
-    let txList = txListNew.concat(txlistExisting);
-    wsession.set('txList', txList);
-    wsession.set('txLen', txList.length);
-    wsession.set('txNew', txListNew);
-    wsession.set('txLenNew', txListNew.length);
 
-    //log.warn('txLen: ', txList.length);
-    //log.warn('txLenNew: ', txListNew.length);
+    // Checks if each element is unique
+    let existing = txlistExisting.map(el=>el.rawHash);
+    let txList = txListNew.filter((e)=>{return !existing.includes(e.rawHash);}); 
+    wsession.set('txNew', txList);
 
+    // Records the new records inside the list of existing transactions
+    txlistExisting = txList.concat(txlistExisting);
+    wsession.set('txLen', txlistExisting.length);
+
+    // handle refresh asynchronously...
+    setTimeout(triggerTxRefresh, 1000);
+
+    // Desktop notification logic begins here...
     let currentDate = new Date();
     currentDate = `${currentDate.getUTCFullYear()}-${currentDate.getUTCMonth()+1}-${currentDate.getUTCDate()}`;
     let lastTxDate = new Date(newLastTimestamp*1000);
     lastTxDate = `${lastTxDate.getUTCFullYear()}-${lastTxDate.getUTCMonth()+1}-${lastTxDate.getUTCDate()}`;
-
-    // handle refresh asynchronously...
-    setTimeout(triggerTxRefresh, 1000);
 
     // setup for desktop notifications (to OS desktop)
     let rememberedLastHash = settings.get('last_notification', '');
@@ -463,6 +472,9 @@ function updateUiState(msg){
     // do something with msg
     let notif = '';
     switch (msg.type) {
+        case 'walletReset':
+            txlistExisting = [];
+            break;
         case 'blockUpdated':
             updateSyncProgress(msg.data);
             break;

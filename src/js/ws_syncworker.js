@@ -47,7 +47,7 @@ function checkBlockUpdate(){
     wsapi.getStatus().then((blockStatus) => {
         let kbcReturn = parseInt(blockStatus.knownBlockCount, 10) - 1;
 
-        //log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
+        log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
 
         // jojapoppa, later show a "signal" like what you see on a cell phone with the bars...
         let peerCount = parseInt(blockStatus.peerCount, 10);
@@ -116,7 +116,7 @@ function checkBlockUpdate(){
         }
     }).catch((err) => {
         // just eat this as the connection with Daemon can be intermittent
-        //log.warn(`checkBlockUpdate: FAILED, ${err.message}`);
+        log.warn(`checkBlockUpdate: FAILED, ${err.message}`);
         retVal = false;
     });
 
@@ -131,12 +131,18 @@ function reset() {
   try {
     wsapi.reset({});
   } catch(e) {}
+
+  process.send({
+    type: 'walletReset',
+    data: ''
+  });
 }
 
 var queue = [];
 let blockMargin = 10;
 function sendTransactionsRequest(s_trx_args) {
   var retVal = true;
+
   let syncPercent = (LAST_BLOCK_COUNT / knownBlockCount) * 100;
   if (syncPercent <=0 || syncPercent >= 99.995)
     syncPercent = 100;
@@ -147,39 +153,45 @@ function sendTransactionsRequest(s_trx_args) {
   }
 
   wsapi.getTransactions(JSON.parse(s_trx_args)).then(function(trx) {
-    const blockItems = trx.items;
-    if (blockItems == null) {
+    let blockItemsLength = 0;
+    if (trx.items !== undefined && trx.items.length !== undefined)
+      blockItemsLength = trx.items.length;
+    if (trx.items == null) {
       if (!queue.includes(s_trx_args)) {
         queue.push(s_trx_args);
         retVal = false;
       }
       return;
-    } else if ((s_trx_args.blockCount > blockItems.length) && !queue.includes(s_trx_args)) {
+    } else if ((s_trx_args.blockCount > blockItemsLength) && !queue.includes(s_trx_args)) {
       // Partial success
-      if (s_trx_args.blockCount-blockItems.length > 2*blockMargin) queue.push(s_trx_args);
+      if (s_trx_args.blockCount-blockItemsLength > 2*blockMargin) queue.push(s_trx_args);
     } 
 
-    //log.warn(`getTransactions: args=${JSON.stringify(s_trx_args)} returned: ${blockItems.length} queue: ${queue.length}`);
+    //log.warn(`getTransactions: args=${JSON.stringify(s_trx_args)} returned: ${blockItemsLength} queue: ${queue.length}`);
+
+    var bitems = { type: 'transactionUpdated', data: trx.items };
+    var statTxt = JSON.stringify(s_trx_args) + " ret: " + blockItemsLength + " queue: " + queue.length;
+    var sitems = { type: 'transactionStatus', data: statTxt };
 
     var prom = new Promise(function(resolve, reject) {
-      process.send({
-        type: 'transactionUpdated',
-        data: blockItems
-      });
-      var statTxt = JSON.stringify(s_trx_args) + " ret: " + blockItems.length + " queue: " + queue.length;
-      process.send({
-        type: 'transactionStatus',
-        data: statTxt
-      });
+      process.send(bitems);
+      process.send(sitems);
       resolve(true);
     }).catch(function (err) { 
       if (!queue.includes(s_trx_args)) queue.push(s_trx_args);
       retVal = false; 
     });
+
+    // make it easier for memory manager to free up memory after sending to async process...
+    bitems = null;
+    sitems = null;
   }, function(err) { 
     if (!queue.includes(s_trx_args)) queue.push(s_trx_args);
     retVal = false; 
   });
+
+  // This allows memory garbage collector to clean up ...
+  if (queue.length == 0) queue = [];
 
   return retVal;
 }
@@ -422,6 +434,10 @@ process.on('message', (msg) => {
               process.send({
                 type: 'daemonMode',
                 data: !SERVICE_CFG.remote_daemon
+              });
+              process.send({
+                type: 'walletReset',
+                data: '' 
               });
               resolve(true);
             }).catch(function(err){});

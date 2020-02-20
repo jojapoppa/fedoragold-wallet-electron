@@ -1,7 +1,8 @@
-const request = require('request-promise-native');
 const config = require('./ws_config.js');
 const log = require('electron-log');
 const http = require('http');
+
+var request = require('request-promise-native');
 
 class WalletShellApi {
     constructor(args) {
@@ -76,7 +77,7 @@ class WalletShellApi {
                 headers: headers,
                 body: data,
                 json: true,
-                pool: {maxSockets: 128},
+                pool: {maxSockets: 1280},
                 timeout: timeout,
                 time: true
             }).on('socket', function(socket){
@@ -126,7 +127,7 @@ class WalletShellApi {
     // used to determine state of sync for daemon fullnode
     getHeight() {
         return new Promise((resolve, reject) => {
-            this._sendRequest('getheight', true, {}, 10000, false).then((result) => {
+            this._sendRequest('getheight', true, {}, 20000, false).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -309,11 +310,12 @@ class WalletShellApi {
               };
             }
 
+            log.warn("sendTransaction: "+JSON.stringify(req_params));
             // give extra long timeout
             this._sendRequest('sendTransaction', false, req_params, 25000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
-                //log.warn("sendTransaction has FAILED: "+err);
+                log.warn("sendTransaction has FAILED: "+err);
                 return reject(err);
             });
         });

@@ -39,7 +39,7 @@ function logDebug(msg){
 function checkBlockUpdate(){
     var retVal = true;
     if (STATE_SAVING || wsapi === null || STATE_PAUSED) {
-      log.warn("checkBlockUpdate(): invalid state ... skipped");
+      //log.warn("checkBlockUpdate(): invalid state ... skipped");
       return false;
     }
 
@@ -47,7 +47,7 @@ function checkBlockUpdate(){
     wsapi.getStatus().then((blockStatus) => {
         let kbcReturn = parseInt(blockStatus.knownBlockCount, 10) - 1;
 
-        log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
+        //log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
 
         // jojapoppa, later show a "signal" like what you see on a cell phone with the bars...
         let peerCount = parseInt(blockStatus.peerCount, 10);

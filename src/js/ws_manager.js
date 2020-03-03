@@ -34,6 +34,7 @@ let plat = process.platform;
 let daemonCoreReady = false;
 
 var bRemoteDaemon = true;
+var walletAddress = '';
 
 // make sure nodejs allocates enough threads for sending and receiving transactions
 process.env.UV_THREADPOOL_SIZE = 128;
@@ -225,7 +226,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
             let addressLabel = "Address: "; 
             if(stdout && stdout.length && stdout.indexOf(addressLabel) !== -1){
                 let trimmed = stdout.trim();
-                let walletAddress = trimmed.substring(trimmed.indexOf(addressLabel)+
+                walletAddress = trimmed.substring(trimmed.indexOf(addressLabel)+
                   addressLabel.length, trimmed.length);
                 wsession.set('loadedWalletAddress', walletAddress);
 
@@ -698,18 +699,33 @@ WalletShellManager.prototype._fusionGetMinThreshold = function(threshold, minThr
     let wsm = this;
     return new Promise((resolve, reject) => {
         counter = counter || 0;
-        threshold = threshold || (parseInt(wsession.get('walletUnlockedBalance'),10)*100)+1;
+        let unlockedbal = wsession.get('walletUnlockedBalance');
+        log.warn("unlocked balance: "+unlockedbal);
+        //threshold = threshold || (parseInt(unlockedbal,10)*100)+1;
+        threshold = threshold || parseInt(unlockedbal,10)+.1;
         threshold = parseInt(threshold,10);
         minThreshold = minThreshold || threshold;
         maxFusionReadyCount = maxFusionReadyCount || 0;
-        
+       
+        log.warn("Fusion params...");
+        log.warn("counter: "+counter);
+        log.warn("threshold: "+threshold);
+        log.warn("minThreshold: "+minThreshold);
+        log.warn("maxFusionReadyCount: "+maxFusionReadyCount);
+ 
         let maxThreshCheckIter = 20;
 
-        wsm.serviceApi.estimateFusion({threshold: threshold}).then((res)=>{
+        wsm.serviceApi.estimateFusion({threshold: threshold, addresses: [walletAddress]}).then((res)=>{
+
+            log.warn("return from api.estimateFusion...");
+            log.warn("res.fusionReadyCount: "+res.fusionReadyCount);
+            log.warn("maxFusionReadyCount: "+maxFusionReadyCount);
+
             // nothing to optimize
             if( counter === 0 && res.fusionReadyCount === 0) return resolve(0); 
-            // stop at maxThreshCheckIter or when threshold too low
-            if( counter > maxThreshCheckIter || threshold < 10) return resolve(minThreshold);
+            // stop at maxThreshCheckIter // .. take it out: or when threshold too low (threshold < 10)
+            if( counter > maxThreshCheckIter) return resolve(minThreshold);
+
             // we got a possibly best minThreshold
             if(res.fusionReadyCount < maxFusionReadyCount){
                 return resolve(minThreshold);
@@ -723,6 +739,7 @@ WalletShellManager.prototype._fusionGetMinThreshold = function(threshold, minThr
                 return res;
             }));
         }).catch((err)=>{
+            log.warn("Fusion error: "+err);
             return reject(new Error(err));
         });
     });
@@ -737,7 +754,10 @@ WalletShellManager.prototype._fusionSendTx = function(threshold, counter){
         
         // keep sending fusion tx till it hit IOOR or reaching max iter 
         log.debug(`send fusion tx, iteration: ${counter}`);
-        wsm.serviceApi.sendFusionTransaction({threshold: threshold}).then((resp)=> {
+
+//  return service.sendFusionTransaction(request.threshold, request.anonymity, request.addresses, request.destinationAddress, response.transactionHash);
+
+        wsm.serviceApi.sendFusionTransaction({threshold: threshold, anonymity: 0, addresses: [walletAddress], destinationAddress: walletAddress}).then((resp)=> {
             wsm.fusionTxHash.push(resp.transactionHash);
             counter +=1;
             return resolve(wsm._fusionSendTx(threshold, counter).then((resp)=>{
@@ -762,7 +782,7 @@ WalletShellManager.prototype.optimizeWallet = function(){
                 return resolve(INFO_FUSION_SKIPPED);
             }
 
-            log.debug(`performing fusion tx, threshold: ${res}`);
+            log.warn(`performing fusion tx, threshold: ${res}`);
             return resolve(
                 wsm._fusionSendTx(res).then(() => {
                     wsm.notifyUpdate({

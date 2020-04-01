@@ -490,6 +490,13 @@ function updateUiState(msg){
         case 'daemonMode':
             //log.warn("bLocalDaemonMode recieved: "+msg.data);
             bLocalDaemonMode = msg.data;
+
+            // you can only Optimize a wallet if running on the local daemon (does not work on thin wallets)
+            if (bLocalDaemonMode) {
+              let sendOptimize = document.getElementById('button-send-optimize');
+              sendOptimize.disabled = false;
+            }
+
             break;
         case 'transactionStatus':
             var transactionsInfoBar = document.getElementById('navbar-text-transactions');
@@ -506,6 +513,16 @@ function updateUiState(msg){
             break;
         case 'sectionChanged':
             if(msg.data) resetFormState(msg.data);
+            break;
+        case 'fusionStatus':
+            notif = 'Optimization pending...';
+            if(msg.data) notif = msg.data;
+            iqwerty.toast.Toast(notif, {
+                style: { main: {
+                    'padding': '4px 6px','left': '3px','right':'auto','border-radius': '0px'
+                }},
+                settings: {duration: 5000}
+            });
             break;
         case 'fusionTxCompleted':
             notif = 'Optimization completed';

@@ -349,6 +349,9 @@ class WalletShellApi {
     estimateFusion(params) {
         return new Promise((resolve, reject) => {
             params = params || {};
+
+            log.warn(`estimateFusion params: ${JSON.stringify(params)}`);
+
             if (!params.threshold) return reject(new Error('Missing threshold parameter'));
             this._sendRequest('estimateFusion', false, params, 10000, true).then((result) => {
                 return resolve(result);

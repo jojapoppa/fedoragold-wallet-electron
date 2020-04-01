@@ -32,6 +32,7 @@ const ERROR_FUSION_FAILED = 'Unable to optimize your wallet, please try again in
 let SVC_BIN = '';
 let plat = process.platform;
 let daemonCoreReady = false;
+let daemonHeight = 0;
 
 var bRemoteDaemon = true;
 var walletAddress = '';
@@ -71,32 +72,47 @@ var WalletShellManager = function(){
     this.fusionTxHash = [];
 };
 
-const getHttpContent = function(url) {
-  // return new pending promise
-  return new Promise((resolve, reject) => {
-    // select http or https module, depending on reqested url
-    const lib = url.startsWith('https') ? require('https') : require('http');
-    const request = lib.get(url, (response) => {
-      // handle http errors
-      if (response.statusCode < 200 || response.statusCode > 299) {
-         reject(new Error('Failed to load page, status code: ' + response.statusCode));
-       }
-      // temporary data holder
-      const body = [];
-      // on every content chunk, push it to the data array
-      response.on('data', (chunk) => body.push(chunk));
+const getHttpContent = function(host, path, cookie) {
+  // select http or https module, depending on reqested url
+  const httplib = host.startsWith('https') ? require('https') : require('http');
+
+  var options = { 
+    hostname: host,
+    path: path,
+    method: 'GET',
+    headers: {'Cookie': cookie}
+  };
+
+  log.warn("Requesting URL: "+host+" path: "+path+" cookie: "+cookie);
+  const request = httplib.get(options, (response) => {
+    response.setEncoding('utf8');
+
+    // handle http errors
+    if (response.statusCode < 200 || response.statusCode > 299) {
+      log.warn('Failed to load page, status code: ' + response.statusCode);
+    }
+
+    const body = [];
+    response.on('data', (chunk) => {
+      body.push(chunk);
       // we are done, resolve promise with those joined chunks
-      response.on('end', () => resolve(body.join('')));
+      log.warn("chunk: "+chunk);
     });
-    // handle connection errors of the request
-    request.on('error', (err) => reject(err))
-    })
+
+    response.on('end', () => {
+      var pagetext = body.join('');
+      log.warn("cryptonote club responded..."+pagetext);
+    });
+  });
+
+  request.on('error', function(e) {
+    log.warn('problem with request: ' + e.message);
+  });
 };
 
-var heightVal=0;
 WalletShellManager.prototype.init = function(password){
   this._getSettings();
-  if(this.serviceApi !== null) return;
+  //if(this.serviceApi !== null) return; this messes you up when opening a new wallet
 
   let cfg = {
    daemon_host: this.daemonHost,
@@ -109,15 +125,18 @@ WalletShellManager.prototype.init = function(password){
 
   this.serviceApi = new WalletShellApi(cfg);
   this.serviceApi.setPassword(password);
+  daemonHeight = remote.app.heightVal;
 
   if (remote.app.heightVal <=0) {
     this.serviceApi.getHeight().then((result) => {
-      heightVal = parseInt(result.height, 10);
+      daemonHeight = parseInt(result.height, 10);
     }).catch((err) => {
       //just eat this... sometimes daemon takes a while to start...
       //log.warn(`getHeight from Daemon: FAILED, ${err.message}`);
     });
   }
+
+  log.warn("daemonHeight initialized to: "+daemonHeight);
 };
 
 WalletShellManager.prototype._getSettings = function(){
@@ -232,6 +251,14 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
 
                 //log.warn("wallet address loaded: "+walletAddress);
 
+
+
+                // Possible future work on embedded status page...
+                //= webBrowser1.Document.GetElementById("pool_yourStats push-up-20").OuterHtml;
+                //let addr_cookie = "address="+walletAddress;
+                //let body_content = getHttpContent("https://fed.cryptonote.club", "/#worker_stats", addr_cookie);
+                //log.warn("cryptonote.club: "+body_content.length);
+
                 // allow heightVal to get set properly first (mostly) - happens asynchronously
                 setTimeout(() => {
                   // the first call just got the address back... now we run it for reals
@@ -267,7 +294,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
       return;
     }
 
-    // Calculates network top block at time wallet is start.  It's is okay
+    // Calculates network top block at time wallet is started.  It's is okay
     //  if this value is overwritten later to the local top_block height
     var tblock = 0;
     var topb = settings.get('top_block');
@@ -291,15 +318,17 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
 
     // Determines if the local daemon is almost current (about 3 days'ish current)
     if ((cblock > 0) && (tblock > 0) && ((6000+cblock) > tblock)) {
+
+      // NO LONGER REQUIRE THIS AS YOU CANNOT OPEN WALLET DURING A RESCAN NOW...
       // This detects if the local daemon was forced into a full resync or rescan also...
-      if (6000+heightVal > tblock) {
-        daemonAd = '127.0.0.1';
-        daemonPt = settings.get('daemon_port');
-        bRemoteDaemon = false;
-      }
+      //if (6000+daemonHeight > tblock) {
+
+      daemonAd = '127.0.0.1';
+      daemonPt = settings.get('daemon_port');
+      bRemoteDaemon = false;
     }
 
-    log.warn("heightVal: "+heightVal);
+    log.warn("heightVal: "+daemonHeight);
     log.warn("current block: "+cblock);
     log.warn("block height: "+tblock);
     log.warn("priNode: "+priNode);
@@ -701,9 +730,7 @@ WalletShellManager.prototype._fusionGetMinThreshold = function(threshold, minThr
         counter = counter || 0;
         let unlockedbal = wsession.get('walletUnlockedBalance');
         log.warn("unlocked balance: "+unlockedbal);
-        //threshold = threshold || (parseInt(unlockedbal,10)*100)+1;
-        threshold = threshold || parseInt(unlockedbal,10)+.1;
-        threshold = parseInt(threshold,10);
+        threshold = threshold || (parseInt(unlockedbal,10)*100000000)+1;
         minThreshold = minThreshold || threshold;
         maxFusionReadyCount = maxFusionReadyCount || 0;
        
@@ -723,8 +750,8 @@ WalletShellManager.prototype._fusionGetMinThreshold = function(threshold, minThr
 
             // nothing to optimize
             if( counter === 0 && res.fusionReadyCount === 0) return resolve(0); 
-            // stop at maxThreshCheckIter // .. take it out: or when threshold too low (threshold < 10)
-            if( counter > maxThreshCheckIter) return resolve(minThreshold);
+            // stop at maxThreshCheckIter or if threshold too low
+            if( counter > maxThreshCheckIter || threshold < 10) return resolve(minThreshold);
 
             // we got a possibly best minThreshold
             if(res.fusionReadyCount < maxFusionReadyCount){
@@ -733,13 +760,13 @@ WalletShellManager.prototype._fusionGetMinThreshold = function(threshold, minThr
             // continue to find next best minThreshold
             maxFusionReadyCount = res.fusionReadyCount;
             minThreshold = threshold;
-            threshold /= 2;
+            threshold = Math.round(threshold / 2);
             counter += 1;
             resolve(wsm._fusionGetMinThreshold(threshold, minThreshold, maxFusionReadyCount, counter).then((res)=>{
                 return res;
             }));
         }).catch((err)=>{
-            log.warn("Fusion error: "+err);
+            log.warn("Fusion err: "+err);
             return reject(new Error(err));
         });
     });
@@ -747,24 +774,45 @@ WalletShellManager.prototype._fusionGetMinThreshold = function(threshold, minThr
 
 WalletShellManager.prototype._fusionSendTx = function(threshold, counter){
     let wsm = this;
+
+    // a blocking timer for nodejs
+    const wtime = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    log.warn("_fusionSendTx threshold: "+threshold+" counter: "+counter);
     return new Promise((resolve, reject) => {
         counter = counter || 0;
         let maxIter = 256;
         if(counter >= maxIter) return resolve(wsm.fusionTxHash); // stop at max iter
-        
-        // keep sending fusion tx till it hit IOOR or reaching max iter 
-        log.debug(`send fusion tx, iteration: ${counter}`);
+      
+        // just stop if balance gets locked 
+        //const lockedBalance = wsession.get('walletLockedBalance');
+        //if (lockedBalance > 0) {
+        //  log.warn("Some balance locked, will stop fusion now.");
+        //  return resolve(lockedBalance);
+        //}
+ 
+        wtime(4000).then(() => {
 
-//  return service.sendFusionTransaction(request.threshold, request.anonymity, request.addresses, request.destinationAddress, response.transactionHash);
+          // keep sending fusion tx till it hit IOOR or reaching max iter
+          let fusionStat = "send fusion tx, iteration: "+(counter+1);
+          //log.warn(`send fusion tx, iteration: ${counter}`);
+          log.warn(fusionStat);
+          wsm.notifyUpdate({
+            type: 'fusionStatus',
+            data: fusionStat 
+          });
 
-        wsm.serviceApi.sendFusionTransaction({threshold: threshold, anonymity: 0, addresses: [walletAddress], destinationAddress: walletAddress}).then((resp)=> {
+          wsm.serviceApi.sendFusionTransaction({threshold: threshold, anonymity: 0, addresses: [walletAddress], destinationAddress: walletAddress}).then((resp)=> {
+            log.warn("fusion hash: "+resp.transactionHash);
             wsm.fusionTxHash.push(resp.transactionHash);
             counter +=1;
             return resolve(wsm._fusionSendTx(threshold, counter).then((resp)=>{
                 return resp;
             }));
-        }).catch((err)=>{
+          }).catch((err)=>{
+            log.warn(err.message);
             return reject(new Error(err));
+          });
         });
     });
 };
@@ -784,7 +832,7 @@ WalletShellManager.prototype.optimizeWallet = function(){
 
             log.warn(`performing fusion tx, threshold: ${res}`);
             return resolve(
-                wsm._fusionSendTx(res).then(() => {
+                wsm._fusionSendTx(res, 0).then(() => {
                     wsm.notifyUpdate({
                         type: 'fusionTxCompleted',
                         data: INFO_FUSION_DONE
@@ -793,6 +841,7 @@ WalletShellManager.prototype.optimizeWallet = function(){
                 }).catch((err)=>{
                     let msg = err.message.toLowerCase();
                     let outMsg = ERROR_FUSION_FAILED;
+                    log.warn("Fusion error: "+msg);
                     switch(msg){
                         case 'index is out of range':
                             outMsg = wsm.fusionTxHash.length >=1 ? INFO_FUSION_DONE : INFO_FUSION_SKIPPED;

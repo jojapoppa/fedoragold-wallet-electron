@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const log = require('electron-log');
 
-const {clipboard, remote, ipcRenderer, shell} = require('electron');
+const {dialog, clipboard, remote, ipcRenderer, shell} = require('electron');
 const Store = require('electron-store');
 const Mousetrap = require('./extras/mousetrap.min.js');
 const autoComplete = require('./extras/auto-complete');
@@ -1571,13 +1571,20 @@ function handleSendTransfer(){
     });
 
     sendOptimize.addEventListener('click', () => {
-        if((!wsession.get('synchronized', false)) || isRescan){
-            showToast('Synchronization or Rescan is in progress, please wait.');
-            return;
+        if((!wsession.get('synchronized', false)) || isRescan) {
+          var dialogOptions = {
+            type: 'question',
+            defaultId: 0,
+            title: 'Optimize requires local daemon to be synced',
+            message: 'Local daemon synchronization in progress, or using remote daemon, please wait.'
+          };
+
+          dialog.showMessageBox(win, dialogOptions, function() {});
+          return;
         }
 
-        if(!confirm('You are about to perform wallet optimization. This process may took a while to complete, are you sure?')) return;
-        showToast('Optimization started, your balance may appear incorrect during the process', 3000);
+        if(!confirm('You are about to perform wallet optimization. This process may take up to 24hrs to complete, are you sure?')) return;
+        showToast('Optimization started, your balance may appear incorrect during the process...', 3000);
         FUSION_IN_PROGRESS = true;
         wsmanager.optimizeWallet().then( () => {
             FUSION_IN_PROGRESS = false;

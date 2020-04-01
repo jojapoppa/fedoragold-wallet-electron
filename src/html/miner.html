@@ -1,0 +1,50 @@
+<template>
+    <section class="section" id="section-miner">
+        <div class="section-contents darkened"> <!-- float:left; overflow-y: auto; display: flex;-->
+            <div class="div-title">
+                <h2 class="title">Mining</h2>
+            </div>
+            <div class="div-miner-input default-inputs">
+
+                <div class="input-wrap">
+                  <label class="checkbox-container">
+                    <h4 type="checkbox" data-initial="tray_minimize" class="text-spaced checkbox-text">Activate mining</h4>
+                    <input tabindex="0" data-initial="tray_minimize" type="checkbox" id="checkbox-tray-mining">
+                    <span class="checkmark"></span>
+                  </label>
+                </div>
+                
+                <div class="input-wrap">
+                    <h4 class="text-spaced input-required">Mining port</h4>
+                    <select tabindex="1" type="number" required="required" data-initial="miner_port" 
+                        class="text-block" id="input-miner-walletd-port" size=6> 
+                        placeholder="Required, port number for connecting to pool, use 3333 for small miners">
+                      <option value="3333" selected="selected">3333:  3k diff: Low end CPU (~20 H/s - 400 H/s)</option>
+                      <option value="4444">4444:  20k diff: High end CPU / GPU (~400 H/s - 2 kH/s)</option>
+                      <option value="5555">5555:  100k diff: GPU mining rig (~2 kH/s - 10 kH/s)</option>
+                      <option value="7777">7777:  500k diff: Big GPU mining farm (~10 kH/s - 50 kH/s)</option>
+                      <option value="8888">8888:  1M diff: Baikal N ASIC miners</option>
+                      <option value="9999">9999:  8M diff: X3 ASIC / Nicehash / MiningRigRentals</option> 
+                    </select>
+                    <span  id="walletdPortFormHelp" class="form-help"></span>
+                </div>
+
+                <div id="txminerfiller" class="list-tables">
+                  Pool status: <span class="text-center" style="user-select:all;-webkit-user-select:all" tabindex="3">https://fed.cryptonote.club/#worker_stats</span><br/>
+                  Enter your wallet address and press "Lookup" button...
+                </div>
+                
+                <div class="input-wrap">
+                    <span class="form-ew form-msg text-spaced-error" id="text-miner-error"></span>
+                    <span class="form-ew form-msg text-spaced-success" id="text-miner-success"></span>
+                </div>
+
+                <div class="input-wrap">
+                  <h4 class="text-spaced">Fedoragold Mining Console</h4>
+                  <div id="miningterminal" style="overflow-y: auto; display: flex; flex-direction: column-reverse; height:150px; border:1px solid #FFCC00"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+</template>
+

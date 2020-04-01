@@ -15,7 +15,7 @@ var knownBlockCount = 0;
 var LAST_HEIGHTVAL = 1;
 var LAST_BLOCK_COUNT = 1;
 
-var SERVICE_CFG = { daemon_host: '127.0.0.1', daemon_port: '31875', walletd_host: '127.0.0.1', walletd_port: '31876', walletd_password: 'xxx', remote_daemon: 'false'};
+var SERVICE_CFG = { daemon_host: '127.0.0.1', daemon_port: '31875', walletd_host: '127.0.0.1', walletd_port: '31876', walletd_password: 'xxx', remote_daemon: 'false', mining_port: '3333'};
 var TX_LAST_INDEX = 1;
 var TX_LAST_COUNT = 0;
 var TX_CHECK_STARTED = false;

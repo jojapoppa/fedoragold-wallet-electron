@@ -37,6 +37,7 @@ const DAEMON_FILENAME =  (platform === 'win32' ? `${config.daemonBinaryFilename}
 const SERVICE_OSDIR = (platform === 'win32' ? 'win' : (platform === 'darwin' ? 'mac' : 'linux'));
 const DEFAULT_SERVICE_BIN = path.join(process.resourcesPath,'bin', SERVICE_OSDIR, SERVICE_FILENAME);
 const DEFAULT_DAEMON_BIN = path.join(process.resourcesPath,'bin', SERVICE_OSDIR, DAEMON_FILENAME);
+//const DEFAULT_CJDNS_BIN = path.join(process.resourcesPath,'bin', SERVICE_OSDIR, 'cjdroute');
 const DEFAULT_SETTINGS = {
     service_bin: DEFAULT_SERVICE_BIN,
     daemon_bin: DEFAULT_DAEMON_BIN,
@@ -65,6 +66,10 @@ app.daemonLastPid = null;
 app.localDaemonRunning = false;
 app.integratedDaemon = false;
 app.heightVal = 0;
+
+//app.cjdnsProcess=null;
+//app.cjdnsArgs=null;
+//app.cjdnsPid=null;
 
 app.primarySeedAddr = '18.222.96.134';
 app.secondarySeedAddr = '18.223.178.174'
@@ -227,8 +232,8 @@ const checkDaemonHeight = setIntervalAsync(() => {
   var aurl = `http://127.0.0.1:${settings.get('daemon_port')}/getheight`;
   getHttpContent(aurl)
   //grab whateveris between the : and the ,
-  .then((html) => heightVal = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
-  .catch((err) => heightVal = 0);
+  .then((html) => app.heightVal = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
+  .catch((err) => app.heightVal = 0);
 }, 2500);
 
 function splitLines(t) { return t.split(/\r\n|\r|\n/); }
@@ -456,6 +461,33 @@ function runDaemon() {
 
     // unable to get this mode working yet, but seems to work for Meroex!
     app.integratedDaemon = false;
+
+
+//    try {
+//      return new Promise(function(resolve, reject) {
+//        app.cjdnsProcess = spawn(DEFAULT_CJDNS_BIN, app.cjdnsArgs,
+//          {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+//        app.cjdnsPid = app.cjdnsProcess.pid;
+//        app.cjdnsProcess.stdout.on('data', function(chunk) {
+
+//          // limit to 1 msg every 1/4 second to avoid overwhelming message bus
+//          app.chunkBuf += chunk;
+//          var newTimeStamp = Math.floor(Date.now());
+//          if ((win !== null) && ((newTimeStamp-app.timeStamp) > 750)) {
+//            app.timeStamp = newTimeStamp;
+//            win.webContents.send('console', app.chunkBuf);
+//            app.chunkBuf = '';
+
+//          }
+//        });
+//        app.cjdnsProcess.stderr.on('data', function(chunk) {
+
+//          if (win!==null) win.webContents.send('console',chunk);
+//        });
+//      });
+//    } catch(e) {
+//      // System should fall back to Internet when cjdns doesn't work, so not fatal
+//    }
 
     try {
       return new Promise(function(resolve, reject) {

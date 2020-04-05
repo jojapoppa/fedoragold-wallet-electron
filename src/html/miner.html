@@ -7,10 +7,11 @@
             <div class="div-miner-input default-inputs">
 
                 <div class="input-wrap">
-                  <label class="checkbox-container">
-                    <h4 type="checkbox" data-initial="tray_minimize" class="text-spaced checkbox-text">Activate mining</h4>
-                    <input tabindex="0" data-initial="tray_minimize" type="checkbox" id="checkbox-tray-mining">
-                    <span class="checkmark"></span>
+                  <label class="button-container">
+                    <h4 type="button" data-initial="tray_minimize" class="text-spaced button-text">Mining control</h4>
+                    <!-- input tabindex="0" data-initial="tray_minimize" type="button" id="checkbox-tray-mining" -->
+                    <button id="checkbox-tray-mining">Toggle Mining (On/Off)</button>
+                    <!-- span class="checkmark"></span -->
                   </label>
                 </div>
                 
@@ -30,8 +31,8 @@
                 </div>
 
                 <div id="txminerfiller" class="list-tables">
-                  Pool status: <span class="text-center" style="user-select:all;-webkit-user-select:all" tabindex="3">https://fed.cryptonote.club/#worker_stats</span><br/>
-                  Enter your wallet address and press "Lookup" button...
+                  To monitor your pool status go to: <span class="text-center" style="user-select:all;-webkit-user-select:all" tabindex="3">https://fed.cryptonote.club/#worker_stats</span><br/>
+                  Then, enter your wallet address and press the "Lookup" button...
                 </div>
                 
                 <div class="input-wrap">

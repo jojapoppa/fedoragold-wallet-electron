@@ -9,6 +9,11 @@ const SESSION_KEY = 'fedwlshell';
 // TODO: this is the only thing left as global
 const IS_DEBUG = remote.getGlobal('wsession').debug;
 const WALLET_CFG = path.join(remote.app.getPath('userData'), 'wconfig.txt');
+const MINER_CFG = path.join(remote.app.getPath('userData'), 'minerconfig.txt');
+const POOL_CFG = path.join(remote.app.getPath('userData'), 'poolconfig.txt');
+const AMD_CFG = path.join(remote.app.getPath('userData'), 'amdconfig.txt');
+const NVIDIA_CFG = path.join(remote.app.getPath('userData'), 'nvidiaconfig.txt');
+const CPU_CFG = path.join(remote.app.getPath('userData'), 'cpuconfig.txt');
 
 var WalletShellSession = function(){
     if (!(this instanceof WalletShellSession)) return new WalletShellSession();
@@ -21,6 +26,11 @@ var WalletShellSession = function(){
         walletUnlockedBalance: 0,
         walletLockedBalance: 0,
         walletConfig: WALLET_CFG,
+        minerConfig: MINER_CFG,
+        amdConfig: AMD_CFG,
+        nvidiaConfig: NVIDIA_CFG,
+        cpuConfig: CPU_CFG,
+        poolConfig: POOL_CFG,
         synchronized: false,
         syncStarted: false,
         serviceReady: false,

@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const childProcess = require('child_process');
+const exec = require('child_process').exec;
 const log = require('electron-log');
 const Store = require('electron-store');
 const WalletShellSession = require('./ws_session');
@@ -29,13 +30,17 @@ const INFO_FUSION_DONE = 'Wallet optimization completed, your balance may appear
 const INFO_FUSION_SKIPPED = 'Wallet already optimized. No further optimization is needed.';
 const ERROR_FUSION_FAILED = 'Unable to optimize your wallet, please try again in a few seconds';
 
+var bRemoteDaemon = true;
+var walletAddress = '';
+
+this.chunkBuf = '';
+this.minerPid = 0;
+this.minerProcess = null;
+
 let SVC_BIN = '';
 let plat = process.platform;
 let daemonCoreReady = false;
 let daemonHeight = 0;
-
-var bRemoteDaemon = true;
-var walletAddress = '';
 
 // make sure nodejs allocates enough threads for sending and receiving transactions
 process.env.UV_THREADPOOL_SIZE = 128;
@@ -71,6 +76,30 @@ var WalletShellManager = function(){
     this.syncWorker = null;
     this.fusionTxHash = [];
 };
+
+WalletShellManager.prototype.killMiner = function(apid) {
+  if (apid == 0) {
+    apid = this.minerPid;
+  }
+
+  log.warn("killMiner()... at pid: "+apid);
+  if (this.minerPid == 0)
+  {
+    return;
+  }
+
+  let signal = 'SIGKILL';
+  try {
+    this.minerProcess.kill(signal);
+    if (apid) this.process.kill(apid, signal);
+  } catch(e) {
+    // Just try again and bail out...
+    try{process.kill(apid, 'SIGKILL');}catch(err){}
+  }
+
+  this.minerProcess = null;
+  this.minerPid = 0;
+}
 
 const getHttpContent = function(host, path, cookie) {
   // select http or https module, depending on reqested url
@@ -157,32 +186,103 @@ WalletShellManager.prototype._reinitSession = function(){
 };
 
 WalletShellManager.prototype.serviceStatus = function(){
-    return  (undefined !== this.serviceProcess && null !== this.serviceProcess);
+  return  (undefined !== this.serviceProcess && null !== this.serviceProcess);
 };
 
-WalletShellManager.prototype.isRunning = function () {
-    let proc = path.basename(this.serviceBin);
-    let platform = process.platform;
-    let cmd = '';
-    switch (platform) {
-        case 'win32' : cmd = `tasklist`; break;
-        case 'darwin' : cmd = `ps -ax | grep ${proc}`; break;
-        case 'linux' : cmd = `ps -A`; break;
-        default: break;
+function splitLines(t) { return t.split(/\r\n|\r|\n/); }
+WalletShellManager.prototype.getMinerPID = function () {
+  var cmd = `ps -ex`;
+  switch (process.platform) {
+    case 'win32' : cmd = `tasklist`; break;
+    case 'darwin' : cmd = `ps -ax`; break;
+    case 'linux' : cmd = `ps -A`; break;
+    default: break;
+  }
+
+  // the x: 0 is a workaround for the ENOMEM bug in nodejs: https://github.com/nodejs/node/issues/29008
+  var status = false;
+  exec(cmd, {
+    maxBuffer: 2000 * 1024,
+    env: {x: 0}
+  }, function(error, stdout, stderr) {
+    var procStr = stdout.toLowerCase();
+    if (procStr.indexOf('xmr-stak') > -1) {
+
+      var dloc = procStr.indexOf('xmr-stak');
+      procStr = procStr.substring(0, dloc);
+      var procAry = splitLines(procStr);
+      procStr = procAry[procAry.length-1];
+      procStr = procStr.trim();
+
+      let pid = parseInt(procStr.substr(0, procStr.indexOf(' ')), 10);
+      //log.warn("xmr-stak process already running at process ID: "+pid);
+      return pid;
     }
-    if(cmd === '' || proc === '') return false;
+  });
 
-    childProcess.exec(cmd, {
-        maxBuffer: 2000 * 1024,
-        env: {x: 0}
-    }, (err, stdout, stderr) => {
-        if(err) log.debug(err.message);
-        if(stderr) log.debug(stderr.toLocaleLowerCase());
-        let found = stdout.toLowerCase().indexOf(proc.toLowerCase()) > -1;
-        log.debug(`Process found: ${found}`);
-        return found;
+  return 0;
+}
+
+WalletShellManager.prototype.getWalletAddress = function() {
+  return walletAddress;
+}
+
+WalletShellManager.prototype.getPlatform = function() {
+  return plat;
+}
+
+WalletShellManager.prototype.getResourcesPath = function() {
+  return process.resourcesPath;
+}
+
+WalletShellManager.prototype.getMinerPid = function() {
+  return this.minerPid;
+}
+
+WalletShellManager.prototype.runMiner = function(minerBin, minerArgs, updateConsole) {
+
+  //confirm("run miner args: "+minerArgs);
+  //confirm("run miner: "+minerBin);
+
+  //Kill any existing miner process if it is re-run
+  if (this.minerPid > 0) {
+    this.killMiner(this.minerPid);
+  }
+  else {
+    let mpid = this.getMinerPID(); 
+    if (mpid > 0) this.killMiner(mpid);
+  }
+
+  try{
+    this.minerProcess = childProcess.spawn(minerBin, minerArgs,
+      {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
+    this.minerPid = this.minerProcess.pid;
+
+    this.minerProcess.stdout.on('data', function(chunk) {
+      // limit to 1 msg every 1/4 second to avoid overwhelming message bus
+      this.chunkBuf += chunk;
+      updateConsole(this.chunkBuf);
+      this.chunkBuf = '';
     });
-};
+    this.minerProcess.stderr.on('data', function(chunk) {
+      updateConsole(chunk);
+    });
+  } catch(e) {
+    log.warn(`xmr-stak is not running`);
+    return false;
+  }
+
+  this.minerProcess.on('close', () => {
+    this.killMiner(this.minerPid);
+    log.warn(`xmr-stak closed`);
+    this.minerProcess = null;
+    });
+
+  this.minerProcess.on('error', (err) => {
+    this.killMiner(this.minerPid);
+    log.warn(`xmr-stak error: ${err.message}`);
+  });
+}
 
 WalletShellManager.prototype._writeIniConfig = function(cfg){
     let configFile = wsession.get('walletConfig');
@@ -228,18 +328,19 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
 
     if(this.syncWorker) this.stopSyncWorker();
 
+//        '--rpc-user', 'fedadmin',
+//        '--rpc-password', password,
+
     // SERVICE_LOG_LEVEL,
     let serviceArgs = this.serviceArgsDefault.concat([
         '--container-file', walletFile,
         '--container-password', password,
-        '--rpc-user', 'fedadmin',
-        '--rpc-password', password,
         '--log-level', 0,
         '--address',
     ]);
 
     let wsm = this;
-    childProcess.execFile(this.serviceBin, serviceArgs, {timeout:20000}, (error, stdout, stderr) => {
+    childProcess.execFile(this.serviceBin, serviceArgs, {timeout:40000}, (error, stdout, stderr) => {
             if(stderr) log.error(stderr);
 
             let addressLabel = "Address: "; 
@@ -263,7 +364,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
                 setTimeout(() => {
                   // the first call just got the address back... now we run it for reals
                   wsm._spawnService(walletFile, password, onError, onSuccess, onDelay);
-                }, 5000, wsm, walletFile, password, onError, onSuccess, onDelay);
+                }, 20000, wsm, walletFile, password, onError, onSuccess, onDelay);
             }else{
                 // just stop here
                 onError(ERROR_WALLET_PASSWORD+" "+stderr);
@@ -426,6 +527,9 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
 };
 
 WalletShellManager.prototype.stopService = function(){
+
+    this.killMiner(this.minerPid);
+
     let wsm = this;
     return new Promise(function (resolve){
         if(wsm.serviceStatus()){

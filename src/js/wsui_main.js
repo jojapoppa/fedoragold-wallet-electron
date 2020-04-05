@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const log = require('electron-log');
+const crypto = require("crypto");
 
 const {dialog, clipboard, remote, ipcRenderer, shell} = require('electron');
 const Store = require('electron-store');
@@ -17,7 +18,6 @@ const WalletShellSession = require('./ws_session');
 const WalletShellManager = require('./ws_manager');
 const config = require('./ws_config');
 const AnsiUp = require('ansi_up');
-//const async = require('async');
 const wsmanager = new WalletShellManager();
 const wsession = new WalletShellSession();
 const settings = new Store({ name: 'Settings' });
@@ -60,6 +60,10 @@ let settingsButtonSave;
 let settingsDaemonHostFormHelp;
 let settingsDaemonPortFormHelp;
 let settingsWalletdPortFormHelp;
+// mining page
+let miningStartStop;
+let miningPort;
+let miningConsole;
 // overview page
 let overviewWalletAddress;
 let overviewWalletCloseButton;
@@ -152,6 +156,11 @@ function populateElementVars(){
     settingsDaemonHostFormHelp = document.getElementById('daemonHostFormHelp');
     settingsDaemonPortFormHelp = document.getElementById('daemonPortFormHelp');
     settingsWalletdPortFormHelp = document.getElementById('walletdPortFormHelp');
+
+    // mining page
+    miningStartStop = document.getElementById('checkbox-tray-mining');
+    miningPort = document.getElementById('input-miner-walletd-port');
+    miningConsole = document.getElementById('miningterminal');
 
     // overview pages
     overviewWalletAddress = document.getElementById('wallet-address');
@@ -1381,6 +1390,152 @@ function handleWalletExport(){
     });
 }
 
+function consoleUI(el, sChunk, bDaemon) {
+    var ansi_up = new AnsiUp.default;
+    var buffer = "";
+    var buffin = el.innerHTML + ansi_up.ansi_to_html(sChunk);
+
+    for (let i=0; i<buffin.length; i++) {
+      let ch = buffin.charCodeAt(i);
+      if (ch == 10) {
+        buffer += "<br/>";
+      } else {
+        if (ch != 13)
+          buffer += String.fromCharCode(ch);
+      }
+    }
+
+    let outlen = 0;
+    var lastline = "";
+    var firstline = "";
+    var updatedText = "";
+    var lines = buffer.split(/<br\/>|<br>|<br \/>/g);
+    for (let i=lines.length-1; (i>0) && (outlen < 1000); i--) {
+      var thisline = lines[i].trim();
+      if (thisline.length > 0) {
+        if (firstline.length === 0) firstline = thisline;
+        updatedText = thisline + "<br/>" + updatedText;
+        outlen++;
+
+        // this tells you if the local daemon is truly ready yet... with its report block #
+        var posit = thisline.search("INFO Block:");
+        if (posit > -1) {
+          var blocknumber = thisline.substring(posit+12);
+          var numm = parseInt(blocknumber, 10);
+          var cblock = settings.get('current_block');
+          if (cblock === undefined) cblock = 0;
+          //log.warn("blocknumm: "+numm);
+          //log.warn("currentblock: "+cblock);
+          if (numm > cblock) {
+            settings.set('current_block', numm);
+            //log.warn("current_block set in settings to: "+numm);
+          }
+        }
+      }
+    }
+
+    if (bDaemon) {
+      var lc = firstline.search("INFO ");
+      if (lc > -1) {
+        firstline = firstline.substring(lc+4);
+      }
+
+      // Change the label to "Rescan"...
+      if (firstline.search("Height ") === 1) {
+        firstline = "Rescan " + firstline.substring(8);
+
+        // disables the Open button for now...
+        isRescan = true;
+      } else {
+        isRescan = false;
+      }
+
+      if ( (firstline.search("failed")===-1) && (firstline.search("rejected")===-1) &&
+         (firstline.search("unknown")===-1) && (firstline.search("Exception")===-1) &&
+         (firstline.search("error")===-1) && (firstline.search("load")===-1) &&
+         (firstline.search("WARNING")===-1) && (firstline.search("Load")===-1) &&
+         (firstline.search("IGD")===-1) && (firstline.search("Wrong")===-1) &&
+         (firstline.search("Failed")===-1) && (firstline.search("folder")===-1) &&
+         (firstline.search("wrong")===-1) && (firstline.search("Block with id")===-1) &&
+         (firstline.search("CHECKPOINT")===-1) ) {
+        let rescandata = {
+          type: 'rescan',
+          data: {
+            blockCount: -100,
+            displayBlockCount: -100,
+            displayKnownBlockCount: -100,
+            syncPercent: -100,
+            knownBlockCount: -300,
+            uiMessage: firstline
+          }
+        };
+
+        wsmanager.notifyUpdate(rescandata);
+      }
+    }
+
+    el.innerHTML = updatedText;
+}
+
+function updateConsole(chunkBuf) {
+  var elConsole = document.getElementById("miningterminal");
+  consoleUI(elConsole, chunkBuf, false);
+}
+
+function handleMiner(){
+
+  miningStartStop.addEventListener('click', () => {
+
+    let minerp = wsmanager.getMinerPid();
+    if (minerp > 0) { 
+      wsmanager.killMiner(0);
+      updateConsole('Miner stopped.');
+      return;
+    }
+
+    let addr = wsmanager.getWalletAddress();
+    if (addr.length <= 0) { confirm("Please open a wallet before mining."); return; }
+    let miningState = true; 
+    let mport = miningPort.value;
+
+    if (miningState) {
+      let last8 = 'FED'+crypto.randomBytes(8).toString('hex');
+      let mplat = wsmanager.getPlatform();
+      let MINER_FILENAME =  (mplat === 'win32' ? `xmr-stak.exe` : `xmr-stak` );
+      let MINER_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
+      let minerBin = path.join(wsmanager.getResourcesPath(), 'bin', MINER_OSDIR, MINER_FILENAME);
+      let murl = '173.249.27.160:'+mport;
+      let mpass = 'fedoragold_wallet';
+
+      let minerConfigFile = wsession.get('minerConfig');
+      let poolConfigFile = wsession.get('poolConfig');
+      let amdConfigFile = wsession.get('amdConfig');
+      let nvidiaConfigFile = wsession.get('nvidiaConfig');
+      let cpuConfigFile = wsession.get('cpuConfig');
+
+      let minerArgs = [
+        '--config', minerConfigFile,
+        '--poolconf', poolConfigFile,
+        '--cpu', cpuConfigFile,
+        '--amd', amdConfigFile,
+        '--nvidia', nvidiaConfigFile,
+        '--url', murl,
+        '--pass', mpass,
+        '--httpd', 0,
+        '--currency', 'fedoragold',
+        '--rigid', last8,
+        '--user', addr
+      ];
+
+      // add option: --use-nicehash             the pool should run in nicehash mode
+
+      wsmanager.runMiner(minerBin, minerArgs, updateConsole);
+    } else {
+      wsmanager.killMiner();
+    }
+  });
+}
+
 function handleSendTransfer(){
 
     sendMaxAmount.addEventListener('click', (event) => {
@@ -1407,7 +1562,6 @@ function handleSendTransfer(){
         if(!addr.length) initAddressCompletion();
         setPaymentIdState(addr);
     });
-
     sendButtonSend.addEventListener('click', () => {
         formMessageReset();
         function precision(a) {
@@ -2176,6 +2330,9 @@ function initHandlers(){
     // send transfer
     handleSendTransfer();
 
+    // mining
+    handleMiner();
+
     // import keys
     handleWalletImportKeys();
 
@@ -2298,90 +2455,8 @@ ipcRenderer.on('daemoncoreready', (event, flag) => {
 });
 
 ipcRenderer.on('console', (event, sChunk) => {
-    var ansi_up = new AnsiUp.default;
     var el = document.getElementById("terminal");
-
-    var buffer = "";
-    var buffin = el.innerHTML + ansi_up.ansi_to_html(sChunk);
-
-    for (let i=0; i<buffin.length; i++) {
-      let ch = buffin.charCodeAt(i);
-      if (ch == 10) {
-        buffer += "<br/>";
-      } else {
-        if (ch != 13)
-          buffer += String.fromCharCode(ch);
-      }
-    }
-
-    let outlen = 0;
-    var lastline = "";
-    var firstline = "";
-    var updatedText = "";
-    var lines = buffer.split(/<br\/>|<br>|<br \/>/g);
-    for (let i=lines.length-1; (i>0) && (outlen < 1000); i--) {
-      var thisline = lines[i].trim();
-      if (thisline.length > 0) {
-        if (firstline.length === 0) firstline = thisline;
-        updatedText = thisline + "<br/>" + updatedText;
-        outlen++;
-
-        // this tells you if the local daemon is truly ready yet... with its report block #
-        var posit = thisline.search("INFO Block:");
-        if (posit > -1) {
-          var blocknumber = thisline.substring(posit+12);
-          var numm = parseInt(blocknumber, 10);
-          var cblock = settings.get('current_block');
-          if (cblock === undefined) cblock = 0;
-          //log.warn("blocknumm: "+numm);
-          //log.warn("currentblock: "+cblock);
-          if (numm > cblock) {
-            settings.set('current_block', numm);
-            //log.warn("current_block set in settings to: "+numm);
-          }
-        }
-      }
-    }
-
-    var lc = firstline.search("INFO ");
-    if (lc > -1) {
-      firstline = firstline.substring(lc+4);
-    }
-
-    // Change the label to "Rescan"...
-    if (firstline.search("Height ") === 1) {
-      firstline = "Rescan " + firstline.substring(8);
-
-      // disables the Open button for now...
-      isRescan = true;
-    } else {
-      isRescan = false;
-    }
-
-    if ( (firstline.search("failed")===-1) && (firstline.search("rejected")===-1) && 
-         (firstline.search("unknown")===-1) && (firstline.search("Exception")===-1) && 
-         (firstline.search("error")===-1) && (firstline.search("load")===-1) &&
-         (firstline.search("WARNING")===-1) && (firstline.search("Load")===-1) &&
-         (firstline.search("IGD")===-1) && (firstline.search("Wrong")===-1) &&
-         (firstline.search("Failed")===-1) && (firstline.search("folder")===-1) && 
-         (firstline.search("wrong")===-1) && (firstline.search("Block with id")===-1) &&
-         (firstline.search("CHECKPOINT")===-1) ) {
-      let rescandata = {
-        type: 'rescan',
-        data: {
-          blockCount: -100,
-          displayBlockCount: -100,
-          displayKnownBlockCount: -100,
-          syncPercent: -100,
-          knownBlockCount: -300,
-          uiMessage: firstline
-        }
-      };
-
-      wsmanager.notifyUpdate(rescandata);
-    }
-
-    el.innerHTML = updatedText;
+    consoleUI(el, sChunk, true);
 });
 
 ipcRenderer.on('checkHeight', () => {

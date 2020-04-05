@@ -652,4 +652,3 @@ process.on('exit', (code) => {
 process.on('warning', (warning) => {
     log.warn(`${warning.code}, ${warning.name}`);
 });
-

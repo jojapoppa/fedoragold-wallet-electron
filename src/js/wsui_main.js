@@ -1415,14 +1415,15 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
     for (let i=lines.length-1; (i>0) && (outlen < 1000); i--) {
       var thisline = lines[i].trim();
       if (thisline.length > 0) {
+
+        // remind user of the rig ID every once in a while...
+        if (rigID.length > 0 && (thisline.search("accepted")>=0) && (thisline.search("RIG ID")<0)) {
+          thisline += "  (RIG ID: "+rigID+")";
+        }
+
         if (firstline.length === 0) firstline = thisline;
         updatedText = thisline + "<br/>" + updatedText;
         outlen++;
-
-        // remind user of the rig ID every once in a while...
-        if (rigID.length > 0 && (i%10==0)) {
-          updatedText = "RIG ID: "+rigID+"<br/> " + updatedText;
-        }
 
         // this tells you if the local daemon is truly ready yet... with its report block #
         var posit = thisline.search("INFO Block:");

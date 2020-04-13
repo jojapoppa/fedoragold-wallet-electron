@@ -31,11 +31,11 @@ const INFO_FUSION_SKIPPED = 'Wallet already optimized. No further optimization i
 const ERROR_FUSION_FAILED = 'Unable to optimize your wallet, please try again in a few seconds';
 
 var bRemoteDaemon = true;
-var walletAddress = '';
-
+this.stdBuf = '';
 this.chunkBuf = '';
 this.minerPid = 0;
 this.minerProcess = null;
+this.walletProcess = null;
 
 let SVC_BIN = '';
 let plat = process.platform;
@@ -82,9 +82,8 @@ WalletShellManager.prototype.killMiner = function(apid) {
     apid = this.minerPid;
   }
 
-  log.warn("killMiner()... at pid: "+apid);
-  if (this.minerPid == 0)
-  {
+  //log.warn("killMiner()... at pid: "+apid);
+  if (this.minerPid == 0) {
     return;
   }
 
@@ -224,6 +223,7 @@ WalletShellManager.prototype.getMinerPID = function () {
 }
 
 WalletShellManager.prototype.getWalletAddress = function() {
+  let walletAddress = wsession.get('loadedWalletAddress');
   return walletAddress;
 }
 
@@ -259,7 +259,6 @@ WalletShellManager.prototype.runMiner = function(minerBin, minerArgs, updateCons
     this.minerPid = this.minerProcess.pid;
 
     this.minerProcess.stdout.on('data', function(chunk) {
-      // limit to 1 msg every 1/4 second to avoid overwhelming message bus
       this.chunkBuf += chunk;
       updateConsole(this.chunkBuf);
       this.chunkBuf = '';
@@ -315,63 +314,62 @@ WalletShellManager.prototype._writeConfig = function(cfg){
     }
 };
 
-WalletShellManager.prototype.startService = function(walletFile, password, onError, onSuccess, onDelay){
-    this.init(password);
+WalletShellManager.prototype.callSpawn = function(walletFile, password, onError, onSuccess, onDelay) {
 
-    if(null !== this.serviceLastPid){
-        // try to kill last process, in case it was stalled
-        log.debug(`Trying to clean up old/stalled process, target pid: ${this.serviceLastPid}`);
-        try{
-            process.kill(this.serviceLastPid, 'SIGKILL');
-        }catch(e){}
-    }
+    setTimeout(() => {
+      let addressLabel = "Address: ";
+      if (this.stdBuf.length && this.stdBuf.indexOf(addressLabel) !== -1) {
+        let trimmed = this.stdBuf.trim();
+        let walletAddress = trimmed.substring(trimmed.indexOf(addressLabel)+
+          addressLabel.length, trimmed.length);
 
-    if(this.syncWorker) this.stopSyncWorker();
-
-//        '--rpc-user', 'fedadmin',
-//        '--rpc-password', password,
-
-    // SERVICE_LOG_LEVEL,
-    let serviceArgs = this.serviceArgsDefault.concat([
-        '--container-file', walletFile,
-        '--container-password', password,
-        '--log-level', 0,
-        '--address',
-    ]);
-
-    let wsm = this;
-    childProcess.execFile(this.serviceBin, serviceArgs, {timeout:40000}, (error, stdout, stderr) => {
-            if(stderr) log.error(stderr);
-
-            let addressLabel = "Address: "; 
-            if(stdout && stdout.length && stdout.indexOf(addressLabel) !== -1){
-                let trimmed = stdout.trim();
-                walletAddress = trimmed.substring(trimmed.indexOf(addressLabel)+
-                  addressLabel.length, trimmed.length);
-                wsession.set('loadedWalletAddress', walletAddress);
-
-                //log.warn("wallet address loaded: "+walletAddress);
-
-
-
-                // Possible future work on embedded status page...
-                //= webBrowser1.Document.GetElementById("pool_yourStats push-up-20").OuterHtml;
-                //let addr_cookie = "address="+walletAddress;
-                //let body_content = getHttpContent("https://fed.cryptonote.club", "/#worker_stats", addr_cookie);
-                //log.warn("cryptonote.club: "+body_content.length);
-
-                // allow heightVal to get set properly first (mostly) - happens asynchronously
-                setTimeout(() => {
-                  // the first call just got the address back... now we run it for reals
-                  wsm._spawnService(walletFile, password, onError, onSuccess, onDelay);
-                }, 20000, wsm, walletFile, password, onError, onSuccess, onDelay);
-            }else{
-                // just stop here
-                onError(ERROR_WALLET_PASSWORD+" "+stderr);
-            }
+        if (walletAddress.length <= 0) {
+          onError(ERROR_WALLET_PASSWORD);
+          return;
         }
-    );
-};
+
+        wsession.set('loadedWalletAddress', walletAddress);
+
+        // Possible future work on embedded status page...
+        //= webBrowser1.Document.GetElementById("pool_yourStats push-up-20").OuterHtml;
+        //let addr_cookie = "address="+walletAddress;
+        //let body_content = getHttpContent("https://fed.cryptonote.club", "/#worker_stats", addr_cookie);
+        //log.warn("cryptonote.club: "+body_content.length);
+
+        this._spawnService(walletFile, password, onError, onSuccess, onDelay);
+      }
+    }, 500, walletFile, password, onError, onSuccess, onDelay);
+}
+
+WalletShellManager.prototype.startService = function(walletFile, password, onError, onSuccess, onDelay) {
+  this.init(password);
+
+  if (this.syncWorker) this.stopSyncWorker();
+  if (null !== this.serviceLastPid) {
+    // try to kill last process, in case it was stalled
+    log.debug(`Trying to clean up old/stalled process, target pid: ${this.serviceLastPid}`);
+    try{
+      process.kill(this.serviceLastPid, 'SIGKILL');
+    }catch(e){}
+  }
+
+  // Note: the path Must be quoted in order to work properly on all platforms...
+  let runBin = this.serviceBin+' --container-file "'+walletFile+'" --container-password "'+password+
+    '" --log-level 0 --address';
+
+  this.stdBuf = "";
+  let wsm = this;
+
+  log.warn(runBin);
+  this.walletProcess = childProcess.exec(runBin, { timeout: 10000, maxBuffer: 2000 * 1024, env: {x: 0} });
+
+  this.walletProcess.on('close', () => {
+    this.callSpawn(walletFile, password, onError, onSuccess, onDelay);
+  });
+  this.walletProcess.stdout.on('data', function(chunky) {
+    wsm.stdBuf += chunky.toString();
+  });
+}
 
 WalletShellManager.prototype._argsToIni = function(args) {
     let configData = "";
@@ -389,7 +387,6 @@ function logFile(walletFile) {
 }
 
 WalletShellManager.prototype._spawnService = function(walletFile, password, onError, onSuccess, onDelay) {
-
     if (this.serviceProcess != null) {
       // don't allow it to be spawned twice...
       return;
@@ -476,8 +473,10 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
       ];
     }
 
-    //log.warn("serviceArgs: "+serviceArgs);
     let wsm = this;
+    //log.warn("serviceArgs: "+serviceArgs);
+    //confirm(this.serviceBin);
+    //confirm("args: "+serviceArgs);
 
     try{
         this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs,
@@ -502,28 +501,29 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         log.warn(`${config.walletServiceBinaryFilename} error: ${err.message}`);
     });
 
+    this.serviceProcess.stdout.on('data', function(chunky) {
+        log.warn(""+chunky);
+    });
+
     if(!this.serviceStatus()){
         if(onError) onError(ERROR_WALLET_EXEC);
         log.error(`${config.walletServiceBinaryFilename} is not running`);
         return false;
     }
 
+    wsession.set('connectedNode', `${settings.get('daemon_host')}:${settings.get('daemon_port')}`);
+    this.serviceActiveArgs = serviceArgs;
+    this.startSyncWorker(password, daemonAd, daemonPt);
+    let addr = wsession.get('loadedWalletAddress');
+
     setTimeout(function() {
-      wsm.serviceActiveArgs = serviceArgs;
-      wsession.set('connectedNode', `${settings.get('daemon_host')}:${settings.get('daemon_port')}`);
+      wsm.notifyUpdate({
+        type: 'addressUpdated',
+        data: addr 
+      });
+    }, 125, wsm, addr);
 
-      wsm.startSyncWorker(password, daemonAd, daemonPt);
-
-      var addr = wsession.get('loadedWalletAddress');
-      setTimeout(function() {
-        wsm.notifyUpdate({
-          type: 'addressUpdated',
-          data: addr
-        });
-      }, 125, wsm, addr);
-
-      onSuccess();
-    }, 3000, wsm, serviceArgs, password);
+    onSuccess();
 };
 
 WalletShellManager.prototype.stopService = function(){
@@ -606,12 +606,12 @@ WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daem
         log.debug(`service worker terminated.`);
     });
 
-    wsm.syncWorker.on('exit', function (){
+    wsm.syncWorker.on('exit', function () {
         wsm.syncWorker = null;
         log.debug(`service worker exited.`);
     });
 
-    wsm.syncWorker.on('error', function(err){
+    wsm.syncWorker.on('error', function(err) {
         try{wsm.syncWorker.kill('SIGKILL');}catch(e){}
         wsm.syncWorker = null;
         log.debug(`service worker error: ${err.message}`);
@@ -631,6 +631,7 @@ WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daem
     wsm.syncWorker.send(cfgData);
     wsession.set('serviceReady', true);
     wsession.set('syncStarted', true);
+    log.warn("sync worker started...");
 };
 
 WalletShellManager.prototype.stopSyncWorker = function(){
@@ -845,6 +846,7 @@ WalletShellManager.prototype._fusionGetMinThreshold = function(threshold, minThr
         log.warn("maxFusionReadyCount: "+maxFusionReadyCount);
  
         let maxThreshCheckIter = 20;
+        let walletAddress = wsession.get('loadedWalletAddress');
 
         wsm.serviceApi.estimateFusion({threshold: threshold, addresses: [walletAddress]}).then((res)=>{
 
@@ -906,6 +908,7 @@ WalletShellManager.prototype._fusionSendTx = function(threshold, counter){
             data: fusionStat 
           });
 
+          let walletAddress = wsession.get('loadedWalletAddress');
           wsm.serviceApi.sendFusionTransaction({threshold: threshold, anonymity: 0, addresses: [walletAddress], destinationAddress: walletAddress}).then((resp)=> {
             log.warn("fusion hash: "+resp.transactionHash);
             wsm.fusionTxHash.push(resp.transactionHash);

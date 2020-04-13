@@ -32,6 +32,8 @@ const Menu = remote.Menu;
 const WS_VERSION = settings.get('version', 'unknown');
 const DEFAULT_WALLET_PATH = remote.app.getPath('home');
 
+var last8_rigID = "";
+
 let WALLET_OPEN_IN_PROGRESS = false;
 let FUSION_IN_PROGRESS = false;
 let TXLIST_OBJ = null;
@@ -1095,7 +1097,7 @@ function handleWalletOpen(){
                 setTimeout(() => {
                     formMessageSet('load','warning', "Opening wallet, please be patient...<br><progress></progress>");
                     wsmanager.startService(walletFile, walletPass, onError, onSuccess, onDelay);
-                },800);
+                },800, walletFile, walletPass, onError, onSuccess, onDelay);
             }).catch((err) => {
                 console.log(err);
                 formMessageSet('load','error', "Unable to start service");
@@ -1390,7 +1392,7 @@ function handleWalletExport(){
     });
 }
 
-function consoleUI(el, sChunk, bDaemon) {
+function consoleUI(el, sChunk, bDaemon, rigID) {
     var ansi_up = new AnsiUp.default;
     var buffer = "";
     var buffin = el.innerHTML + ansi_up.ansi_to_html(sChunk);
@@ -1398,7 +1400,7 @@ function consoleUI(el, sChunk, bDaemon) {
     for (let i=0; i<buffin.length; i++) {
       let ch = buffin.charCodeAt(i);
       if (ch == 10) {
-        buffer += "<br/>";
+        buffer += "<br/>"; 
       } else {
         if (ch != 13)
           buffer += String.fromCharCode(ch);
@@ -1416,6 +1418,11 @@ function consoleUI(el, sChunk, bDaemon) {
         if (firstline.length === 0) firstline = thisline;
         updatedText = thisline + "<br/>" + updatedText;
         outlen++;
+
+        // remind user of the rig ID every once in a while...
+        if (rigID.length > 0 && (i%10==0)) {
+          updatedText = "RIG ID: "+rigID+"<br/> " + updatedText;
+        }
 
         // this tells you if the local daemon is truly ready yet... with its report block #
         var posit = thisline.search("INFO Block:");
@@ -1479,7 +1486,7 @@ function consoleUI(el, sChunk, bDaemon) {
 
 function updateConsole(chunkBuf) {
   var elConsole = document.getElementById("miningterminal");
-  consoleUI(elConsole, chunkBuf, false);
+  consoleUI(elConsole, chunkBuf, false, last8_rigID);
 }
 
 function handleMiner(){
@@ -1499,7 +1506,7 @@ function handleMiner(){
     let mport = miningPort.value;
 
     if (miningState) {
-      let last8 = 'FED'+crypto.randomBytes(8).toString('hex');
+      last8_rigID = 'FED'+crypto.randomBytes(8).toString('hex');
       let mplat = wsmanager.getPlatform();
       let MINER_FILENAME =  (mplat === 'win32' ? `xmr-stak.exe` : `xmr-stak` );
       let MINER_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
@@ -1523,7 +1530,7 @@ function handleMiner(){
         '--pass', mpass,
         '--httpd', 0,
         '--currency', 'fedoragold',
-        '--rigid', last8,
+        '--rigid', last8_rigID,
         '--user', addr
       ];
 
@@ -2456,7 +2463,7 @@ ipcRenderer.on('daemoncoreready', (event, flag) => {
 
 ipcRenderer.on('console', (event, sChunk) => {
     var el = document.getElementById("terminal");
-    consoleUI(el, sChunk, true);
+    consoleUI(el, sChunk, true, "");
 });
 
 ipcRenderer.on('checkHeight', () => {

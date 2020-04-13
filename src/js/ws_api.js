@@ -138,6 +138,7 @@ class WalletShellApi {
     getAddress() {
         return new Promise((resolve, reject) => {
             this._sendRequest('getAddresses', false, {}, 15000, true).then((result) => {
+                log.warn("addresses: "+result);
                 return resolve(result.addresses[0]);
             }).catch((err) => {
                 return reject(err);

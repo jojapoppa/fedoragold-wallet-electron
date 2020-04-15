@@ -1,77 +1,47 @@
 <template>
-    <section class="section" id="section-settings">
-        <div class="section-contents darkened">
-            <div class="div-title">
-                <h2 class="title">Settings</h2>
-            </div>
-            <div class="div-settings-input default-inputs">
-                <!-- div class="input-wrap">
-                    <h4 class="text-spaced input-required">Select path to fedoragold_walletd executable file</h4>
-                    <input tabindex="0" data-selection="openFile" data-targetinput="input-settings-path" 
-                        required="required" data-initial="service_bin" class="text-block path-input-button" 
-                        readonly="readonly"  id="input-settings-path" 
-                        placeholder="Required, full path to the fedoragold_walletd executable file..."
-                        />
-                    <button data-targetinput="input-settings-path" type="button" class="notabindex button-green path-input-button" id="button-settings-browse"><i class="fas fa-folder-open"></i></button>
-                </div>
-
-                <div class="input-wrap">
-                    <h4 class="text-spaced input-required">Daemon or public node address (IP or hostname)</h4>
-                    <input tabindex="0" required="required" data-initial="daemon_host" 
-                        name="nodeAddress" class="text-block" id="input-settings-daemon-address" 
-                        placeholder="Required, hostname or IP address of the daemon or public node..." 
-                        />
-                    <span id="daemonHostFormHelp" class="form-help">Type first few character(s) and select from public node list, or type to your own node address.</span>
-                </div -->
+  <section class="section" id="section-settings">
+    <div class="section-contents darkened">
+      <div class="div-title">
+        <h2 class="title">Settings</h2>
+      </div>
+      <div class="div-settings-input default-inputs">
                 
-                <div class="input-wrap">
-                    <h4 class="text-spaced input-required">Daemon full node port</h4>
-                    <input tabindex="0" type="number" required="required" data-initial="daemon_port" 
-                        class="text-block" id="input-settings-daemon-port" 
-                        placeholder="Required, port number of the daemon or public node..." 
-                        />
-                    <span  id="daemonPortFormHelp" class="form-help"></span>
-                </div>
-
-                <div class="input-wrap">
-                    <h4 class="text-spaced input-required">Fedoragold walletd port</h4>
-                    <input tabindex="1" type="number" required="required" data-initial="walletd_port" 
-                        class="text-block" id="input-settings-walletd-port" 
-                        placeholder="Required, port number of the local fedoragold walletd..." 
-                        />
-                    <span  id="walletdPortFormHelp" class="form-help"></span>
-                </div>
-                <!-- div class="input-wrap">
-                        <label class="checkbox-container">
-                            <h4 type="checkbox" data-initial="tray_minimize" class="text-spaced checkbox-text">Minimize to system tray?</h4>
-                            <input tabindex="0" data-initial="tray_minimize" type="checkbox" id="checkbox-tray-minimize">
-                            <span class="checkmark"></span>
-                        </label>
-		</div>
-                <div class="input-wrap">
-                        <label class="checkbox-container">
-                            <h4 type="checkbox" data-initial="tray_close" class="text-spaced checkbox-text">Close to system tray instead of quit?</h4>
-                            <input tabindex="0" data-initial="tray_close" type="checkbox" id="checkbox-tray-close">
-                            <span class="checkmark"></span>
-                        </label>
-		</div -->
-                
-                <div class="input-wrap">
-                    <span class="form-ew form-msg text-spaced-error" id="text-settings-error"></span>
-                    <span class="form-ew form-msg text-spaced-success" id="text-settings-success"></span>
-                </div>
-
-                <div class="input-wrap">
-                  <h4 class="text-spaced">Fedoragold Daemon Console</h4>
-                  <div id="terminal" style="overflow-y: auto; display: flex; flex-direction: column-reverse; height:200px; border:1px solid #FFCC00"></div>
-                </div>
-            </div>
-
-            <div class="action-buttons">
-                <button  tabindex="0" type="button" class="form-bt button-green" id="button-settings-save">Save</button>
-                <button  tabindex="0" type="button" class="form-bt button-red" data-section="section-welcome" id="button-settings-back">Back</button>
-            </div>
+        <div class="input-wrap">
+          <h4 class="text-spaced input-required">Daemon full node port</h4>
+          <input tabindex="0" type="number" required="required" data-initial="daemon_port" 
+            class="text-block" id="input-settings-daemon-port" 
+            placeholder="Required, port number of the daemon or public node..." 
+          />
+          <span id="daemonPortFormHelp" class="form-help"></span>
         </div>
-    </section>
+
+        <div class="input-wrap">
+          <h4 class="text-spaced input-required">Fedoragold walletd port</h4>
+          <input tabindex="1" type="number" required="required" data-initial="walletd_port" 
+            class="text-block" id="input-settings-walletd-port" 
+            placeholder="Required, port number of the local fedoragold walletd..." 
+          />
+          <span  id="walletdPortFormHelp" class="form-help"></span>
+        </div>
+
+        <div class="input-wrap">
+          <span class="form-ew form-msg text-spaced-error" id="text-settings-error"></span>
+          <span class="form-ew form-msg text-spaced-success" id="text-settings-success"></span>
+        </div>
+
+        <div class="input-wrap">
+          <h4 class="text-spaced">Fedoragold Daemon Console</h4>
+          <div id="terminal" style="overflow-y: auto; display: flex; flex-direction: column-reverse; height:200px; border:1px solid #FFCC00"></div>
+        </div>
+
+      </div>
+
+      <span><br/></span>
+      <button  tabindex="0" type="button" class="form-bt button-green" id="button-settings-save">Save</button>
+      <button  tabindex="0" type="button" class="form-bt button-red" data-section="section-welcome" id="button-settings-back">Back</button>
+
+    </div>
+
+  </section>
 </template>
 

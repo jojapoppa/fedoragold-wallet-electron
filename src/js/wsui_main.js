@@ -1553,7 +1553,11 @@ function handleSendTransfer(){
 
     sendInputFee.value = 0.1;
     function setPaymentIdState(addr){
-        if(addr.length > 99){
+        if(addr.length > 95){
+            if (confirm("Address entered is too long.  Would you like to correct it?")) {
+              sendInputAddress.value = '';
+            } 
+
             sendInputPaymentId.value = '';
             sendInputPaymentId.setAttribute('disabled', true);
         }else{

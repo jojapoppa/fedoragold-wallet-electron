@@ -342,8 +342,6 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
 }
 
 WalletShellManager.prototype.startService = function(walletFile, password, onError, onSuccess, onDelay) {
-  this.init(password);
-
   if (this.syncWorker) this.stopSyncWorker();
   if (null !== this.serviceLastPid) {
     // try to kill last process, in case it was stalled
@@ -360,14 +358,20 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
   this.stdBuf = "";
   let wsm = this;
 
-  log.warn(runBin);
   this.walletProcess = childProcess.exec(runBin, { timeout: 10000, maxBuffer: 2000 * 1024, env: {x: 0} });
-
   this.walletProcess.on('close', () => {
-    this.callSpawn(walletFile, password, onError, onSuccess, onDelay);
+      if ((wsm.stdBuf.length == 0) || (wsm.stdBuf.search("password is wrong") >= 0)) {
+        onError(ERROR_WALLET_PASSWORD);
+      } else {
+        this.init(password);
+        this.callSpawn(walletFile, password, onError, onSuccess, onDelay);
+      }
   });
   this.walletProcess.stdout.on('data', function(chunky) {
     wsm.stdBuf += chunky.toString();
+  });
+  this.walletProcess.on('error', (err) => {
+    onError(ERROR_WALLET_PASSWORD);
   });
 }
 
@@ -631,7 +635,6 @@ WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daem
     wsm.syncWorker.send(cfgData);
     wsession.set('serviceReady', true);
     wsession.set('syncStarted', true);
-    log.warn("sync worker started...");
 };
 
 WalletShellManager.prototype.stopSyncWorker = function(){

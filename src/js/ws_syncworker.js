@@ -116,7 +116,7 @@ function checkBlockUpdate(){
         }
     }).catch((err) => {
         // just eat this as the connection with Daemon can be intermittent
-        log.warn(`checkBlockUpdate: FAILED, ${err.message}`);
+        //log.warn(`checkBlockUpdate: FAILED, ${err.message}`);
         retVal = false;
     });
 

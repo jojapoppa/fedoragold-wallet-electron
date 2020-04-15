@@ -1,47 +1,57 @@
 <template>
-        <section class="section" id="section-addressbook">
-            <div class="section-contents">
-                <div class="div-title">
-                    <h2 class="title">Address Book</h2>
-                </div>
-                <div class="div-addressbook-input default-inputs">
-                    <div class="scroll-list-wrap addressbook-list list-tables">
-                        <div id="addressbooks">
-                            <input tabindex="0" class="text-block search noenter" placeholder="Search by name, wallet address or payment id" />
-                            <div class="address-table-wrapper">
-                            <table class="custom-table addressbook-table" id="addressbook-table">
-                            <thead>
-                                <tr>
-                                    <th class="sort" data-sort="addressName">Name</th>
-                                    <th class="sort" data-sort="addressWallet">Wallet Address</th>
-                                    <th class="sort" data-sort="addressPaymentId">Payment ID</th>
-                                </tr>
-                            </thead>
-                              <tbody class="list">
-                                <tr title="click for detail..." class="addressbook-item" 
-                                    data-hash="fake-hash"
-                                     data-nameval="x" 
-                                     data-walletval="x" 
-                                    data-paymentidval="x"
-                                    data-qrcodeval="x">
-                                  <td class="addressName"></td>
-                                  <td class="addressWallet"></td>
-                                  <td class="addressPaymentId"></td>
-                                </tr>
-                              </tbody>
-                            </table>
-                            </div>
-                            <ul class="pagination"></ul>
-                          </div>
-                    </div>
-                </div>
+  <section class="section" id="section-addressbook">
+    <div class="section-contents">
+      <div class="div-title">
+        <h2 class="title">Address Book</h2>
+      </div>
+      <div class="div-addressbook-input default-inputs">
+        <div class="scroll-list-wrap addressbook-list list-tables">
+          <div id="addressbooks">
+            <input tabindex="0" class="text-block search noenter" placeholder="Search by name, wallet address or payment id" />
+            <div class="address-table-wrapper">
+              <table class="custom-table addressbook-table" id="addressbook-table">
+                <thead>
+                  <tr>
+                    <th class="sort" data-sort="addressName">Name</th>
+                    <th class="sort" data-sort="addressWallet">Wallet Address</th>
+                    <th class="sort" data-sort="addressPaymentId">Payment ID</th>
+                  </tr>
+                </thead>
+                <tbody class="list">
+                  <tr title="click for detail..." class="addressbook-item" 
+                    data-hash="fake-hash"
+                    data-nameval="x" 
+                    data-walletval="x" 
+                    data-paymentidval="x"
+                    data-qrcodeval="x">
 
-                <!-- <div class="input-wrap button-wrap" style="margin-top: 0;"> -->
-                <div class="action-buttons">
-                    <button type="button" class="form-bt button-green" data-section="section-addressbook-add">Add New Entry</button>
-                    <button type="button" class="form-bt button-red" data-section="section-overview">Back</button>
-                </div>
+                    <td class="addressName"></td>
+                    <td class="addressWallet"></td>
+                    <td class="addressPaymentId"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
+            <p/>
+            <div style="display:flex; flex-direction: row; justify-content: center; align-items: center">
+              <button type="button" class="form-bt button-green" data-section="section-addressbook-add">Add New Entry</button>
+              <button type="button" class="form-bt button-red" data-section="section-overview">Back</button>
+
+              <ul class="pagination"></ul>
+            </div>
+
+          </div>
         </div>
-    </section>
+
+        <!-- div class="input-wrap button-wrap" style="margin-top: 0;">
+          <button type="button" class="form-bt button-green" data-section="section-addressbook-add">Add New Entry</button>
+          <button type="button" class="form-bt button-red" data-section="section-overview">Back</button>
+        </div -->
+
+      </div>
+
+    </div>
+  </section>
 </template>
+

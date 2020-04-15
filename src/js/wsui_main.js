@@ -859,14 +859,16 @@ function handleAddressBook(){
                  }
              }
          });
-     
+    
+         let badEntry = false; 
          let editBtn = document.getElementById('button-addressbook-panel-edit');
-         editBtn.addEventListener('click', ()=>{
+         editBtn.addEventListener('click', ()=> {
              let origHash = this.dataset.hash;
              let entry = abook.get(origHash);
-             if(!entry){
-                 iqwerty.toast.Toast("Invalid address book entry.", {settings: {duration:1800}});
-             }else{
+             if(!entry) {
+               badEntry = true;
+               iqwerty.toast.Toast("Invalid address book entry.", {settings: {duration:1800}});
+             } else {
                  const nameField = document.getElementById('input-addressbook-name');
                  const walletField = document.getElementById('input-addressbook-wallet');
                  const payidField = document.getElementById('input-addressbook-paymentid');
@@ -876,11 +878,19 @@ function handleAddressBook(){
                  walletField.value = entry.address;
                  payidField.value = entry.paymentId;
                  updateField.value = 1;
+
+                 if (walletField.value.length <= 0) {
+                   badEntry = true;
+                   iqwerty.toast.Toast("Invalid address book entry.", {settings: {duration:1800}});
+                 }
              }
-             changeSection('section-addressbook-add');
-             let axdialog = document.getElementById('ab-dialog');
-             axdialog.close();
-             wsutil.clearChild(axdialog);
+
+             if (! badEntry) {
+               changeSection('section-addressbook-add');
+               let axdialog = document.getElementById('ab-dialog');
+               axdialog.close();
+               wsutil.clearChild(axdialog);
+             }
          });
      }
 

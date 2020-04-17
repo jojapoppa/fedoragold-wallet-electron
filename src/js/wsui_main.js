@@ -1517,7 +1517,9 @@ function handleMiner(){
     let mport = miningPort.value;
 
     if (miningState) {
-      last8_rigID = 'FED'+crypto.randomBytes(8).toString('hex');
+      last8_rigID = settings.get('rigidval', 'FED'+crypto.randomBytes(8).toString('hex'));
+      settings.set('rigidval', last8_rigID);
+
       let mplat = wsmanager.getPlatform();
       let MINER_FILENAME =  (mplat === 'win32' ? `xmr-stak.exe` : `xmr-stak` );
       let MINER_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));

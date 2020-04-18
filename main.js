@@ -130,6 +130,8 @@ function createWindow () {
         },
     });
 
+    // Tried embedding ..Version ${versionInfo.version} has been.. in the text, but the version # doesn't display
+    //   so, I gave up and just made the message generic...
     win.on('show', () => {
       autoUpdater.autoDownload = true;
       autoUpdater.allowDowngrade = false;
@@ -142,7 +144,7 @@ function createWindow () {
           type: 'question',
           defaultId: 0,
           title: 'FED Update Downloaded and Ready for Install',
-          message: 'A FedoraGold (FED) update is ready to install, Version ${versionInfo.version} has been downloaded and will be automatically installed when you click OK.'
+          message: 'A FedoraGold (FED) update is ready to install, the update has been downloaded and will be automatically installed when you click OK.'
         };
         dialog.showMessageBox(win, dialogOptions, function() {
           ensureSafeQuitAndInstall();

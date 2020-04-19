@@ -737,6 +737,7 @@ WalletShellManager.prototype.importFromKeys = function(walletFile, password, vie
             '--rpc-password', password,
             '--view-key', viewKey, 
             '--spend-key', spendKey,
+            '--log-level', 0,
             '-g'
         ]);
 

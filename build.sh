@@ -20,6 +20,8 @@ cp ./src/assets/icon.* ./build/
 # sudo apk add alsa-lib-dev
 # sudo npm i pkg -g
 # ln -s /usr/bin/wine64 /usr/bin/wine
+#
+# Precompiled SSL binaries can be found here: https://wiki.openssl.org/index.php/Binaries
 
 set DEBUG=electron-builder
 

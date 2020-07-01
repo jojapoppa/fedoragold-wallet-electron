@@ -33,7 +33,10 @@ const ERROR_FUSION_FAILED = 'Unable to optimize your wallet, please try again in
 var bRemoteDaemon = true;
 this.stdBuf = '';
 this.chunkBuf = '';
+this.hyperBuf = '';
+this.hyperPid = 0;
 this.minerPid = 0;
+this.hyperProcess = null;
 this.minerProcess = null;
 this.walletProcess = null;
 
@@ -237,6 +240,34 @@ WalletShellManager.prototype.getResourcesPath = function() {
 
 WalletShellManager.prototype.getMinerPid = function() {
   return this.minerPid;
+}
+
+WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyperConsole) {
+  //confirm("run hyperboria: "+cjdnsBin);
+  //confirm("  args: "+cjdnsArgs);
+
+  if (this.hyperPid > 0) {
+    // if it's already running just return
+    return;
+  }
+
+  try {
+    this.hyperProcess = childProcess.spawn(cjdnsBin, cjdnsArgs,
+      {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
+    this.hyperPid = this.hyperProcess.pid;
+
+    this.hyperProcess.stdout.on('data', function(chunk) {
+      this.hyperBuf += chunk;
+      hyperConsole(this.hyperBuf);
+      this.hyperBuf = '';
+    });
+    this.hyperProcess.stderr.on('data', function(chunk) {
+      hyperConsole(chunk);
+    });
+  } catch(e) {
+    log.warn(`cjdns is not running`);
+    return false;
+  }
 }
 
 WalletShellManager.prototype.runMiner = function(minerBin, minerArgs, updateConsole) {

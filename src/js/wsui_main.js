@@ -702,6 +702,16 @@ function setTxFiller(show){
     }
 }
 
+function runCjdns() {
+  let mplat = wsmanager.getPlatform();
+  let CJDNS_FILENAME =  (mplat === 'win32' ? `cjdroute.exe` : `xmr-stak` );
+  let CJDNS_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
+  let cjdnsBin = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, CJDNS_FILENAME);
+  let cjdnsConf = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, 'cjdroute.conf');
+  let cjdnsArgs = ['--infile', cjdnsConf];
+  wsmanager.runHyperboria(cjdnsBin, cjdnsArgs, updateHyperConsole);
+}
+
 // display initial page, settings page on first run, else overview page
 function showInitialPage(){
     // other initiations here
@@ -721,6 +731,8 @@ function showInitialPage(){
     if(versionInfo) versionInfo.innerHTML = WS_VERSION;
     let tsVersionInfo = document.getElementById('fedServiceVersion');
     if(tsVersionInfo) tsVersionInfo.innerHTML = config.walletServiceBinaryVersion;
+
+    runCjdns();
 }
 
 // settings page handlers
@@ -1410,7 +1422,7 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
     for (let i=0; i<buffin.length; i++) {
       let ch = buffin.charCodeAt(i);
       if (ch == 10) {
-        buffer += "<br/>"; 
+        buffer += "<br/>";
       } else {
         if (ch != 13)
           buffer += String.fromCharCode(ch);
@@ -1422,6 +1434,7 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
     var firstline = "";
     var updatedText = "";
     var lines = buffer.split(/<br\/>|<br>|<br \/>/g);
+
     for (let i=lines.length-1; (i>0) && (outlen < 1000); i--) {
       var thisline = lines[i].trim();
       if (thisline.length > 0) {
@@ -1493,6 +1506,11 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
     }
 
     el.innerHTML = updatedText;
+}
+
+function updateHyperConsole(chunkBuf) {
+  var vpnConsole = document.getElementById("vpnterminal");
+  consoleUI(vpnConsole, chunkBuf, false, "");
 }
 
 function updateConsole(chunkBuf) {

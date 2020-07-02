@@ -704,11 +704,12 @@ function setTxFiller(show){
 
 function runCjdns() {
   let mplat = wsmanager.getPlatform();
-  let CJDNS_FILENAME =  (mplat === 'win32' ? `cjdroute.exe` : `xmr-stak` );
+  let CJDNS_FILENAME =  (mplat === 'win32' ? `cjdroute.exe` : `cjdroute` );
   let CJDNS_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
   let cjdnsBin = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, CJDNS_FILENAME);
   let cjdnsConf = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, 'cjdroute.conf');
   let cjdnsArgs = ['--infile', cjdnsConf];
+
   wsmanager.runHyperboria(cjdnsBin, cjdnsArgs, updateHyperConsole);
 }
 

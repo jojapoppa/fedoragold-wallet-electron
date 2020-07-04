@@ -800,6 +800,10 @@ function generateCjdnsCfg() {
     // client access is allowed at the server API if payment ID within last subscription period
     // going price (set by algo) is broadcast into blockchain msgs for clients to see
 
+  // the VPN client fees collected (in FED) go to the Hyperboria backbone org (10%) and the other
+  // 90% is split between the exit nodes, based on their relative responsiveness, providing the
+  // exit nodes with incentive to get the fastest uplinks possible. 
+
   // will need payout algo wthin Waves liquidity pool
     // payment recieved with payment ID, country and date
     // smaller percentage fires off the autotrade on Waves liquidity pool into PKT

@@ -607,13 +607,13 @@ function initSettingVal(values){
         //settings.set('tray_close', values.tray_close);
          
         if (!Number.isInteger(values.cjdnsadmin_port)) {
-          values.cjdnsadmin_port = config.defaultCjdnsAdminPort;
+          values.cjdnsadmin_port = parseInt(config.defaultCjdnsAdminPort);
         }
         if (!Number.isInteger(values.cjdnsudp_port)) {
-          values.cjdnsudp_port = config.defaultCjdnsUdpPort;
+          values.cjdnsudp_port = parseInt(config.defaultCjdnsUDPPort);
         }
         if (!Number.isInteger(values.cjdnsbeacon_port)) {
-          values.cjdnsbeacon_port = config.defaultCjdnsBeaconPort;
+          values.cjdnsbeacon_port = parseInt(config.defaultCjdnsBeaconPort);
         }
 
         settings.set('cjdnsadmin_port', values.cjdnsadmin_port);
@@ -790,11 +790,14 @@ function generateCjdnsCfg() {
     // enter client connections by country (priority by ping speed) for VPN service into json
 
   // will need some sort of price setting algo based on utilization of the exit nodes
-    // each exit node will send summary of utilization data out via blockchain msgs
-    // algo increases price with overutilization and decreases with underutilization 
-    // transaction is generated to liquidity pool address with payment ID
-    // payment ID can be queried to make sure value was sufficient and date is checked
-    // client access is allowed at the server API if payment ID within last month 
+    // liquidity pool will ping locations within all exit nodes to measure responsiveness 
+    //   responsiveness takes into account the country it's happening in
+    //   need a math resistive to small fluctuations (7 day moving average?) 
+    // also, faster exit nodes should be getting more payment, so keep track of each individually 
+    // algo gradually increases price with overutilization and decreases with underutilization 
+    // transaction is generated to send to liquidity pool address with client payment ID
+    // payment ID can be queried to make sure value was sufficient and date is checked at that time
+    // client access is allowed at the server API if payment ID within last subscription period
     // going price (set by algo) is broadcast into blockchain msgs for clients to see
 
   // will need payout algo wthin Waves liquidity pool
@@ -894,23 +897,23 @@ function handleSettings(){
         }
 
         let cjdnsadminPortValue =
-          settingsCjdnsAdminPort.value ? parseInt(settingsCjdnsAdminPort.value.trim(),10) : '';
+          settingsCjdnsAdminPort.value ? parseInt(settingsCjdnsAdminPort.value.trim(),10) :
+            parseInt(config.defaultCjdnsAdminPort);
         let cjdnsUDPPortValue =
-          settingsCjdnsUDPPort.value ? parseInt(settingsCjdnsUDPPort.value.trim(),10) : '';
+          settingsCjdnsUDPPort.value ? parseInt(settingsCjdnsUDPPort.value.trim(),10) :
+            parseInt(config.defaultCjdnsUDPPort);
         let cjdnsBeaconPortValue =
-          settingsCjdnsBeaconPort.value ? parseInt(settingsCjdnsBeaconPort.value.trim(),10) : '';
+          settingsCjdnsBeaconPort.value ? parseInt(settingsCjdnsBeaconPort.value.trim(),10) :
+            parseInt(config.defaultCjdnsBeaconPort);
 
         if(!Number.isInteger(cjdnsadminPortValue)){
-            formMessageSet('settings','error',`Please enter a valid cjdns admin port`);
-            return false;
+          cjdnsadminPortValue = parseInt(config.defaultCjdnsAdminPort);
         }
         if(!Number.isInteger(cjdnsUDPPortValue)){
-            formMessageSet('settings','error',`Please enter a valid cjdns UDP port`);
-            return false;
+          cjdnsUDPPortValue = parseInt(config.defaultCjdnsUDPPort);
         }
         if(!Number.isInteger(cjdnsBeaconPortValue)){
-            formMessageSet('settings','error',`Please enter a valid cjdns beacon port`);
-            return false;
+          cjdnsBeaconPortValue = parseInt(parseInt(config.defaultCjdnsBeaconPort));
         }
 
 //jojapoppa service_bin: serviceBinValue,
@@ -1198,23 +1201,23 @@ function handleWalletOpen(){
         }
 
         let cjdnsadminPortValue =
-            settingsCjdnsAdminPort.value ? parseInt(settingsCjdnsAdminPort.value.trim(),10) : '';
+            settingsCjdnsAdminPort.value ? parseInt(settingsCjdnsAdminPort.value.trim(),10) :
+              parseInt(config.defaultCjdnsAdminPort);
         let cjdnsUDPPortValue =
-            settingsCjdnsUDPPort.value ? parseInt(settingsCjdnsUDPPort.value.trim(),10) : '';
+            settingsCjdnsUDPPort.value ? parseInt(settingsCjdnsUDPPort.value.trim(),10) :
+              parseInt(config.defaultCjdnsUDPPort);
         let cjdnsBeaconPortValue =
-            settingsCjdnsBeaconPort.value ? parseInt(settingsCjdnsBeaconPort.value.trim(),10) : '';
+            settingsCjdnsBeaconPort.value ? parseInt(settingsCjdnsBeaconPort.value.trim(),10) :
+              parseInt(config.defaultCjdnsBeaconPort);
 
         if(!Number.isInteger(cjdnsadminPortValue)){
-            formMessageSet('settings','error',`Please input a valid cjdns admin port`);
-            return false;
+          cjdnsadminPortValue = parseInt(config.defaultCjdnsAdminPort);
         }
         if(!Number.isInteger(cjdnsUDPPortValue)){
-            formMessageSet('settings','error',`Please input a valid cjdns UDP port`);
-            return false;
+          cjdnsUDPPortValue = parseInt(config.defaultCjdnsUDPPort);
         }
         if(!Number.isInteger(cjdnsBeaconPortValue)){
-            formMessageSet('settings','error',`Please input a valid cjdns beacon port`);
-            return false;
+          cjdnsBeaconPortValue = parseInt(config.defaultCjdnsBeaconPort);
         }
 
         let validHost = daemonHostValue === 'localhost' ? true : false;

@@ -1,24 +1,38 @@
 <template>
   <section class="section" id="section-settings">
     <div class="section-contents darkened">
-      <div class="div-settings-input default-inputs">
-                
         <div class="input-wrap">
-          <h4 class="text-spaced input-required">Daemon full node port</h4>
+          <div style="display:flex;">
+          <h4 class="text-spaced input-required" style="white-space:nowrap;valign:center;">Daemon full node port </h4>
           <input tabindex="0" type="number" required="required" data-initial="daemon_port" 
             class="text-block" id="input-settings-daemon-port" 
-            placeholder="Required, port number of the daemon or public node..." 
-          />
-          <span id="daemonPortFormHelp" class="form-help"></span>
-        </div>
-
-        <div class="input-wrap">
-          <h4 class="text-spaced input-required">Fedoragold walletd port</h4>
-          <input tabindex="1" type="number" required="required" data-initial="walletd_port" 
+            placeholder="Required, port number of the daemon or public node..."/>
+          </div>
+          <div style="display:flex;">
+          <h4 class="text-spaced input-required" style="white-space: nowrap">Fedoragold walletd port </h4>
+          <input tabindex="0" type="number" required="required" data-initial="walletd_port" 
             class="text-block" id="input-settings-walletd-port" 
-            placeholder="Required, port number of the local fedoragold walletd..." 
-          />
-          <span  id="walletdPortFormHelp" class="form-help"></span>
+            placeholder="Required, port number of the local fedoragold walletd..."/>
+          </div>
+          <div style="display:flex;">
+          <h4 class="text-spaced input-required" style="white-space: nowrap">Hyperboria admin port </h4>
+          <input tabindex="0" type="number" required="required" data-initial="cjdnsadmin_port" 
+            class="text-block" id="input-settings-cjdnsadmin-port" 
+            placeholder="Required, port number of the local hyperboria/cjdns admin..."/>
+          </div>
+          <div style="display:flex;">
+          <h4 class="text-spaced input-required" style="white-space: nowrap">Hyperboria UDP port </h4>
+          <input tabindex="0" type="number" required="required" data-initial="cjdnsudp_port"
+            class="text-block" id="input-settings-cjdnsudp-port"
+            placeholder="Required, port number of the local hyperboria/cjdns UDP interface..."/>
+          </div>
+          <div style="display:flex;">
+          <h4 class="text-spaced input-required" style="white-space: nowrap">Hyperboria beacon port </h4>
+          <input tabindex="0" type="number" required="required" data-initial="cjdnsbeacon_port"
+            class="text-block" id="input-settings-cjdnsbeacon-port"
+            placeholder="Required, port number of the local hyperboria/cjdns beacon..."/>
+          </div>
+          <span id="walletdPortFormHelp" class="form-help"></span>
         </div>
 
         <div class="input-wrap">
@@ -30,8 +44,6 @@
           <h4 class="text-spaced">Fedoragold Daemon Console</h4>
           <div id="terminal" style="overflow-y: auto; display: flex; flex-direction: column-reverse; height:200px; border:1px solid #FFCC00"></div>
         </div>
-
-      </div>
 
       <p style="line-height:2px" />
       <button  tabindex="0" type="button" class="form-bt button-green" id="button-settings-save">Save</button>

@@ -2,39 +2,47 @@
     <section class="section" id="section-vpn">
         <div class="section-contents darkened"> <!-- float:left; overflow-y: auto; display: flex;-->
             <div class="div-title">
-                <h2 class="title">VPN & Hyperboria Status</h2>
+                <h2 class="title">Hyperboria VPN/SOCKS5: Dark Web Status</h2>
             </div>
             <div class="div-vpn-input default-inputs">
 
                 <div class="input-wrap">
-                  <label class="button-container">
-                    <!--h4 type="button" data-initial="tray_minimize" class="text-spaced button-text">VPN control</h4-->
-                    <!-- input tabindex="0" data-initial="tray_minimize" type="button" id="checkbox-tray-vpn" -->
-                    <button id="checkbox-tray-vpn">Toggle VPN (On/Off)</button>
-                    <!-- span class="checkmark"></span -->
-                  </label>
-                </div>
-                
-                <div class="input-wrap">
-                    <h4 class="text-spaced input-required">VPN socks proxy port</h4>
+                    <h4 class="text-spaced input-required">VPN/Socks5 Exit Node Selection</h4>
                     <select tabindex="1" type="number" required="required" data-initial="vpn_port" 
                         class="text-block" id="input-vpn-walletd-port" size=6> 
                         placeholder="Required, port number for connecting to VPN using socks proxy">
-                      <option value="3333" selected="selected">3333:  3k diff: Low end CPU (~20 H/s - 400 H/s)</option>
-                      <option value="4444">4444:  20k diff: High end CPU / GPU (~400 H/s - 2 kH/s)</option>
-                      <option value="5555">5555:  100k diff: GPU rig (~2 kH/s - 10 kH/s)</option>
-                      <option value="7777">7777:  500k diff: Big GPU farm (~10 kH/s - 50 kH/s)</option>
-                      <option value="8888">8888:  1M diff: Baikal N ASIC</option>
-                      <option value="9999">9999:  8M diff: X3 ASIC / Nicehash / MiningRigRentals</option> 
+                      <option value="Canada" selected="selected">Canada:  (3 nodes)</option>
+                      <option value="Usa">Usa:  (50 nodes)</option>
+                      <option value="Italy">Italy:  (14 nodes)</option>
+                      <option value="Australia">Australia:  (37 nodes)</option>
+                      <option value="Sweden">Sweden:  (5 nodes)</option>
+                      <option value="Singapore">Singapore:  (29 nodes)</option> 
                     </select>
                     <span  id="walletdPortFormHelp" class="form-help"></span>
                 </div>
 
-                <div id="txvpnfiller" class="list-tables">
-                  To monitor your hyperboria status go to: <span class="text-center" style="user-select:all;-webkit-user-select:all" tabindex="3">https://fed.cryptonote.club/#worker_stats</span><br/>
-                  (To min as Admin on Windows: https://www.cnet.com/how-to/always-run-a-program-in-administrator-mode-in-windows-10)
+                <div style="display:flex;">
+                  <label type="button" data-initial="tray_minimize"
+                     class="text-spaced button-text"
+                     style="white-space:nowrap"
+                     >Allow others to use my internet connection as an exit node (and earn FED!) : </label>
+                  <input tabindex="0" data-initial="tray_minimize" type="checkbox" id="checkbox-tray-vpnexitnode">
                 </div>
-                
+
+                <span  id="walletdPortFormHelp" class="form-help"></span>
+
+                <div id="txvpnfiller" class="list-tables">
+                  To test your hyperboria connection: <span class="text-center" style="user-select:all;-webkit-user-select:all" tabindex="3">https://USE_CALEBS_TWITTER_CLONE_SITE</span><br/>
+                </div>
+
+                <div style="display:flex;">
+                  <h4 class="text-spaced input-required"
+                    style="white-space:nowrap;">SOCK5 proxy port for access to Hyperboria </h4>
+                  <input tabindex="0" type="number" required="required" data-initial="sock5_port" 
+                    class="text-block" id="input-settings-sock5-port" 
+                    placeholder="Required, port number of the sock5 proxy..."/>
+                </div>
+
                 <div class="input-wrap">
                     <span class="form-ew form-msg text-spaced-error" id="text-vpn-error"></span>
                     <span class="form-ew form-msg text-spaced-success" id="text-vpn-success"></span>

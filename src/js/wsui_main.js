@@ -62,6 +62,10 @@ let settingsButtonSave;
 let settingsDaemonHostFormHelp;
 let settingsDaemonPortFormHelp;
 let settingsWalletdPortFormHelp;
+let settingsCjdnsAdminPort;
+let settingsCjdnsUDPPort;
+let settingsCjdnsBeaconPort;
+
 // mining page
 let miningStartStop;
 let miningPort;
@@ -158,6 +162,9 @@ function populateElementVars(){
     settingsDaemonHostFormHelp = document.getElementById('daemonHostFormHelp');
     settingsDaemonPortFormHelp = document.getElementById('daemonPortFormHelp');
     settingsWalletdPortFormHelp = document.getElementById('walletdPortFormHelp');
+    settingsCjdnsAdminPort = document.getElementById('input-settings-cjdnsadmin-port');
+    settingsCjdnsUDPPort = document.getElementById('input-settings-cjdnsudp-port');
+    settingsCjdnsBeaconPort = document.getElementById('input-settings-cjdnsudp-port');
 
     // mining page
     miningStartStop = document.getElementById('checkbox-tray-mining');
@@ -598,6 +605,20 @@ function initSettingVal(values){
         settings.set('walletd_port', values.walletd_port);
         //settings.set('tray_minimize', values.tray_minimize);
         //settings.set('tray_close', values.tray_close);
+         
+        if (!Number.isInteger(values.cjdnsadmin_port)) {
+          values.cjdnsadmin_port = config.defaultCjdnsAdminPort;
+        }
+        if (!Number.isInteger(values.cjdnsudp_port)) {
+          values.cjdnsudp_port = config.defaultCjdnsUdpPort;
+        }
+        if (!Number.isInteger(values.cjdnsbeacon_port)) {
+          values.cjdnsbeacon_port = config.defaultCjdnsBeaconPort;
+        }
+
+        settings.set('cjdnsadmin_port', values.cjdnsadmin_port);
+        settings.set('cjdnsudp_port', values.cjdnsudp_port);
+        settings.set('cjdnsbeacon_port', values.cjdnsbeacon_port);
     }
     //settingsInputServiceBin.value = settings.get('service_bin');
     settingsInputDaemonAddress.value = settings.get('daemon_host');
@@ -605,6 +626,9 @@ function initSettingVal(values){
     settingsInputWalletdPort.value = settings.get('walletd_port');
     //settingsInputMinToTray.checked = settings.get('tray_minimize');
     //settingsInputCloseToTray.checked = settings.get('tray_close');
+    settingsCjdnsAdminPort.value = settings.get('cjdnsadmin_port');
+    settingsCjdnsUDPPort.value = settings.get('cjdnsudp_port');
+    settingsCjdnsBeaconPort.value = settings.get('cjdnsbeacon_port');
 
     // if custom node, save it
     let mynode = `${settings.get('daemon_host')}:${settings.get('daemon_port')}`;
@@ -702,6 +726,120 @@ function setTxFiller(show){
     }
 }
 
+var privateKey = '';
+var publicKey = '';
+var ipv6 = '';
+function callMakekeys() {
+
+  let mplat = wsmanager.getPlatform();
+  let MAKEKEYS_FILENAME =  (mplat === 'win32' ? `makekeys.exe` : `makekeys` );
+  let MAKEKEYS_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
+  let makekeysBin = path.join(wsmanager.getResourcesPath(), 'bin', MAKEKEYS_OSDIR, MAKEKEYS_FILENAME);
+
+  const child_exec = require('child_process').execSync;
+  var keys = ":" + child_exec(makekeysBin+' --runonce');
+
+  //log.warn("makekeys: "+keys);
+  let n1 = keys.indexOf(' ');
+  let n2 = keys.indexOf(' ', n1+1);
+
+  privateKey = keys.substr(1, 64);
+  ipv6 = keys.substr(n1+1, 39);
+  publicKey = keys.substr(n2+1, 54);
+}
+
+function callMkPasswd() {
+  let mplat = wsmanager.getPlatform();
+  let MAKEPW_FILENAME =  (mplat === 'win32' ? `mkpasswd.exe` : `mkpasswd` );
+  let MAKEPW_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
+  let makePWBin = path.join(wsmanager.getResourcesPath(), 'bin', MAKEPW_OSDIR, MAKEPW_FILENAME);
+
+  const child_exec = require('child_process').execSync;
+  var pw = child_exec(makePWBin);
+  return pw;
+}
+
+function generateCjdnsCfg() {
+
+  // run all of this every hour? (to pick up new servers)
+
+  // call makekeys cmdline
+  callMakekeys();
+  log.warn("privateKey: "+privateKey+":");
+  log.warn("ipv6: "+ipv6+":");
+  log.warn("publicKeyBase32: "+publicKey+":");
+
+  // gen authorizedPasswords for exit node servers
+    // UI: check exit node checkbox 
+    // call mkpassword cmdline
+    // broadcast server IP, password and country name via blockchain msgs
+    // enter server access passwords into json 
+
+  // exit node server access algo
+    // algo set price is read off of the blockchain msgs 
+    // checks initial access password with separate node process (added DOS protection)
+    // checks payment ID (amount/date) for active accounts
+    // then call mkpassword again to generate a new password (this one not broadcasted)
+    // send new password back to client via API return
+    // add new password to access list in json 
+
+  // gen authorizedPasswords for vpn clients
+    // UI: exit point selection country
+      // each server has an ip address and password from the blockchain msgs
+      // call API to validate payment ID and get 2nd server password (this one not broadcasted)
+    // enter client connections by country (priority by ping speed) for VPN service into json
+
+  // will need some sort of price setting algo based on utilization of the exit nodes
+    // each exit node will send summary of utilization data out via blockchain msgs
+    // algo increases price with overutilization and decreases with underutilization 
+    // transaction is generated to liquidity pool address with payment ID
+    // payment ID can be queried to make sure value was sufficient and date is checked
+    // client access is allowed at the server API if payment ID within last month 
+    // going price (set by algo) is broadcast into blockchain msgs for clients to see
+
+  // will need payout algo wthin Waves liquidity pool
+    // payment recieved with payment ID, country and date
+    // smaller percentage fires off the autotrade on Waves liquidity pool into PKT
+    // larger percentage fires off divided by exit nodes per country
+    // audit trail generated for validation by PKT team
+
+  // call mkpassword cmdline
+  var apiPassword = callMkPasswd(); 
+  log.warn("apiPassword: "+apiPassword);
+
+  // gen UI: adminBindPort
+  // gen UI: UDP Interface Port
+  // gen UI: Beacon Port
+
+  // gen connectTo entries (from cjdns team on subscription)
+  //   may want to house this with liquidity pool API later 
+    // contact
+    // gpg
+    // login
+    // password
+    // peerName
+    // publicKey 
+  
+  // gen router socket interface
+    // type (SocketInterface)
+    // socketFullPath (from native config)
+    // socketAttemptToCreate (1)
+
+  // gen security
+    // setuser (0)
+    // chroot (0) 
+    // nofiles (0)
+    // noforks (1)
+    // seccomp (1)
+    // setupComplete (1)
+
+  // gen logging/logTo (stdout)
+  // gen noBackground (1)
+  // gen pipe
+  // gen version (2)
+
+}
+
 function runCjdns() {
   let mplat = wsmanager.getPlatform();
   let CJDNS_FILENAME =  (mplat === 'win32' ? `cjdroute.exe` : `cjdroute` );
@@ -709,6 +847,9 @@ function runCjdns() {
   let cjdnsBin = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, CJDNS_FILENAME);
   let cjdnsConf = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, 'cjdroute.conf');
   let cjdnsArgs = ['--infile', cjdnsConf];
+
+  let cjdnscfg = generateCjdnsCfg();
+  log.warn("cfg: "+cjdnscfg);
 
   wsmanager.runHyperboria(cjdnsBin, cjdnsArgs, updateHyperConsole);
 }
@@ -744,11 +885,31 @@ function handleSettings(){
         let daemonPortValue = settingsInputDaemonPort.value ? parseInt(settingsInputDaemonPort.value.trim(),10) : '';
         let walletdPortValue = settingsInputWalletdPort.value ? parseInt(settingsInputWalletdPort.value.trim(),10) : '';
         if(!Number.isInteger(daemonPortValue)){
-            formMessageSet('settings','error',`Please enter enter a valid daemon port`);
+            formMessageSet('settings','error',`Please enter a valid daemon port`);
             return false;
         }
         if(!Number.isInteger(walletdPortValue)){
-            formMessageSet('settings','error',`Please enter enter a valid walletd port`);
+            formMessageSet('settings','error',`Please enter a valid walletd port`);
+            return false;
+        }
+
+        let cjdnsadminPortValue =
+          settingsCjdnsAdminPort.value ? parseInt(settingsCjdnsAdminPort.value.trim(),10) : '';
+        let cjdnsUDPPortValue =
+          settingsCjdnsUDPPort.value ? parseInt(settingsCjdnsUDPPort.value.trim(),10) : '';
+        let cjdnsBeaconPortValue =
+          settingsCjdnsBeaconPort.value ? parseInt(settingsCjdnsBeaconPort.value.trim(),10) : '';
+
+        if(!Number.isInteger(cjdnsadminPortValue)){
+            formMessageSet('settings','error',`Please enter a valid cjdns admin port`);
+            return false;
+        }
+        if(!Number.isInteger(cjdnsUDPPortValue)){
+            formMessageSet('settings','error',`Please enter a valid cjdns UDP port`);
+            return false;
+        }
+        if(!Number.isInteger(cjdnsBeaconPortValue)){
+            formMessageSet('settings','error',`Please enter a valid cjdns beacon port`);
             return false;
         }
 
@@ -757,7 +918,10 @@ function handleSettings(){
         let vals = {
             daemon_host: settings.get('daemon_host'),
             daemon_port: daemonPortValue,
-            walletd_port: walletdPortValue
+            walletd_port: walletdPortValue,
+            cjdnsadmin_port: cjdnsadminPortValue,
+            cjdnsudp_port: cjdnsUDPPortValue,
+            cjdnsbeacon_port: cjdnsBeaconPortValue
         };
 
         initSettingVal(vals);
@@ -765,7 +929,7 @@ function handleSettings(){
         initNodeCompletion();
         let goTo = wsession.get('loadedWalletAddress').length ? 'section-overview' : 'section-welcome';
         changeSection(goTo, true);
-        showToast('Settings has been updated.',8000);
+        showToast('Settings have been updated.',8000);
     });
 }
 
@@ -1025,11 +1189,31 @@ function handleWalletOpen(){
         let walletdPortValue = settingsInputWalletdPort.value ? parseInt(settingsInputWalletdPort.value.trim(),10) : '';
 
         if(!daemonHostValue.length || !Number.isInteger(daemonPortValue)){
-            formMessageSet('load','error',`Please enter enter a valid daemon port`);
+            formMessageSet('load','error',`Please input a valid daemon port`);
             return false;
         }
         if(!Number.isInteger(walletdPortValue)){
-            formMessageSet('load','error',`Please enter enter a valid walletd port`);
+            formMessageSet('load','error',`Please input a valid walletd port`);
+            return false;
+        }
+
+        let cjdnsadminPortValue =
+            settingsCjdnsAdminPort.value ? parseInt(settingsCjdnsAdminPort.value.trim(),10) : '';
+        let cjdnsUDPPortValue =
+            settingsCjdnsUDPPort.value ? parseInt(settingsCjdnsUDPPort.value.trim(),10) : '';
+        let cjdnsBeaconPortValue =
+            settingsCjdnsBeaconPort.value ? parseInt(settingsCjdnsBeaconPort.value.trim(),10) : '';
+
+        if(!Number.isInteger(cjdnsadminPortValue)){
+            formMessageSet('settings','error',`Please input a valid cjdns admin port`);
+            return false;
+        }
+        if(!Number.isInteger(cjdnsUDPPortValue)){
+            formMessageSet('settings','error',`Please input a valid cjdns UDP port`);
+            return false;
+        }
+        if(!Number.isInteger(cjdnsBeaconPortValue)){
+            formMessageSet('settings','error',`Please input a valid cjdns beacon port`);
             return false;
         }
 
@@ -1060,7 +1244,10 @@ function handleWalletOpen(){
             walletd_port: walletdPortValue,
             tray_minimize: settings.get('tray_minimize'),
             tray_close: settings.get('tray_close'),
-            top_block: settings.get('top_block')
+            top_block: settings.get('top_block'),
+            cjdnsadmin_port: cjdnsadminPortValue,
+            cjdnsudp_port: cjdnsUDPPortValue,
+            cjdnsbeacon_port: cjdnsBeaconPortValue
         };
         initSettingVal(settingVals);
         initNodeCompletion();

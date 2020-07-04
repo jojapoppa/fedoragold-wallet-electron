@@ -70,6 +70,11 @@ var WalletShellManager = function(){
     this.walletdPassword = settings.get('walletd_password');
     this.walletdHost = settings.get('walletd_host');
     this.walletdPort = settings.get('walletd_port');
+
+    this.cjdnsadminPort = settings.get('cjdnsadmin_port');
+    this.cjdnsudpPort = settings.get('cjdnsudp_port');
+    this.cjdnsbeaconPort = settings.get('cjdnsbeacon_port');
+
     this.serviceArgsDefault = [];
     this.walletConfigDefault = {'rpc-password': settings.get('walletd_password')};
     this.servicePid = null;

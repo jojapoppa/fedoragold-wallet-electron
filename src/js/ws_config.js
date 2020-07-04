@@ -20,8 +20,11 @@ config.daemonBinaryFilename = 'fedoragold_daemon';
 // version on the bundled service (fedoragold_walletd)
 config.walletServiceBinaryVersion = "v0.10.0";
 
-// default port number for your wallet service (e.g. fedoragold_walletd)
+// default port numbers for your wallet service (e.g. fedoragold_walletd)
 config.walletServiceRpcPort = 31876;
+config.defaultCjdnsAdminPort = 11234;
+config.defaultCjdnsUDPPort = 49869;
+config.defaultCjdnsBeaconPort = 64512;
 
 // block explorer url, the [[TX_HASH] will be substituted w/ actual transaction hash
 config.blockExplorerUrl = 'http://explorer.fedoragold.com/gettransaction.php?hash=[[TX_HASH]]';

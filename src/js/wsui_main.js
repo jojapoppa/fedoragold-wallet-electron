@@ -770,21 +770,110 @@ function callMkPasswd() {
   let makePWBin = path.join(wsmanager.getResourcesPath(), 'bin', MAKEPW_OSDIR, MAKEPW_FILENAME);
 
   const child_exec = require('child_process').execSync;
-  var pw = child_exec(makePWBin);
-  return pw;
+  let pw = "" + child_exec(makePWBin);
+  return pw.replace(/(\r\n|\n|\r)/gm, "");
+}
+
+function pipePath() {
+
+  let mplat = wsmanager.getPlatform();
+  let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
+
+  if (OSID === 'win') {
+    return "\x5c\x5c.\x5cpipe\x5ccjdns.pipe"
+  } else if (OSID === 'darwin') {
+    return "/tmp";
+  }
+
+  return "/tmp";
+}
+
+function socketPath() {
+
+  let mplat = wsmanager.getPlatform();
+  let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
+
+  if (OSID === 'win') {
+    return "\x5c\x5c.\x5cpipe\x5ccjdns.sock";
+  } else if (OSID === 'darwin') {
+    return "/var/run/cjdns.sock";
+  }
+        
+  return "/var/run/cjdns.sock";
 }
 
 function generateCjdnsCfg() {
 
-  // run all of this every hour? (to pick up new servers)
-
-  log.warn("socks5 port: "+settingsCjdnsSocks5Port.value);
-
   // call makekeys cmdline
   callMakekeys();
-  log.warn("privateKey: "+privateKey+":");
-  log.warn("ipv6: "+ipv6+":");
-  log.warn("publicKeyBase32: "+publicKey+":");
+
+  var adminbind = "127.0.0.1:"+settings.get('cjdnsadmin_port');
+  var udpbind = "0.0.0.0:"+settings.get('cjdnsudp_port');
+
+  var cjdnsconf = {
+    privateKey: privateKey,
+    publicKey: publicKey,
+    ipv6: ipv6,
+    authorizedPasswords: [
+      {
+        password: callMkPasswd(),
+        user: 'default-login'
+      }
+    ],
+    admin: {
+      bind: adminbind,
+      password: 'NONE'
+    },
+    interfaces: {
+      UDPInterface: [
+      {
+        bind: udpbind,
+        beacon: 2,
+        beaconDevices: ["all"],
+        beaconPort: settings.get("cjdnsbeacon_port"),
+        connectTo: {
+          "45.231.133.188:63319":{
+            contact:"yangm97@gmail.com",
+            gpg:"CC7D230C1C6ED7E2",
+            login:"public",
+            password:"40wr3r9l3l5f2p812mzy5bdd80xjb6k",
+            peerName:"h.sp.yetanothernerd.xyz",
+            publicKey:"9jjq45h13t7fdq2t8tdf59p6cplnv8un35dhmwjf032wmf3340w0.k"
+          }
+        }
+      }
+      ]
+    },
+    router: {
+      supernodes: [],
+      _disabled_interface: {
+        type: "TUNInterface"
+      },
+      interface: {
+        type: "SocketInterface",
+        socketFullPath: socketPath(),
+        socketAttemptToCreate: 1
+      },
+      ipTunnel: {
+        allowedConnections: [],
+        outgoingConnections: []
+      }
+    },
+    security: [
+      { setuser: 0 },
+      { chroot: 0 },
+      { nofiles: 0 },
+      { noforks: 1 },
+      { seccomp: 1 },
+      { setupComplete: 1 }
+    ],
+    logging: {
+      logTo: "stdout"
+    },
+    noBackground: 1,
+    pipe: pipePath(),
+    version: 2
+  };
 
   // gen authorizedPasswords for exit node servers
     // UI: check exit node checkbox 
@@ -833,41 +922,12 @@ function generateCjdnsCfg() {
     // larger percentage fires off divided by exit nodes per country
     // audit trail generated for validation by PKT team
 
-  // call mkpassword cmdline
-  var apiPassword = callMkPasswd(); 
-  log.warn("apiPassword: "+apiPassword);
-
-  // gen UI: adminBindPort
-  // gen UI: UDP Interface Port
-  // gen UI: Beacon Port
-
   // gen connectTo entries (from cjdns team on subscription)
   //   may want to house this with liquidity pool API later 
-    // contact
-    // gpg
-    // login
-    // password
-    // peerName
-    // publicKey 
   
-  // gen router socket interface
-    // type (SocketInterface)
-    // socketFullPath (from native config)
-    // socketAttemptToCreate (1)
+log.warn("socks5 port: "+settingsCjdnsSocks5Port.value);
 
-  // gen security
-    // setuser (0)
-    // chroot (0) 
-    // nofiles (0)
-    // noforks (1)
-    // seccomp (1)
-    // setupComplete (1)
-
-  // gen logging/logTo (stdout)
-  // gen noBackground (1)
-  // gen pipe
-  // gen version (2)
-
+  return JSON.stringify(cjdnsconf);
 }
 
 function runCjdns() {
@@ -877,11 +937,10 @@ function runCjdns() {
   let cjdnsBin = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, CJDNS_FILENAME);
   let cjdnsConf = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, 'cjdroute.conf');
   let cjdnsArgs = ['--infile', cjdnsConf];
+  let cjdnsCfg = generateCjdnsCfg();
+  //log.warn("cfg: "+cjdnsCfg);
 
-  let cjdnscfg = generateCjdnsCfg();
-  log.warn("cfg: "+cjdnscfg);
-
-  wsmanager.runHyperboria(cjdnsBin, cjdnsArgs, updateHyperConsole);
+  wsmanager.runHyperboria(cjdnsBin, cjdnsCfg, updateHyperConsole);
 }
 
 var savePending=false;

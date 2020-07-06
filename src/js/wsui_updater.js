@@ -435,7 +435,8 @@ function updateQr(address){
     }
 }
 
-function resetFormState(){
+function resetFormState(msgData){
+
     const allFormInputs = document.querySelectorAll('.section input,.section textarea');
     if(!allFormInputs) return;
 
@@ -456,11 +457,11 @@ function resetFormState(){
     const settingsBackBtn = document.getElementById('button-settings-back');
     if(wsession.get('serviceReady')){
         connInfoDiv.classList.remove('empty');
-        settingsBackBtn.dataset.section = 'section-welcome';
+        if (settingsBackBtn !== null) settingsBackBtn.dataset.section = 'section-welcome';
     }else{
         connInfoDiv.classList.remove('empty');
         connInfoDiv.classList.add('empty');
-        settingsBackBtn.dataset.section = 'section-overview';
+        if (settingsBackBtn !== null) settingsBackBtn.dataset.section = 'section-overview';
     }
 }
 
@@ -512,7 +513,7 @@ function updateUiState(msg){
             updateQr(msg.data);
             break;
         case 'sectionChanged':
-            if(msg.data) resetFormState(msg.data);
+            if (msg.data) resetFormState(msg.data);
             break;
         case 'fusionStatus':
             notif = 'Optimization pending...';

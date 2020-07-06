@@ -25,6 +25,7 @@ config.walletServiceRpcPort = 31876;
 config.defaultCjdnsAdminPort = 11234;
 config.defaultCjdnsUDPPort = 49869;
 config.defaultCjdnsBeaconPort = 64512;
+config.defaultCjdnsSocks5Port = 1080;
 
 // block explorer url, the [[TX_HASH] will be substituted w/ actual transaction hash
 config.blockExplorerUrl = 'http://explorer.fedoragold.com/gettransaction.php?hash=[[TX_HASH]]';

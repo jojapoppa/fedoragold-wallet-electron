@@ -65,6 +65,7 @@ let settingsWalletdPortFormHelp;
 let settingsCjdnsAdminPort;
 let settingsCjdnsUDPPort;
 let settingsCjdnsBeaconPort;
+let settingsCjdnsSocks5Port;
 
 // mining page
 let miningStartStop;
@@ -162,9 +163,11 @@ function populateElementVars(){
     settingsDaemonHostFormHelp = document.getElementById('daemonHostFormHelp');
     settingsDaemonPortFormHelp = document.getElementById('daemonPortFormHelp');
     settingsWalletdPortFormHelp = document.getElementById('walletdPortFormHelp');
+
     settingsCjdnsAdminPort = document.getElementById('input-settings-cjdnsadmin-port');
     settingsCjdnsUDPPort = document.getElementById('input-settings-cjdnsudp-port');
-    settingsCjdnsBeaconPort = document.getElementById('input-settings-cjdnsudp-port');
+    settingsCjdnsBeaconPort = document.getElementById('input-settings-cjdnsbeacon-port');
+    settingsCjdnsSocks5Port = document.getElementById('input-vpn-cjdnssocks5-port');
 
     // mining page
     miningStartStop = document.getElementById('checkbox-tray-mining');
@@ -482,7 +485,7 @@ function changeSection(sectionId, isSettingRedir) {
         showToast('Opening wallet in progress, please wait...');
         return;
     }
-    
+
     formMessageReset();
     isSettingRedir = isSettingRedir === true ? true : false;
     let targetSection = sectionId.trim();
@@ -508,7 +511,7 @@ function changeSection(sectionId, isSettingRedir) {
     if (isRescan) {
       isSynched = false;
     }
- 
+
     if(needServiceReady.indexOf(targetSection) >=0 && !isServiceReady){
         // no access to wallet, send, tx when no wallet opened
         finalTarget = 'section-welcome';
@@ -547,8 +550,10 @@ function changeSection(sectionId, isSettingRedir) {
     if(activeSection) activeSection.classList.remove('is-shown');
     section.classList.add('is-shown');
     section.dispatchEvent(new Event('click')); // make it focusable
+
     // show msg when needed
     if(toastMsg.length && !isSettingRedir && !untoast) showToast(toastMsg);
+
     // notify section was changed
     let currentButton = document.querySelector(`button[data-section="${finalButtonTarget}"]`);
     if(currentButton){
@@ -605,21 +610,30 @@ function initSettingVal(values){
         settings.set('walletd_port', values.walletd_port);
         //settings.set('tray_minimize', values.tray_minimize);
         //settings.set('tray_close', values.tray_close);
-         
+
         if (!Number.isInteger(values.cjdnsadmin_port)) {
           values.cjdnsadmin_port = parseInt(config.defaultCjdnsAdminPort);
+          settingsCjdnsAdminPort.value = config.defaultCjdnsAdminPort;
         }
         if (!Number.isInteger(values.cjdnsudp_port)) {
           values.cjdnsudp_port = parseInt(config.defaultCjdnsUDPPort);
+          settingsCjdnsUDPPort.value = config.defaultCjdnsUDPPort;
         }
         if (!Number.isInteger(values.cjdnsbeacon_port)) {
           values.cjdnsbeacon_port = parseInt(config.defaultCjdnsBeaconPort);
+          settingsCjdnsBeaconPort.value = config.defaultCjdnsBeaconPort;
+        }
+        if (!Number.isInteger(values.cjdnssocks5_port)) {
+          values.cjdnssocks5_port = parseInt(config.defaultCjdnsSocks5Port);
+          settingsCjdnsSocks5Port.value = config.defaultCjdnsSocks5Port;
         }
 
         settings.set('cjdnsadmin_port', values.cjdnsadmin_port);
         settings.set('cjdnsudp_port', values.cjdnsudp_port);
         settings.set('cjdnsbeacon_port', values.cjdnsbeacon_port);
+        settings.set('cjdnssocks5_port', values.cjdnssocks5_port);
     }
+
     //settingsInputServiceBin.value = settings.get('service_bin');
     settingsInputDaemonAddress.value = settings.get('daemon_host');
     settingsInputDaemonPort.value = settings.get('daemon_port');
@@ -629,6 +643,7 @@ function initSettingVal(values){
     settingsCjdnsAdminPort.value = settings.get('cjdnsadmin_port');
     settingsCjdnsUDPPort.value = settings.get('cjdnsudp_port');
     settingsCjdnsBeaconPort.value = settings.get('cjdnsbeacon_port');
+    settingsCjdnsSocks5Port.value = settings.get('cjdnssocks5_port');
 
     // if custom node, save it
     let mynode = `${settings.get('daemon_host')}:${settings.get('daemon_port')}`;
@@ -763,6 +778,8 @@ function generateCjdnsCfg() {
 
   // run all of this every hour? (to pick up new servers)
 
+  log.warn("socks5 port: "+settingsCjdnsSocks5Port.value);
+
   // call makekeys cmdline
   callMakekeys();
   log.warn("privateKey: "+privateKey+":");
@@ -800,9 +817,15 @@ function generateCjdnsCfg() {
     // client access is allowed at the server API if payment ID within last subscription period
     // going price (set by algo) is broadcast into blockchain msgs for clients to see
 
+  // to measure responsiveness, need to make sure that the uplink actually does work to be
+  // included in the calculations... discard outliers...
+
   // the VPN client fees collected (in FED) go to the Hyperboria backbone org (10%) and the other
-  // 90% is split between the exit nodes, based on their relative responsiveness, providing the
+  // 85% is split between the exit nodes, based on their relative responsiveness, providing the
   // exit nodes with incentive to get the fastest uplinks possible. 
+  // about 5% of the fees should go into a FED project team account, to be used to fund
+  // FED projects (but based on voting like within Bitshares) 
+  // calculations happen per country (as people select the exit node country they want) 
 
   // will need payout algo wthin Waves liquidity pool
     // payment recieved with payment ID, country and date
@@ -861,32 +884,8 @@ function runCjdns() {
   wsmanager.runHyperboria(cjdnsBin, cjdnsArgs, updateHyperConsole);
 }
 
-// display initial page, settings page on first run, else overview page
-function showInitialPage(){
-    // other initiations here
-    formMessageReset();
-    initSettingVal(); // initial settings value
-    initNodeCompletion(); // initial public node completion list
-    initAddressCompletion();
-
-    if(!settings.has('firstRun') || settings.get('firstRun') !== 0){
-        changeSection('section-welcome'); //settings');
-        settings.set('firstRun', 0);
-    }else{
-        changeSection('section-welcome');
-    }
-
-    let versionInfo = document.getElementById('walletShellVersion');
-    if(versionInfo) versionInfo.innerHTML = WS_VERSION;
-    let tsVersionInfo = document.getElementById('fedServiceVersion');
-    if(tsVersionInfo) tsVersionInfo.innerHTML = config.walletServiceBinaryVersion;
-
-    runCjdns();
-}
-
-// settings page handlers
-function handleSettings(){
-    settingsButtonSave.addEventListener('click', function(){
+var savePending=false;
+function saveSettings() {
         formMessageReset();
    
         let daemonPortValue = settingsInputDaemonPort.value ? parseInt(settingsInputDaemonPort.value.trim(),10) : '';
@@ -909,6 +908,9 @@ function handleSettings(){
         let cjdnsBeaconPortValue =
           settingsCjdnsBeaconPort.value ? parseInt(settingsCjdnsBeaconPort.value.trim(),10) :
             parseInt(config.defaultCjdnsBeaconPort);
+        let cjdnsSocks5PortValue =
+          settingsCjdnsSocks5Port.value ? parseInt(settingsCjdnsSocks5Port.value.trim(),10) :
+            parseInt(config.defaultCjdnsSocks5Port);
 
         if(!Number.isInteger(cjdnsadminPortValue)){
           cjdnsadminPortValue = parseInt(config.defaultCjdnsAdminPort);
@@ -919,6 +921,9 @@ function handleSettings(){
         if(!Number.isInteger(cjdnsBeaconPortValue)){
           cjdnsBeaconPortValue = parseInt(parseInt(config.defaultCjdnsBeaconPort));
         }
+        if(!Number.isInteger(cjdnsSocks5PortValue)){
+          cjdnsSocks5PortValue = parseInt(parseInt(config.defaultCjdnsSocks5Port));
+        }
 
 //jojapoppa service_bin: serviceBinValue,
 //jojapoppa settings.get('daemon_port'),
@@ -928,16 +933,67 @@ function handleSettings(){
             walletd_port: walletdPortValue,
             cjdnsadmin_port: cjdnsadminPortValue,
             cjdnsudp_port: cjdnsUDPPortValue,
-            cjdnsbeacon_port: cjdnsBeaconPortValue
+            cjdnsbeacon_port: cjdnsBeaconPortValue,
+            cjdnssocks5_port: cjdnsSocks5PortValue
         };
 
         initSettingVal(vals);
         formMessageReset();
         initNodeCompletion();
-        let goTo = wsession.get('loadedWalletAddress').length ? 'section-overview' : 'section-welcome';
-        changeSection(goTo, true);
         showToast('Settings have been updated.',8000);
-    });
+        savePending = false;
+}
+
+function showInitialPage(){
+     // other initiations here
+     formMessageReset();
+ 
+     if (!settingsCjdnsAdminPort.value) {
+       settingsCjdnsAdminPort.value = config.defaultCjdnsAdminPort;
+     }
+     if (!settingsCjdnsUDPPort.value) {
+       settingsCjdnsUDPPort.value = config.defaultCjdnsUDPPort;
+     }
+     if (!settingsCjdnsBeaconPort.value) {
+       settingsCjdnsBeaconPort.value = config.defaultCjdnsBeaconPort;
+     }
+     if (!settingsCjdnsSocks5Port.value) {
+       settingsCjdnsSocks5Port.value = config.defaultCjdnsSocks5Port;
+     }
+ 
+     initSettingVal(); // initial settings value
+     initNodeCompletion(); // initial public node completion list
+     initAddressCompletion();
+     let versionInfo = document.getElementById('walletShellVersion');
+     if(versionInfo) versionInfo.innerHTML = WS_VERSION;
+     let tsVersionInfo = document.getElementById('fedServiceVersion');
+     if(tsVersionInfo) tsVersionInfo.innerHTML = config.walletServiceBinaryVersion;
+    
+     if(!settings.has('firstRun') || settings.get('firstRun') !== 0) {
+       changeSection('section-welcome'); 
+       settings.set('firstRun', 0);
+     } else {
+       let goTo = wsession.get('loadedWalletAddress').length ? 'section-overview' : 'section-welcome';
+       changeSection(goTo, false);
+     }
+
+     runCjdns();
+}
+
+function triggerSave() {
+  if (!savePending) {
+    savePending = true;
+    setTimeout(saveSettings, 1000); // wait 1 second
+  }
+}
+
+function handleSettings() {
+  settingsInputDaemonPort.addEventListener('click', function() { triggerSave(); });
+  settingsInputWalletdPort.addEventListener('click', function() { triggerSave(); });
+  settingsCjdnsAdminPort.addEventListener('click', function() { triggerSave(); });
+  settingsCjdnsUDPPort.addEventListener('click', function() { triggerSave(); });
+  settingsCjdnsBeaconPort.addEventListener('click', function() { triggerSave(); });
+  settingsCjdnsSocks5Port.addEventListener('click', function() { triggerSave(); });
 }
 
 function handleAddressBook(){
@@ -1213,6 +1269,9 @@ function handleWalletOpen(){
         let cjdnsBeaconPortValue =
             settingsCjdnsBeaconPort.value ? parseInt(settingsCjdnsBeaconPort.value.trim(),10) :
               parseInt(config.defaultCjdnsBeaconPort);
+        let cjdnsSocks5PortValue =
+            settingsCjdnsSocks5Port.value ? parseInt(settingsCjdnsSocks5Port.value.trim(),10) :
+              parseInt(config.defaultCjdnsSocks5Port);
 
         if(!Number.isInteger(cjdnsadminPortValue)){
           cjdnsadminPortValue = parseInt(config.defaultCjdnsAdminPort);
@@ -1222,6 +1281,9 @@ function handleWalletOpen(){
         }
         if(!Number.isInteger(cjdnsBeaconPortValue)){
           cjdnsBeaconPortValue = parseInt(config.defaultCjdnsBeaconPort);
+        }
+        if(!Number.isInteger(cjdnsSocks5PortValue)){
+          cjdnsSocks5PortValue = parseInt(config.defaultCjdnsSocks5Port); 
         }
 
         let validHost = daemonHostValue === 'localhost' ? true : false;
@@ -1254,7 +1316,8 @@ function handleWalletOpen(){
             top_block: settings.get('top_block'),
             cjdnsadmin_port: cjdnsadminPortValue,
             cjdnsudp_port: cjdnsUDPPortValue,
-            cjdnsbeacon_port: cjdnsBeaconPortValue
+            cjdnsbeacon_port: cjdnsBeaconPortValue,
+            cjdnssocks5_port: cjdnsSocks5PortValue
         };
         initSettingVal(settingVals);
         initNodeCompletion();

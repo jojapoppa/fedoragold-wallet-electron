@@ -1,15 +1,11 @@
 <template>
     <section class="section" id="section-vpn">
-        <div class="section-contents darkened"> <!-- float:left; overflow-y: auto; display: flex;-->
-            <div class="div-title">
-                <h2 class="title">Hyperboria VPN/SOCKS5: Dark Web Status</h2>
-            </div>
-            <div class="div-vpn-input default-inputs">
-
+        <div class="section-contents darkened">
+                <h3 class="title">Hyperboria VPN/SOCKS5: Dark Web Status</h3>
                 <div class="input-wrap">
                     <h4 class="text-spaced input-required">VPN/Socks5 Exit Node Selection</h4>
                     <select tabindex="1" type="number" required="required" data-initial="vpn_port" 
-                        class="text-block" id="input-vpn-walletd-port" size=6> 
+                        class="text-block" id="input-vpn-walletd-port" size=6
                         placeholder="Required, port number for connecting to VPN using socks proxy">
                       <option value="Canada" selected="selected">Canada:  (3 nodes)</option>
                       <option value="Usa">Usa:  (50 nodes)</option>
@@ -18,19 +14,23 @@
                       <option value="Sweden">Sweden:  (5 nodes)</option>
                       <option value="Singapore">Singapore:  (29 nodes)</option> 
                     </select>
-                    <span  id="walletdPortFormHelp" class="form-help"></span>
                 </div>
 
-                <div style="display:flex;">
-                  <label type="button" data-initial="tray_minimize"
-                     class="text-spaced button-text"
-                     style="white-space:nowrap"
-                     >Allow others to use my internet connection as an exit node (and earn FED!) : </label>
-                  <input tabindex="0" data-initial="tray_minimize" type="checkbox" id="checkbox-tray-vpnexitnode">
+                <!-- Placing ths checkbox inside of its label (with the included "." character even) -->
+                <!-- is a workaround for a rather distressing bug in the mac osx layout manager. -->
+                <div class="text-block" style="display:flex;border:1px solid gray;">
+                  <div>
+                    <input tabindex="0" data-initial="tray_exitnode" type="checkbox" 
+                      style="transform:scale(2);vertical-align:middle;"
+                      id="checkbox-tray-vpnexitnode"/>
+                  </div>
+                  <label for="checkbox-tray-vpnexitnode" class="checkbox-label" style="white-space:nowrap;">
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    Earn FED by allowing others to use your internet connection as an exit node
+                  </label>
                 </div>
 
                 <span  id="walletdPortFormHelp" class="form-help"></span>
-
                 <div id="txvpnfiller" class="list-tables">
                   To test your hyperboria connection: <span class="text-center" style="user-select:all;-webkit-user-select:all" tabindex="3">https://USE_CALEBS_TWITTER_CLONE_SITE</span><br/>
                 </div>
@@ -43,16 +43,8 @@
                     placeholder="Required, port number of the socks5 proxy..." value="1080"/>
                 </div>
 
-                <div class="input-wrap">
-                    <span class="form-ew form-msg text-spaced-error" id="text-vpn-error"></span>
-                    <span class="form-ew form-msg text-spaced-success" id="text-vpn-success"></span>
-                </div>
-
-                <div class="input-wrap">
-                  <h4 class="text-spaced">Fedoragold Hyperboria Console</h4>
-                  <div id="vpnterminal" style="overflow-y: auto; display: flex; flex-direction: column-reverse; height:150px; border:1px solid #FFCC00"></div>
-                </div>
-            </div>
+                <h4 class="text-spaced">Fedoragold Hyperboria Console</h4>
+                <div id="vpnterminal" style="overflow-y: auto; display: flex; flex-direction: column-reverse; height:150px; border:1px solid #FFCC00"></div>
         </div>
     </section>
 </template>

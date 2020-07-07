@@ -258,8 +258,6 @@ WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyper
 
   try {
     this.hyperProcess = childProcess.spawn(cjdnsBin);
-//          , '',
-//      {detached: false, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
     this.hyperPid = this.hyperProcess.pid;
 
     this.hyperProcess.stdout.on('data', function(chunk) {

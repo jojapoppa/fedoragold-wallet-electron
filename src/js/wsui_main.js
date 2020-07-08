@@ -613,19 +613,15 @@ function initSettingVal(values){
 
         if (!Number.isInteger(values.cjdnsadmin_port)) {
           values.cjdnsadmin_port = parseInt(config.defaultCjdnsAdminPort);
-          settingsCjdnsAdminPort.value = config.defaultCjdnsAdminPort;
         }
         if (!Number.isInteger(values.cjdnsudp_port)) {
           values.cjdnsudp_port = parseInt(config.defaultCjdnsUDPPort);
-          settingsCjdnsUDPPort.value = config.defaultCjdnsUDPPort;
         }
         if (!Number.isInteger(values.cjdnsbeacon_port)) {
           values.cjdnsbeacon_port = parseInt(config.defaultCjdnsBeaconPort);
-          settingsCjdnsBeaconPort.value = config.defaultCjdnsBeaconPort;
         }
         if (!Number.isInteger(values.cjdnssocks5_port)) {
           values.cjdnssocks5_port = parseInt(config.defaultCjdnsSocks5Port);
-          settingsCjdnsSocks5Port.value = config.defaultCjdnsSocks5Port;
         }
 
         settings.set('cjdnsadmin_port', values.cjdnsadmin_port);
@@ -750,11 +746,13 @@ function callMakekeys() {
   let MAKEKEYS_FILENAME =  (mplat === 'win32' ? `makekeys.exe` : `makekeys` );
   let MAKEKEYS_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
   let makekeysBin = path.join(wsmanager.getResourcesPath(), 'bin', MAKEKEYS_OSDIR, MAKEKEYS_FILENAME);
+  makekeysBin = "\"" + makekeysBin + "\"" + " --runonce";
 
-  const child_exec = require('child_process').execSync;
-  var keys = ":" + child_exec(makekeysBin+' --runonce');
+  //log.warn("makekeys path:"+makekeysBin);
+  const exec = require('child_process').execSync;
+  var keys = ":" + exec(makekeysBin); //, ['--runonce']);
 
-  //log.warn("makekeys: "+keys);
+  //log.warn("makekeys results: "+keys);
   let n1 = keys.indexOf(' ');
   let n2 = keys.indexOf(' ', n1+1);
 
@@ -768,9 +766,10 @@ function callMkPasswd() {
   let MAKEPW_FILENAME =  (mplat === 'win32' ? `mkpasswd.exe` : `mkpasswd` );
   let MAKEPW_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
   let makePWBin = path.join(wsmanager.getResourcesPath(), 'bin', MAKEPW_OSDIR, MAKEPW_FILENAME);
+  makePWBin = "\"" + makePWBin + "\"";
 
-  const child_exec = require('child_process').execSync;
-  let pw = "" + child_exec(makePWBin);
+  const exec = require('child_process').execSync;
+  let pw = "" + exec(makePWBin);
   return pw.replace(/(\r\n|\n|\r)/gm, "");
 }
 
@@ -1006,7 +1005,8 @@ function saveSettings() {
 function showInitialPage(){
      // other initiations here
      formMessageReset();
- 
+
+/*
      if (!settingsCjdnsAdminPort.value) {
        settingsCjdnsAdminPort.value = config.defaultCjdnsAdminPort;
      }
@@ -1019,15 +1019,17 @@ function showInitialPage(){
      if (!settingsCjdnsSocks5Port.value) {
        settingsCjdnsSocks5Port.value = config.defaultCjdnsSocks5Port;
      }
- 
-     initSettingVal(); // initial settings value
+*/
+
+     initSettingVal(null); // initial settings value
      initNodeCompletion(); // initial public node completion list
      initAddressCompletion();
+
      let versionInfo = document.getElementById('walletShellVersion');
      if(versionInfo) versionInfo.innerHTML = WS_VERSION;
      let tsVersionInfo = document.getElementById('fedServiceVersion');
      if(tsVersionInfo) tsVersionInfo.innerHTML = config.walletServiceBinaryVersion;
-    
+
      if(!settings.has('firstRun') || settings.get('firstRun') !== 0) {
        changeSection('section-welcome'); 
        settings.set('firstRun', 0);

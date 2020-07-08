@@ -939,6 +939,8 @@ function runCjdns() {
   let cjdnsCfg = generateCjdnsCfg();
   //log.warn("cfg: "+cjdnsCfg);
 
+  log.warn("hyperboria path: "+cjdnsBin);
+
   wsmanager.runHyperboria(cjdnsBin, cjdnsCfg, updateHyperConsole);
 }
 

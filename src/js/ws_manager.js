@@ -281,7 +281,7 @@ WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyper
 WalletShellManager.prototype.runMiner = function(minerBin, minerArgs, updateConsole) {
 
   //confirm("run miner args: "+minerArgs);
-  //confirm("run miner: "+minerBin);
+  confirm("run miner path: "+minerBin);
 
   //Kill any existing miner process if it is re-run
   if (this.minerPid > 0) {
@@ -391,9 +391,10 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
   }
 
   // Note: the path Must be quoted in order to work properly on all platforms...
-  let runBin = this.serviceBin+' --container-file "'+walletFile+'" --container-password "'+password+
+  let runBin = this.serviceBin.split(' ').join("\\ ");
+  runBin = runBin+' --container-file "'+walletFile+'" --container-password "'+password+
     '" --log-level 0 --address';
-
+   
   this.stdBuf = "";
   let wsm = this;
 
@@ -430,6 +431,9 @@ function logFile(walletFile) {
 }
 
 WalletShellManager.prototype._spawnService = function(walletFile, password, onError, onSuccess, onDelay) {
+
+log.warn("_spawnService: "+walletFile);
+
     if (this.serviceProcess != null) {
       // don't allow it to be spawned twice...
       return;
@@ -469,13 +473,13 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
       bRemoteDaemon = false;
     }
 
-    log.warn("heightVal: "+daemonHeight);
-    log.warn("current block: "+cblock);
-    log.warn("block height: "+tblock);
-    log.warn("priNode: "+priNode);
-    log.warn("secNode: "+secNode);
-    log.warn("daemon address: "+daemonAd);
-    log.warn("daemon port: "+daemonPt);
+//    log.warn("heightVal: "+daemonHeight);
+//    log.warn("current block: "+cblock);
+//    log.warn("block height: "+tblock);
+//    log.warn("priNode: "+priNode);
+//    log.warn("secNode: "+secNode);
+//    log.warn("daemon address: "+daemonAd);
+//    log.warn("daemon port: "+daemonPt);
 
     this.serviceApi.setPassword(password);
 
@@ -497,7 +501,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--local',
       ];
 
-      log.warn("integrated daemon mode");
+//      log.warn("integrated daemon mode");
     }
     else {
       serviceArgs = [
@@ -518,7 +522,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
 
     let wsm = this;
     //log.warn("serviceArgs: "+serviceArgs);
-    //confirm(this.serviceBin);
+    log.warn("wallet.serviceBin path: "+wsm.serviceBin);
     //confirm("args: "+serviceArgs);
 
     try{

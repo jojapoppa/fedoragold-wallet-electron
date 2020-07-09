@@ -775,7 +775,11 @@ function callMkPasswd() {
   makePWBin = "\"" + makePWBin + "\"";
 
   let pw = "" + childproc.execSync(makePWBin);
-  return pw.replace(/(\r\n|\n|\r)/gm, "");
+  pw = pw.replace(/(\r\n|\n|\r)/gm, "");
+
+  log.warn("admin password is: "+pw);
+
+  return pw;
 }
 
 function pipePath() {
@@ -826,7 +830,7 @@ function generateCjdnsCfg() {
     ],
     admin: {
       bind: adminbind,
-      password: 'NONE'
+      password: callMkPasswd()
     },
     interfaces: {
       UDPInterface: [

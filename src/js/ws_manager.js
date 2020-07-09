@@ -281,7 +281,7 @@ WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyper
 WalletShellManager.prototype.runMiner = function(minerBin, minerArgs, updateConsole) {
 
   //confirm("run miner args: "+minerArgs);
-  confirm("run miner path: "+minerBin);
+  //confirm("run miner path: "+minerBin);
 
   //Kill any existing miner process if it is re-run
   if (this.minerPid > 0) {
@@ -381,6 +381,7 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
 }
 
 WalletShellManager.prototype.startService = function(walletFile, password, onError, onSuccess, onDelay) {
+
   if (this.syncWorker) this.stopSyncWorker();
   if (null !== this.serviceLastPid) {
     // try to kill last process, in case it was stalled
@@ -394,7 +395,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
   let runBin = this.serviceBin.split(' ').join("\\ ");
   runBin = runBin+' --container-file "'+walletFile+'" --container-password "'+password+
     '" --log-level 0 --address';
-   
+
   this.stdBuf = "";
   let wsm = this;
 

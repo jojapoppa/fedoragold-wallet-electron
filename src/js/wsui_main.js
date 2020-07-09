@@ -7,10 +7,11 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const log = require('electron-log');
-const crypto = require("crypto");
+const crypto = require('crypto');
 
 const {dialog, clipboard, remote, ipcRenderer, shell} = require('electron');
 const Store = require('electron-store');
+const childproc = require('child_process');
 const Mousetrap = require('./extras/mousetrap.min.js');
 const autoComplete = require('./extras/auto-complete');
 const wsutil = require('./ws_utils');
@@ -749,16 +750,21 @@ function callMakekeys() {
   makekeysBin = "\"" + makekeysBin + "\"" + " --runonce";
 
   //log.warn("makekeys path:"+makekeysBin);
-  const exec = require('child_process').execSync;
-  var keys = ":" + exec(makekeysBin); //, ['--runonce']);
+  let keysmade = childproc.execSync(makekeysBin).toString();
 
-  //log.warn("makekeys results: "+keys);
-  let n1 = keys.indexOf(' ');
-  let n2 = keys.indexOf(' ', n1+1);
+  //log.warn("makekeys results: "+keysmade);
 
-  privateKey = keys.substr(1, 64);
-  ipv6 = keys.substr(n1+1, 39);
-  publicKey = keys.substr(n2+1, 54);
+  let privpos = keysmade.indexOf('privateKey: ')+12;
+  let ipv6pos = keysmade.indexOf('ipv6: ')+6;
+  let publpos = keysmade.indexOf('publicKey: ')+11;
+
+  privateKey = keysmade.substr(privpos, 64);
+  ipv6 = keysmade.substr(ipv6pos, 39);
+  publicKey = keysmade.substr(publpos, 54);
+
+  //log.warn("privateKey: "+privateKey);
+  //log.warn("publicKey: "+publicKey);
+  //log.warn("ipv6: "+ipv6);
 }
 
 function callMkPasswd() {
@@ -768,8 +774,7 @@ function callMkPasswd() {
   let makePWBin = path.join(wsmanager.getResourcesPath(), 'bin', MAKEPW_OSDIR, MAKEPW_FILENAME);
   makePWBin = "\"" + makePWBin + "\"";
 
-  const exec = require('child_process').execSync;
-  let pw = "" + exec(makePWBin);
+  let pw = "" + childproc.execSync(makePWBin);
   return pw.replace(/(\r\n|\n|\r)/gm, "");
 }
 
@@ -779,7 +784,7 @@ function pipePath() {
   let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
 
   if (OSID === 'win') {
-    return "\x5c\x5c.\x5cpipe\x5ccjdns.pipe"
+    return "wincjdns.pipe"
   } else if (OSID === 'darwin') {
     return "/tmp";
   }
@@ -793,7 +798,7 @@ function socketPath() {
   let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
 
   if (OSID === 'win') {
-    return "\x5c\x5c.\x5cpipe\x5ccjdns.sock";
+    return "wincjdns.sock";
   } else if (OSID === 'darwin') {
     return "/var/run/cjdns.sock";
   }
@@ -926,7 +931,11 @@ function generateCjdnsCfg() {
   
 log.warn("socks5 port: "+settingsCjdnsSocks5Port.value);
 
-  return JSON.stringify(cjdnsconf);
+  // workaround for the requirement that cjdns has of input with \x5c on Windows
+  let confstr = JSON.stringify(cjdnsconf);
+  confstr = confstr.replace("wincjdns.sock", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns.sock");
+  confstr = confstr.replace("wincjdns.pipe", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns.pipe");
+  return confstr;
 }
 
 function runCjdns() {
@@ -937,9 +946,7 @@ function runCjdns() {
   let cjdnsConf = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, 'cjdroute.conf');
   let cjdnsArgs = ['--infile', cjdnsConf];
   let cjdnsCfg = generateCjdnsCfg();
-  //log.warn("cfg: "+cjdnsCfg);
-
-  log.warn("hyperboria path: "+cjdnsBin);
+  //log.warn("cjdnsCfg: "+cjdnsCfg);
 
   wsmanager.runHyperboria(cjdnsBin, cjdnsCfg, updateHyperConsole);
 }
@@ -987,6 +994,7 @@ function saveSettings() {
 
 //jojapoppa service_bin: serviceBinValue,
 //jojapoppa settings.get('daemon_port'),
+ 
         let vals = {
             daemon_host: settings.get('daemon_host'),
             daemon_port: daemonPortValue,
@@ -1007,21 +1015,6 @@ function saveSettings() {
 function showInitialPage(){
      // other initiations here
      formMessageReset();
-
-/*
-     if (!settingsCjdnsAdminPort.value) {
-       settingsCjdnsAdminPort.value = config.defaultCjdnsAdminPort;
-     }
-     if (!settingsCjdnsUDPPort.value) {
-       settingsCjdnsUDPPort.value = config.defaultCjdnsUDPPort;
-     }
-     if (!settingsCjdnsBeaconPort.value) {
-       settingsCjdnsBeaconPort.value = config.defaultCjdnsBeaconPort;
-     }
-     if (!settingsCjdnsSocks5Port.value) {
-       settingsCjdnsSocks5Port.value = config.defaultCjdnsSocks5Port;
-     }
-*/
 
      initSettingVal(null); // initial settings value
      initNodeCompletion(); // initial public node completion list

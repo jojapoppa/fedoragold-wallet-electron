@@ -67,6 +67,7 @@ let settingsCjdnsAdminPort;
 let settingsCjdnsUDPPort;
 let settingsCjdnsBeaconPort;
 let settingsCjdnsSocks5Port;
+let vpnTerminalLabel;
 
 // mining page
 let miningStartStop;
@@ -169,6 +170,7 @@ function populateElementVars(){
     settingsCjdnsUDPPort = document.getElementById('input-settings-cjdnsudp-port');
     settingsCjdnsBeaconPort = document.getElementById('input-settings-cjdnsbeacon-port');
     settingsCjdnsSocks5Port = document.getElementById('input-vpn-cjdnssocks5-port');
+    vpnTerminalLabel = document.getElementById('vpnterminallabel');
 
     // mining page
     miningStartStop = document.getElementById('checkbox-tray-mining');
@@ -818,19 +820,21 @@ function generateCjdnsCfg() {
   var adminbind = "127.0.0.1:"+settings.get('cjdnsadmin_port');
   var udpbind = "0.0.0.0:"+settings.get('cjdnsudp_port');
 
+  var adminPassword = callMkPasswd();
+
   var cjdnsconf = {
     privateKey: privateKey,
     publicKey: publicKey,
     ipv6: ipv6,
     authorizedPasswords: [
       {
-        password: callMkPasswd(),
+        password: adminPassword,
         user: 'default-login'
       }
     ],
     admin: {
       bind: adminbind,
-      password: callMkPasswd()
+      password: adminPassword 
     },
     interfaces: {
       UDPInterface: [
@@ -942,6 +946,13 @@ log.warn("socks5 port: "+settingsCjdnsSocks5Port.value);
   return confstr;
 }
 
+function escapeHTML(s) { 
+    return s.replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+}
+
 function runCjdns() {
   let mplat = wsmanager.getPlatform();
   let CJDNS_FILENAME =  (mplat === 'win32' ? `cjdroute.exe` : `cjdroute` );
@@ -953,6 +964,7 @@ function runCjdns() {
   //log.warn("cjdnsCfg: "+cjdnsCfg);
 
   wsmanager.runHyperboria(cjdnsBin, cjdnsCfg, updateHyperConsole);
+  vpnTerminalLabel.innerHTML = "Hyperboria Console  (at IPv6  " + escapeHTML(ipv6) + ")";
 }
 
 var savePending=false;

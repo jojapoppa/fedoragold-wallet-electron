@@ -740,51 +740,112 @@ function setTxFiller(show){
     }
 }
 
+var keysReady = false;
+var passwordsReady = false;
+var adminPassword = '';
+var defaultUserPassword = '';
+var makePWProcess = null;
+var newPassword = '';
+function callMkPasswd() {
+  let newPassword = '';
+  let mplat = wsmanager.getPlatform();
+  let MAKEPW_FILENAME =  (mplat === 'win32' ? `mkpasswd.exe` : `mkpasswd` );
+  let MAKEPW_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
+  let makePWBin = path.join(wsmanager.getResourcesPath(), 'bin', MAKEPW_OSDIR, MAKEPW_FILENAME);
+
+  try {
+    makePWProcess = childproc.spawn(makePWBin,
+      {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
+    makePWProcess.stdout.on('data', function(chunk) {
+      newPassword += String(chunk);
+    });
+    makePWProcess.stderr.on('data', function(chunk) {
+      log.warn("mkpasswd error: "+String(chunk));
+    });
+  } catch(e) {
+    log.warn(`mkpasswd is not running`);
+  }
+  makePWProcess.on('error', (err) => {
+    log.warn(`mkpasswd error: ${err.message}`);
+  });
+
+  makePWProcess.on('close', () => {
+    newPassword = newPassword.replace(/(\r\n|\n|\r)/gm, "");
+
+    if (adminPassword === '') {
+      adminPassword = newPassword;
+    } else if (defaultUserPassword == '') {
+      defaultUserPassword = newPassword;
+    }
+  });
+}
+
+async function callMkPasswds() {
+
+  callMkPasswd(); // gen adminPassword
+  callMkPasswd(); // gen defaultUserPassword
+
+  while (adminPassword === '' || defaultUserPassword === '')
+    { await new Promise(r => setTimeout(r, 100)); }
+
+  log.warn("adminPassword: "+adminPassword);
+  log.warn("defaultUserPassword: "+defaultUserPassword);
+  passwordsReady = true;
+}
+
 var privateKey = '';
 var publicKey = '';
 var ipv6 = '';
-function callMakekeys() {
+var keysmade = '';
+var makekeysProcess = null;
+async function callMakekeys() {
 
   let mplat = wsmanager.getPlatform();
   let MAKEKEYS_FILENAME =  (mplat === 'win32' ? `makekeys.exe` : `makekeys` );
   let MAKEKEYS_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
   let makekeysBin = path.join(wsmanager.getResourcesPath(), 'bin', MAKEKEYS_OSDIR, MAKEKEYS_FILENAME);
-  makekeysBin = "\"" + makekeysBin + "\"" + " --runonce";
 
-  //log.warn("makekeys path:"+makekeysBin);
-  let keysmade = childproc.execSync(makekeysBin).toString();
+  log.warn("makekeys call path:"+makekeysBin);
 
-  //log.warn("makekeys results: "+keysmade);
+  try {
+    makekeysProcess = childproc.spawn(makekeysBin, ['--runonce'],
+      {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
+    makekeysProcess.stdout.on('data', function(chunk) {
+      keysmade += String(chunk);
+      log.warn("keysmade: "+keysmade);
+    });
+    makekeysProcess.stderr.on('data', function(chunk) {
+      log.warn("makekeys error: "+String(chunk));
+    });
+  } catch(e) {
+    log.warn(`makekeys is not running`);
+  }
+  makekeysProcess.on('error', (err) => {
+    log.warn(`makekeys error: ${err.message}`);
+  });
 
-  let privpos = keysmade.indexOf('privateKey: ')+12;
-  let ipv6pos = keysmade.indexOf('ipv6: ')+6;
-  let publpos = keysmade.indexOf('publicKey: ')+11;
+  makekeysProcess.on('close', () => {
+    log.warn("on close...: "+keysmade);
+    keysmade = keysmade.replace(/(\r\n|\n|\r)/gm, "");
+    let privpos = keysmade.indexOf('privateKey: ')+12;
+    let ipv6pos = keysmade.indexOf('ipv6: ')+6;
+    let publpos = keysmade.indexOf('publicKey: ')+11;
 
-  privateKey = keysmade.substr(privpos, 64);
-  ipv6 = keysmade.substr(ipv6pos, 39);
-  publicKey = keysmade.substr(publpos, 54);
+    privateKey = keysmade.substr(privpos, 64);
+    ipv6 = keysmade.substr(ipv6pos, 39);
+    publicKey = keysmade.substr(publpos, 54);
 
-  //log.warn("privateKey: "+privateKey);
-  //log.warn("publicKey: "+publicKey);
-  //log.warn("ipv6: "+ipv6);
-}
-
-function callMkPasswd() {
-  let mplat = wsmanager.getPlatform();
-  let MAKEPW_FILENAME =  (mplat === 'win32' ? `mkpasswd.exe` : `mkpasswd` );
-  let MAKEPW_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
-  let makePWBin = path.join(wsmanager.getResourcesPath(), 'bin', MAKEPW_OSDIR, MAKEPW_FILENAME);
-  makePWBin = "\"" + makePWBin + "\"";
-
-  let pw = "" + childproc.execSync(makePWBin);
-  pw = pw.replace(/(\r\n|\n|\r)/gm, "");
-
-  log.warn("admin password is: "+pw);
-
-  return pw;
+    log.warn("privateKey: "+privateKey);
+    log.warn("publicKey: "+publicKey);
+    log.warn("ipv6: "+ipv6);
+    keysReady = true;
+  });
 }
 
 function pipePath() {
+
+  // https://thewebdev.info/2020/03/24/using-the-nodejs-os-modulepart-3/
+  // https://www.tutorialspoint.com/nodejs/nodejs_os_module.htm 
 
   let mplat = wsmanager.getPlatform();
   let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
@@ -800,6 +861,9 @@ function pipePath() {
 
 function socketPath() {
 
+  // https://thewebdev.info/2020/03/24/using-the-nodejs-os-modulepart-3/
+  // https://www.tutorialspoint.com/nodejs/nodejs_os_module.htm
+
   let mplat = wsmanager.getPlatform();
   let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
 
@@ -814,13 +878,10 @@ function socketPath() {
 
 function generateCjdnsCfg() {
 
-  // call makekeys cmdline
-  callMakekeys();
+  log.warn("back from callMakekeys");
 
   var adminbind = "127.0.0.1:"+settings.get('cjdnsadmin_port');
   var udpbind = "0.0.0.0:"+settings.get('cjdnsudp_port');
-
-  var adminPassword = callMkPasswd();
 
   var cjdnsconf = {
     privateKey: privateKey,
@@ -828,7 +889,7 @@ function generateCjdnsCfg() {
     ipv6: ipv6,
     authorizedPasswords: [
       {
-        password: adminPassword,
+        password: defaultUserPassword,
         user: 'default-login'
       }
     ],
@@ -937,31 +998,33 @@ function generateCjdnsCfg() {
   // gen connectTo entries (from cjdns team on subscription)
   //   may want to house this with liquidity pool API later 
   
-log.warn("socks5 port: "+settingsCjdnsSocks5Port.value);
+  log.warn("socks5 port: "+settingsCjdnsSocks5Port.value);
 
   // workaround for the requirement that cjdns has of input with \x5c on Windows
   let confstr = JSON.stringify(cjdnsconf);
-  confstr = confstr.replace("wincjdns.sock", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns.sock");
-  confstr = confstr.replace("wincjdns.pipe", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns.pipe");
+  if (confstr.indexOf("wincjdns") > -1) {
+    confstr = confstr.replace("wincjdns.sock", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns_sock");
+    confstr = confstr.replace("wincjdns.pipe", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns_pipe");
+  }
+
   return confstr;
 }
 
+// .replace(/"/g, '&quot;')
 function escapeHTML(s) { 
     return s.replace(/&/g, '&amp;')
-            .replace(/"/g, '&quot;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
 }
 
-function runCjdns() {
+async function runCjdns() {
+  while (!keysReady || !passwordsReady) { await new Promise(r => setTimeout(r, 150)); }
+
   let mplat = wsmanager.getPlatform();
   let CJDNS_FILENAME =  (mplat === 'win32' ? `cjdroute.exe` : `cjdroute` );
   let CJDNS_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
   let cjdnsBin = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, CJDNS_FILENAME);
-  let cjdnsConf = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, 'cjdroute.conf');
-  let cjdnsArgs = ['--infile', cjdnsConf];
   let cjdnsCfg = generateCjdnsCfg();
-  //log.warn("cjdnsCfg: "+cjdnsCfg);
 
   wsmanager.runHyperboria(cjdnsBin, cjdnsCfg, updateHyperConsole);
   vpnTerminalLabel.innerHTML = "Hyperboria Console  (at IPv6  " + escapeHTML(ipv6) + ")";
@@ -1032,6 +1095,10 @@ function showInitialPage(){
      // other initiations here
      formMessageReset();
 
+     callMakekeys();
+     callMkPasswds();
+     runCjdns();
+
      initSettingVal(null); // initial settings value
      initNodeCompletion(); // initial public node completion list
      initAddressCompletion();
@@ -1048,8 +1115,6 @@ function showInitialPage(){
        let goTo = wsession.get('loadedWalletAddress').length ? 'section-overview' : 'section-welcome';
        changeSection(goTo, false);
      }
-
-     runCjdns();
 }
 
 function triggerSave() {

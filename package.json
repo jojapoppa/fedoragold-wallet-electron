@@ -2,7 +2,7 @@
   "name": "FedoraGoldWallet",
   "productName": "FedoraGoldWallet",
   "description": "FedoraGold (FED) GUI Wallet",
-  "version": "v2.1.1",
+  "version": "v2.1.6",
   "homepage": "https://github.com/jojapoppa/fedoragold-wallet-electron",
   "repository": "https://github.com/jojapoppa/fedoragold-wallet-electron",
   "main": "main.js",
@@ -49,7 +49,7 @@
   },
   "build": {
     "appId": "fed.fedoragold.walletshell",
-    "copyright": "Copyright (c) 2018, 2019 FedoraGold, Rixombea, Macroshock, TurtleCoin Developers",
+    "copyright": "Copyright (c) 2018, 2019, 2020 FedoraGold, Rixombea, Macroshock, TurtleCoin Developers",
     "directories": {
       "output": "dist",
       "buildResources": "build"

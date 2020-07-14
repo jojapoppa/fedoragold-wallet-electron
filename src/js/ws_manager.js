@@ -248,8 +248,7 @@ WalletShellManager.prototype.getMinerPid = function() {
 }
 
 WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyperConsole) {
-  //confirm("run hyperboria: "+cjdnsBin);
-  //confirm("  args: "+cjdnsArgs);
+  log.warn("runHyperboria with args: "+cjdnsArgs);
 
   if (this.hyperPid > 0) {
     // if it's already running just return
@@ -257,6 +256,7 @@ WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyper
   }
 
   try {
+    log.warn("spawning: "+cjdnsBin);
     this.hyperProcess = childProcess.spawn(cjdnsBin);
     this.hyperPid = this.hyperProcess.pid;
 

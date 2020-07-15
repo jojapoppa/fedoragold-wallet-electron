@@ -248,7 +248,7 @@ WalletShellManager.prototype.getMinerPid = function() {
 }
 
 WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyperConsole) {
-  log.warn("runHyperboria with args: "+cjdnsArgs);
+  //log.warn("runHyperboria with args: "+cjdnsArgs);
 
   if (this.hyperPid > 0) {
     // if it's already running just return
@@ -256,7 +256,7 @@ WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyper
   }
 
   try {
-    log.warn("spawning: "+cjdnsBin);
+    //log.warn("spawning: "+cjdnsBin);
     this.hyperProcess = childProcess.spawn(cjdnsBin);
     this.hyperPid = this.hyperProcess.pid;
 
@@ -474,13 +474,13 @@ log.warn("_spawnService: "+walletFile);
       bRemoteDaemon = false;
     }
 
-//    log.warn("heightVal: "+daemonHeight);
-//    log.warn("current block: "+cblock);
-//    log.warn("block height: "+tblock);
-//    log.warn("priNode: "+priNode);
-//    log.warn("secNode: "+secNode);
-//    log.warn("daemon address: "+daemonAd);
-//    log.warn("daemon port: "+daemonPt);
+    log.warn("heightVal: "+daemonHeight);
+    log.warn("current block: "+cblock);
+    log.warn("block height: "+tblock);
+    log.warn("priNode: "+priNode);
+    log.warn("secNode: "+secNode);
+    log.warn("daemon address: "+daemonAd);
+    log.warn("daemon port: "+daemonPt);
 
     this.serviceApi.setPassword(password);
 

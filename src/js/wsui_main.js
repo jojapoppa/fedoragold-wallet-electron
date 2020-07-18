@@ -2322,7 +2322,7 @@ function handleTransactions(){
 
         // This guarantees that we don't have any duplicates in the transaction list...
         for (var i=0; i<txs.length; i++) {
-          log.warn("eval trx: "+txs[i].amount.toString());
+          //log.warn("eval trx: "+txs[i].amount.toString());
           if (TXLIST_OBJ.get('rawHash', txs[i].rawHash).length > 0) {
             TXLIST_OBJ.remove('rawHash', txs[i].rawHash); 
           }

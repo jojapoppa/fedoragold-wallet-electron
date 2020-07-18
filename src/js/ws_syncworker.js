@@ -174,8 +174,20 @@ function sendTransactionsRequest(s_trx_args) {
     var statTxt = JSON.stringify(s_trx_args) + " ret: " + blockItemsLength + " queue: " + queue.length;
     var sitems = { type: 'transactionStatus', data: statTxt };
 
+    var bitemskept = { type: 'transactionUpdated', data: []};
+    Array.from(bitems.data).forEach((bitem) => {
+      bitem.transactions.map((bitemtx) => {
+        if (bitemtx.amount !== 0) {
+          //log.warn("pushing bitem amount: "+bitemtx.amount);
+          bitemskept.data.push(bitem);
+        }
+      });
+    });
+
+    //log.warn(`bitems: ${JSON.stringify(bitemskept)}`);
+
     var prom = new Promise(function(resolve, reject) {
-      process.send(bitems);
+      process.send(bitemskept);
       process.send(sitems);
       resolve(true);
     }).catch(function (err) { 
@@ -185,7 +197,6 @@ function sendTransactionsRequest(s_trx_args) {
 
     // make it easier for memory manager to free up memory after sending to async process...
     bitems = null;
-    sitems = null;
   }, function(err) { 
     if (!queue.includes(s_trx_args)) queue.push(s_trx_args);
     retVal = false; 

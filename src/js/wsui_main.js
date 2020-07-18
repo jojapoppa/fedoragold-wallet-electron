@@ -788,6 +788,7 @@ async function callMkPasswds() {
   while (adminPassword === '' || defaultUserPassword === '')
     { await new Promise(r => setTimeout(r, 100)); }
 
+  log.warn("adminPassword: "+adminPassword);
   passwordsReady = true;
 }
 
@@ -2285,11 +2286,11 @@ function handleTransactions(){
     }
 
     var alreadySorting=false;
-    function runSort() {
+    function runSort(sorder) {
       if (alreadySorting) return;
 
       alreadySorting = true;
-      TXLIST_OBJ.sort('timestamp', {order: 'desc'});
+      TXLIST_OBJ.sort('timestamp', {order: sorder});
       alreadySorting = false;
     }
 
@@ -2297,9 +2298,7 @@ function handleTransactions(){
 
         let txs = wsession.get('txNew');
         let txLen = wsession.get('txLen');
-
         //log.warn('listTransactions Len:', txLen);
-
         if (txLen <= 0) {
             if (TXLIST_OBJ === null || TXLIST_OBJ.size() <= 0) setTxFiller(true);
             return;
@@ -2307,32 +2306,30 @@ function handleTransactions(){
 
         setTxFiller(false);
         let txsPerPage = 25;
-        if(TXLIST_OBJ === null){
-            if(txLen > txsPerPage){
-                txListOpts.page = txsPerPage;
-                txListOpts.pagination = [{
-                    innerWindow: 2,
-                    outerWindow: 1
-                }]; 
-            }
+        if (TXLIST_OBJ === null) {
+          txListOpts.page = txsPerPage;
+          txListOpts.pagination = [{
+            innerWindow: 2,
+            outerWindow: 1
+          }]; 
 
-            TXLIST_OBJ = new List('transaction-lists', txListOpts, txs);
+          TXLIST_OBJ = new List('transaction-lists', txListOpts, txs);
 
-            resetTxSortMark();
-            txButtonSortDate.classList.add('desc');
-            txButtonSortDate.dataset.dir = 'desc';
-        }else{
-            // This guarantees that we don't have any duplicates in the transaction list...
-            for (var i=0; i<txs.length; i++) {
-              if (TXLIST_OBJ.get('rawHash', txs[i].rawHash).length > 0) {
-                TXLIST_OBJ.remove('rawHash', txs[i].rawHash); 
-              }
-            }
-
-            TXLIST_OBJ.add(txs);
+          resetTxSortMark();
+          txButtonSortDate.classList.add('desc');
+          txButtonSortDate.dataset.dir = 'desc';
         }
 
-        setTimeout(()=>{ runSort(); }, 500);
+        // This guarantees that we don't have any duplicates in the transaction list...
+        for (var i=0; i<txs.length; i++) {
+          log.warn("eval trx: "+txs[i].amount.toString());
+          if (TXLIST_OBJ.get('rawHash', txs[i].rawHash).length > 0) {
+            TXLIST_OBJ.remove('rawHash', txs[i].rawHash); 
+          }
+        }
+
+        TXLIST_OBJ.add(txs);
+        setTimeout(()=>{ runSort('desc'); }, 500);
     }
 
     function exportAsCsv(mode){
@@ -2433,7 +2430,7 @@ function handleTransactions(){
     });
 
     txButtonReset.addEventListener('click', () => {
-        var cresult = confirm("Reset your wallet transactions list?");
+        var cresult = confirm("Reset your wallet transactions list? (Takes a long time!)");
         if (cresult == true) {
           wsmanager.reset();
           wipeList();
@@ -2461,10 +2458,10 @@ function handleTransactions(){
 
     // listen to tx update
     txInputUpdated.addEventListener('change', (event) => {
-	let updated = parseInt(event.target.value, 10) === 1;
+        let updated = parseInt(event.target.value, 10) === 1;
         if(!updated) return;
-        txInputUpdated.value = 0;
         listTransactions();
+        txInputUpdated.value = 0;
     });
     // listen to tx notify
     txInputNotify.addEventListener('change', (event)=>{
@@ -2501,9 +2498,7 @@ function handleTransactions(){
         event.target.dataset.dir = targetDir;
         resetTxSortMark();
         event.target.classList.add(targetDir);
-        TXLIST_OBJ.sort('timestamp', {
-            order: targetDir
-        });
+        TXLIST_OBJ.sort('timestamp', {order: targetDir});
     });
 }
 

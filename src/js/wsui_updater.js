@@ -303,12 +303,8 @@ function updateTransactions(blockItems){
                 tx.rawPaymentId = tx.paymentId;
                 tx.rawHash = tx.transactionHash;
 
-                // Shallow copy
-                let newObj = {};
-                newObj = Object.assign(newObj, tx);
-                txListNew.unshift(newObj);
+                txListNew.unshift(Object.assign({}, tx));
               }
-
         });
     });
 
@@ -328,14 +324,14 @@ function updateTransactions(blockItems){
     // Checks if each element is unique
     let existing = txlistExisting.map(el=>el.rawHash);
     let txList = txListNew.filter((e)=>{return !existing.includes(e.rawHash);}); 
-    wsession.set('txNew', txList);
 
     // Records the new records inside the list of existing transactions
     txlistExisting = txList.concat(txlistExisting);
-    wsession.set('txLen', txlistExisting.length);
 
-    // Time must be shorter than the tx update time (3 seconds)
-    setTimeout(triggerTxRefresh, 500);
+    //waitTransactionListUpdate();
+    wsession.set('txNew', txList);
+    wsession.set('txLen', txlistExisting.length);
+    triggerTxRefresh();
 
     // Desktop notification logic begins here...
     let currentDate = new Date();

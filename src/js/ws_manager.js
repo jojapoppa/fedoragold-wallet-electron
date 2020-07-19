@@ -686,8 +686,10 @@ WalletShellManager.prototype.stopSyncWorker = function(){
 
     try{
         this.syncWorker.send({type: 'stop', data: {}});
-        this.syncWorker.kill('SIGTERM');
-        this.syncWorker  = null;
+        setTimeout(function (){
+          this.syncWorker.kill('SIGTERM');
+          this.syncWorker  = null;
+        }, 500);
     }catch(e){
         log.debug(`syncworker already stopped`);
     }

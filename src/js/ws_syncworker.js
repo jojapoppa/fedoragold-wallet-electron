@@ -10,6 +10,7 @@ log.transports.console.level = 'debug';
 log.transports.file.level = 'debug';
 
 const CHECK_INTERVAL = 900; // how often we get info from fedoragold_walletd
+var bSynchedMode = false;
 var heightVal = 0;
 var knownBlockCount = 0;
 var LAST_HEIGHTVAL = 1;
@@ -101,6 +102,12 @@ function checkBlockUpdate(){
             syncPercent = 100;
           }else{
             syncPercent = syncPercent.toFixed(2);
+          }
+
+          if (syncPercent == 100) {
+            bSynchedMode = true;
+          } else {
+            bSynchedMode = false;
           }
 
           blockStatus.displayDaemonHeight = heightVal;
@@ -287,7 +294,7 @@ function updateTransactionsList(startIndexWithMargin, requestNumBlocks) {
 }
 
 function checkTransactionsUpdate(){
-  if(STATE_SAVING || !STATE_CONNECTED || wsapi === null || STATE_PAUSED ) return;
+  if(STATE_SAVING || !STATE_CONNECTED || wsapi === null || STATE_PAUSED || !bSynchedMode ) return false;
 
     if (! STATE_CONNECTED) {
       // walletd's network access to fedoragold_daemon is down...
@@ -385,7 +392,8 @@ function checkHeight() {
 }
 
 function saveWallet(){
-    if(wsapi === null || STATE_PAUSED || !STATE_CONNECTED) return;
+
+    if(wsapi === null || STATE_PAUSED || !STATE_CONNECTED || !bSynchedMode) return false;
     if(STATE_SAVING){
         logDebug('saveWallet: skipped, last save operation still pending');
         return false;

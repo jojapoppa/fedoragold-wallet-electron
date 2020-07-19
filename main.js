@@ -249,19 +249,25 @@ const checkDaemonTimer = setIntervalAsync(() => {
     }
 
     // the x: 0 is a workaround for the ENOMEM bug in nodejs: https://github.com/nodejs/node/issues/29008
+    var procStr = ''; 
     var status = false;
     exec(cmd, {
         maxBuffer: 2000 * 1024,
         env: {x: 0}
     }, function(error, stdout, stderr) {
-        var procStr = stdout.toLowerCase();
-        if (procStr.indexOf('fedoragold_daem') > -1) {
+        procStr = stdout.toString();
+        procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\n\r\t\/]/g, "");
+        procStr = procStr.toLowerCase();
+        //log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr);
+
+        if (procStr.includes('fedoragold_daem')) {
 
           var dloc = procStr.indexOf('fedoragold_daem');
           procStr = procStr.substring(0, dloc);
           var procAry = splitLines(procStr);
           procStr = procAry[procAry.length-1];
           procStr = procStr.trim();
+          //log.warn("detected PID is: "+parseInt(procStr.substr(0, procStr.indexOf(' ')), 10));
 
           if (app.daemonPid === null) {
             app.daemonPid = parseInt(procStr.substr(0, procStr.indexOf(' ')), 10); 
@@ -279,10 +285,11 @@ const checkDaemonTimer = setIntervalAsync(() => {
           app.localDaemonRunning = false;
           app.daemonProcess = null;
           app.daemonPid = null;
+          //log.warn("runDaemon()...");
           runDaemon();
         }
     });
-}, 3000);
+}, 15000);
 
 const checkSyncTimer = setIntervalAsync(() => {
     if (app.localDaemonRunning && (app.daemonPid !== null)) {
@@ -491,6 +498,8 @@ function runDaemon() {
 //      // System should fall back to Internet when cjdns doesn't work, so not fatal
 //    }
 
+    app.chunkBuf = "\n ********Running Daemon from main.js ***********\n";
+
     try {
       return new Promise(function(resolve, reject) {
         // daemon must run detached, otherwise windows will not exit cleanly
@@ -604,6 +613,9 @@ app.on('ready', () => {
     let tx = Math.ceil((bounds.width - DEFAULT_SIZE.width)/2);
     let ty = Math.ceil((bounds.height - (DEFAULT_SIZE.height))/2);
     if(tx > 0 && ty > 0) win.setPosition(parseInt(tx, 10), parseInt(ty,10));
+
+    // run in directly the 1st time so that it boots up quickly 
+    setTimeout(function(){ runDaemon; }, 250);
 });
 
 // Quit when all windows are closed.

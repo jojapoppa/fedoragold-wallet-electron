@@ -255,13 +255,22 @@ const checkDaemonTimer = setIntervalAsync(() => {
         maxBuffer: 2000 * 1024,
         env: {x: 0}
     }, function(error, stdout, stderr) {
+
+        if (error) {
+          log.warn("error testing for daemon: "+error.message.toString());
+          return;
+        } else if (stderr.length > 0) {
+          log.warn("err testing for daemon: "+stderr+" \n");
+          return;
+        }
+
         procStr = stdout.toString();
         procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\n\r\t\/]/g, "");
         procStr = procStr.toLowerCase();
-        //log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr);
+        let daemonAlreadyRunning = procStr.includes('fedoragold_daem');
+        //if (! daemonAlreadyRunning) log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr);
 
-        if (procStr.includes('fedoragold_daem')) {
-
+        if (daemonAlreadyRunning) {
           var dloc = procStr.indexOf('fedoragold_daem');
           procStr = procStr.substring(0, dloc);
           var procAry = splitLines(procStr);
@@ -459,7 +468,7 @@ function runDaemon() {
         return;
     }
 
-    require('events').EventEmitter.prototype._maxListeners = 100;
+    require('events').EventEmitter.prototype._maxListeners = 250;
 
     let daemonArgs = [
       '--rpc-bind-ip', '127.0.0.1',
@@ -470,38 +479,10 @@ function runDaemon() {
 
     // unable to get this mode working yet, but seems to work for Meroex!
     app.integratedDaemon = false;
-
-
-//    try {
-//      return new Promise(function(resolve, reject) {
-//        app.cjdnsProcess = spawn(DEFAULT_CJDNS_BIN, app.cjdnsArgs,
-//          {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
-//        app.cjdnsPid = app.cjdnsProcess.pid;
-//        app.cjdnsProcess.stdout.on('data', function(chunk) {
-
-//          // limit to 1 msg every 1/4 second to avoid overwhelming message bus
-//          app.chunkBuf += chunk;
-//          var newTimeStamp = Math.floor(Date.now());
-//          if ((win !== null) && ((newTimeStamp-app.timeStamp) > 750)) {
-//            app.timeStamp = newTimeStamp;
-//            win.webContents.send('console', app.chunkBuf);
-//            app.chunkBuf = '';
-
-//          }
-//        });
-//        app.cjdnsProcess.stderr.on('data', function(chunk) {
-
-//          if (win!==null) win.webContents.send('console',chunk);
-//        });
-//      });
-//    } catch(e) {
-//      // System should fall back to Internet when cjdns doesn't work, so not fatal
-//    }
-
     app.chunkBuf = "\n ********Running Daemon from main.js ***********\n";
+    var newTimeStamp;
 
     try {
-      return new Promise(function(resolve, reject) {
         // daemon must run detached, otherwise windows will not exit cleanly
         if (! app.integratedDaemon) { 
           app.daemonProcess = spawn(daemonPath, daemonArgs, 
@@ -512,17 +493,17 @@ function runDaemon() {
         app.daemonProcess.stdout.on('data', function(chunk) {
           // limit to 1 msg every 1/4 second to avoid overwhelming message bus
           app.chunkBuf += chunk;
-          var newTimeStamp = Math.floor(Date.now());
-          if ((win !== null) && ((newTimeStamp-app.timeStamp) > 750)) {
+          newTimeStamp = Math.floor(Date.now());
+          if ((win !== null) && ((newTimeStamp-app.timeStamp) > 2500)) {
             app.timeStamp = newTimeStamp;
             win.webContents.send('console', app.chunkBuf);
             app.chunkBuf = '';
           }
         });
         app.daemonProcess.stderr.on('data', function(chunk) {
+          log.warn("fedoragold_daemon error: "+chunk);
           if (win!==null) win.webContents.send('console',chunk);
         });
-      }); 
     } catch(e) {
       log.error(e.message);
     }
@@ -615,7 +596,7 @@ app.on('ready', () => {
     if(tx > 0 && ty > 0) win.setPosition(parseInt(tx, 10), parseInt(ty,10));
 
     // run in directly the 1st time so that it boots up quickly 
-    setTimeout(function(){ runDaemon; }, 250);
+    setTimeout(function(){ runDaemon(); }, 250);
 });
 
 // Quit when all windows are closed.

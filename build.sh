@@ -36,7 +36,7 @@ rm -r bin
 cp -r bin_mac bin
 #export CSC_IDENTITY_AUTO_DISCOVERY=false
 npm config set FedoraGoldWallet:resourcedir ./Resources/bin/mac
-npm run dist-mac --no-bin-link --rollback=false
+npm run dist-mac --no-bin-link --rollback=false --max-old-space-size=4096
 cd dist/mac
 zip -r FedoraGoldWalletMac.zip FedoraGoldWallet.app
 cd ../..

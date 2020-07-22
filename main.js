@@ -281,7 +281,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
           if (app.daemonPid === null) {
             app.daemonPid = parseInt(procStr.substr(0, procStr.indexOf(' ')), 10); 
             var errmsg = "fedoragold_daemon process already running at process ID: "+app.daemonPid;
-            //log.warn(errmsg);
+            log.warn(errmsg);
             app.localDaemonRunning = true;
             if (win!==null) win.webContents.send('console', errmsg);
             /* eslint-disable-next-line no-empty */
@@ -321,6 +321,7 @@ const checkSyncTimer = setIntervalAsync(() => {
           // if the normal 'exit' command didn't work, then just wipe it out...
           if (newTimeStamp - app.timeStamp > 400000) {  // (about 6mins)
             /* eslint-disable-next-line no-empty */
+            log.warn("calling killer to reset daemon");
             try{killer(app.daemonPid,'SIGKILL');}catch(err){}
             app.daemonProcess = null;
             app.daemonPid = null;
@@ -448,7 +449,7 @@ function terminateDaemon() {
         // this offers clean exit on all platforms
         app.daemonProcess.stdin.write("exit\n");
         app.daemonProcess.stdin.end();
-        //log.warn("exit command sent to fedoragold_daemon");
+        log.warn("exit command sent to fedoragold_daemon");
       }
     }catch(e){/*eat any errors, no reporting nor recovery needed...*/}
 }

@@ -16,6 +16,7 @@ const config = require('./src/js/ws_config');
 const spawn = require('child_process').spawn;
 const exec = require('child_process').exec;
 const net = require('net');
+const navigator = require('navigator');
 const { autoUpdater } = require("electron-updater");
 const { setIntervalAsync } = require('set-interval-async/fixed');
 
@@ -221,6 +222,99 @@ const getHttpContent = function(url) {
     })
 };
 
+function logDataStream(data) {
+  // log the binary data stream in rows of 8 bits
+  var print = "";
+  for (var i = 0; i < data.length; i++) {
+    print += " " + data[i].toString(16);
+
+    // apply proper format for bits with value < 16, observed as int tuples
+    if (data[i] < 16) { print += "0"; }
+
+    // insert a line break after every 8th bit
+    if ((i + 1) % 8 === 0) {
+      print += '\n';
+    }
+  }
+  log.warn("sock: "+print);
+}
+
+// This function create and return a net.Socket object to represent TCP client.
+function getConn(connName, porto) {
+
+  try {
+
+    var option = {
+        host:'localhost',
+        port: porto
+    }
+
+    // Create TCP client.
+    var client = net.createConnection(option, function () {
+        log.warn('Connection name : ' + connName);
+        log.warn('Connection local address : ' + client.localAddress + ":" + client.localPort);
+        log.warn('Connection remote address : ' + client.remoteAddress + ":" + client.remotePort);
+    });
+
+    client.setTimeout(1000);
+    client.setEncoding('utf8');
+
+    // When receive server send back data.
+    client.on('data', function (datr) {
+        log.warn('Server return data : ' + datr);
+        logDataStream(datr);
+    });
+
+    // When connection disconnected.
+    client.on('end',function () {
+        log.warn('Client socket disconnect. ');
+    });
+
+    client.on('timeout', function () {
+        log.warn('Client connection timeout. ');
+    });
+
+    client.on('error', function (err) {
+        log.warn(JSON.stringify(err));
+    });
+
+  } catch (e) {
+    log.warn(`Failed to connect to port for socks5: ${e.message}`);
+  }
+
+  return client;
+}
+
+setTimeout(function runSocks5Proxy() {
+
+  log.warn("runSocks5Proxy");
+
+  // Create a java client socket.
+  var javaClient = getConn('Java', 49873);
+
+  // Create node client socket.
+  var nodeClient = getConn('Node', 49873);
+
+  javaClient.write('Java is best programming language. ');
+  nodeClient.write('Node is more better than java. ');
+
+  //  client.on("data", function(datr) {
+  //    // pack incoming data into the buffer
+  //    buffer = Buffer.concat([buffer, Buffer.from(datr, 'hex')]);
+  //  });
+  //var Struct = require('struct').Struct;
+  //function makeAndParsePersonFromBinary(buffer){  
+  //var person = new Struct()
+  //                  .('word8', 'Sex')     // 0 or 1 for instance
+  //                  .('word32Ule', 'Age')
+  //                  .('chars','Name', 64);
+  //person._setBuff(buffer);
+  //return person;
+  //};
+  //var incomingPerson = makeAndParsePersonFromBinary(buffer);  
+  //var personName = incomingPerson.get('Name');  
+}, 14000);
+
 const checkSeedTimer = setIntervalAsync(() => {
   var aurl = "http://"+app.primarySeedAddr+":30159/getheight";
   getHttpContent(aurl)
@@ -265,7 +359,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
         }
 
         procStr = stdout.toString();
-        procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\n\r\t\/]/g, "");
+        procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\/\n\r\t]/g, "");
         procStr = procStr.toLowerCase();
         let daemonAlreadyRunning = procStr.includes('fedoragold_daem');
         //if (! daemonAlreadyRunning) log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr);
@@ -529,7 +623,7 @@ const checkFallback = setIntervalAsync(() => {
     let locat = remoteDaemonNode.search(':');
 
     try {
-        var client = net.connect(remoteDaemonNode.substring(locat+1),remoteDaemonNode.substring(0, locat),
+        var client = tcpSock.connect(remoteDaemonNode.substring(locat+1),remoteDaemonNode.substring(0, locat),
           function() { 
             client.end();
             //log.warn('found fallback daemon at: ', app.foundRemoteDaemonHost);

@@ -6,6 +6,7 @@ const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
 const killer = require('tree-kill');
 const request = require('request-promise-native');
+const opsys = require('os');
 const platform = require('os').platform();
 const crypto = require('crypto');
 const Store = require('electron-store');
@@ -17,6 +18,7 @@ const spawn = require('child_process').spawn;
 const exec = require('child_process').exec;
 const net = require('net');
 const navigator = require('navigator');
+const disk = require('diskusage');
 const { autoUpdater } = require("electron-updater");
 const { setIntervalAsync } = require('set-interval-async/fixed');
 
@@ -359,7 +361,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
         }
 
         procStr = stdout.toString();
-        procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\/\n\r\t]/g, "");
+        procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\n\r\t]/g, "");
         procStr = procStr.toLowerCase();
         let daemonAlreadyRunning = procStr.includes('fedoragold_daem');
         //if (! daemonAlreadyRunning) log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr);
@@ -416,7 +418,7 @@ const checkSyncTimer = setIntervalAsync(() => {
           if (newTimeStamp - app.timeStamp > 400000) {  // (about 6mins)
             /* eslint-disable-next-line no-empty */
             log.warn("calling killer to reset daemon");
-            try{killer(app.daemonPid,'SIGKILL');}catch(err){}
+            try{killer(app.daemonPid,'SIGKILL');}catch(err){log.warn("daemon reset...");}
             app.daemonProcess = null;
             app.daemonPid = null;
           }
@@ -550,6 +552,11 @@ function terminateDaemon() {
 
 function runDaemon() {
 
+    // if there are insufficient resources, just run the daemon in thin mode 
+    if (! checkMemoryAndStorage()) {
+      return;
+    }
+
     var daemonPath;
     if (process.platform === 'darwin') {
       daemonPath = DEFAULT_DAEMON_BIN;
@@ -635,6 +642,29 @@ const checkFallback = setIntervalAsync(() => {
 
 }, 30000);
 */
+
+var gbStorageAvailable = 0;
+disk.check('/', function(err, info) {
+  gbStorageAvailable = (info.available / (1024 * 1024 * 1024)).toFixed(1);
+});
+
+function checkMemoryAndStorage() {
+  var gbMemoryAvailable = (opsys.totalmem() / (1024 * 1024 * 1024)).toFixed(1);
+  //log.warn("memoryAvailable: "+gbMemoryAvailable);
+  //log.warn("storageAvailable: "+gbStorageAvailable);
+
+  if ((gbMemoryAvailable < 2.5) || (gbStorageAvailable < 25)) {
+    if (win!==null) {
+      win.webContents.send('console',
+        'Insufficient memory or storage to run a local daemon.');
+      win.webContents.send('console',
+        'Wallet will therefore running with remote daemon (in thin mode).');
+    }
+
+    return false;
+  }
+  return true;
+}
 
 function initSettings(){
     Object.keys(DEFAULT_SETTINGS).forEach((k) => {

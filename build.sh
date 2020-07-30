@@ -28,9 +28,15 @@ set DEBUG=electron-builder
 rm -r bin
 cp -r bin_linux bin
 npm run dist-lin --no-bin-link --rollback=false
+cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv
 
 #cd ../..
 #exit
+
+rm -r bin
+cp -r bin_android bin
+npm run dist-lin --no-bin-link --rollback=false
+cp dist/FedoraGoldWallet-v*apk /media/sf_sharedv
 
 rm -r bin
 cp -r bin_mac bin
@@ -40,14 +46,12 @@ npm run dist-mac --no-bin-link --rollback=false --max-old-space-size=4096
 cd dist/mac
 zip -r FedoraGoldWalletMac.zip FedoraGoldWallet.app
 cd ../..
+cp dist/mac/FedoraGoldWalletMac.zip /media/sf_sharedv/FedoraGoldWalletMac-v.zip
 
 rm -r bin
 cp -r bin_win bin
 npm run dist-win --no-bin-link --rollback=false
+cp dist/FedoraGoldWallet-v*exe /media/sf_sharedv
 
 rm -r bin
-
-cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv
-cp dist/FedoraGoldWallet-v*exe /media/sf_sharedv
-cp dist/mac/FedoraGoldWalletMac.zip /media/sf_sharedv/FedoraGoldWalletMac-v.zip
 cp dist/*.yml /media/sf_sharedv

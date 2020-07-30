@@ -76,6 +76,13 @@
         ]
       },
       {
+        "from": "./bin/android",
+        "to": "resources/bin/android",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
         "from": "./bin/mac",
         "to": "Resources/bin/mac",
         "filter": [
@@ -91,10 +98,17 @@
       }
     ],
     "linux": {
-      "artifactName": "${productName}-v${version}-${os}.${ext}",
-      "target": [
-        "AppImage"
-      ],
+      "icon": "./build",
+      "target": [{
+        "target": "appImage",
+        "arch": "x64"
+      },{
+        "target": "apk",
+        "arch": "arm64"
+      },{
+        "target": "deb",
+        "arch": ["x64","arm64"]
+      }],
       "publish": [
         "github"
       ],
@@ -102,6 +116,15 @@
       "category": "Office",
       "vendor": "FedoraGold",
       "synopsis": "FedoraGold GUI Wallet"
+    },
+    "appImage": {
+      "artifactName": "${productName}-v${version}-${os}.${ext}"
+    },
+    "apk": {
+      "artifactName": "${productName}-v${version}-android.${ext}"
+    },
+    "deb": {
+      "artifactName": "${productName}-v${version}-${os}.${arch}.${ext}" 
     },
     "win": {
       "target": "nsis",

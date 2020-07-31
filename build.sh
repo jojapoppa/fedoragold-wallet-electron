@@ -33,10 +33,11 @@ cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv
 #cd ../..
 #exit
 
-rm -r bin
-cp -r bin_android bin
-npm run dist-lin --no-bin-link --rollback=false
-cp dist/FedoraGoldWallet-v*apk /media/sf_sharedv
+#see alternate project.json file
+#rm -r bin
+#cp -r bin_android bin
+#npm run dist-lin --no-bin-link --rollback=false
+#cp dist/FedoraGoldWallet-v*apk /media/sf_sharedv
 
 rm -r bin
 cp -r bin_mac bin

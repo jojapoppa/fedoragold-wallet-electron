@@ -648,19 +648,22 @@ disk.check('/', function(err, info) {
   gbStorageAvailable = (info.available / (1024 * 1024 * 1024)).toFixed(1);
 });
 
+function sendConsoleThinMsg() {
+  if (win!==null) {
+    let text = "thin mode...\nInsufficient memory or storage to run a local daemon.\n";
+    text = text+"Wallet will therefore run with remote daemons.\n...\n";
+    //log.warn(text);
+    win.webContents.send('console', text);
+  }
+}
+
 function checkMemoryAndStorage() {
   var gbMemoryAvailable = (opsys.totalmem() / (1024 * 1024 * 1024)).toFixed(1);
   //log.warn("memoryAvailable: "+gbMemoryAvailable);
   //log.warn("storageAvailable: "+gbStorageAvailable);
 
   if ((gbMemoryAvailable < 2.5) || (gbStorageAvailable < 25)) {
-    if (win!==null) {
-      win.webContents.send('console',
-        'Insufficient memory or storage to run a local daemon.');
-      win.webContents.send('console',
-        'Wallet will therefore running with remote daemon (in thin mode).');
-    }
-
+    sendConsoleThinMsg();
     return false;
   }
   return true;

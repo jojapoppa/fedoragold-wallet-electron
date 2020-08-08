@@ -4,6 +4,7 @@
 /* globals List */
 
 const os = require('os');
+const dns = require('dns');
 const path = require('path');
 const fs = require('fs');
 const log = require('electron-log');
@@ -789,6 +790,7 @@ async function callMkPasswds() {
     { await new Promise(r => setTimeout(r, 100)); }
 
   log.warn("adminPassword: "+adminPassword);
+  remote.app.adminPassword = adminPassword;
   passwordsReady = true;
 }
 
@@ -856,26 +858,29 @@ function pipePath() {
 }
 
 function socketPath() {
-
   // https://thewebdev.info/2020/03/24/using-the-nodejs-os-modulepart-3/
   // https://www.tutorialspoint.com/nodejs/nodejs_os_module.htm
-
-  let mplat = wsmanager.getPlatform();
-  let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
-
-  if (OSID === 'win') {
-    return "wincjdns.sock";
-  } else if (OSID === 'darwin') {
-    return "/var/run/cjdns.sock";
-  }
-        
-  return "/var/run/cjdns.sock";
+  // '/tmp/app.cjdns_sock'
+  let linuxuserdatapath = path.join(remote.app.getPath('userData'), 'cjdns_sock');
+  log.warn("launching cjdns with socket path: "+linuxuserdatapath);
+  return linuxuserdatapath;
 }
 
 function generateCjdnsCfg() {
 
   var adminbind = "127.0.0.1:"+settings.get('cjdnsadmin_port');
   var udpbind = "0.0.0.0:"+settings.get('cjdnsudp_port');
+
+  log.warn("my cjdns private key is: "+privateKey);
+  log.warn("my cjdns public key is: "+publicKey);
+
+  var options = {
+    //hints: dns.ADDRCONFIG | dns.V4MAPPED
+  };
+  options.all = true;
+  dns.lookup(os.hostname(), options, function (err, addresses) {
+    log.warn('my ip addresses: %j', addresses);
+  })
 
   var cjdnsconf = {
     privateKey: privateKey,
@@ -920,10 +925,6 @@ function generateCjdnsCfg() {
         type: "SocketInterface",
         socketFullPath: socketPath(),
         socketAttemptToCreate: 1
-      },
-      ipTunnel: {
-        allowedConnections: [],
-        outgoingConnections: []
       }
     },
     security: [
@@ -937,10 +938,23 @@ function generateCjdnsCfg() {
     logging: {
       logTo: "stdout"
     },
-    noBackground: 1,
+    noBackground: 0,
     pipe: pipePath(),
     version: 2
   };
+
+ //928       ipTunnel: {
+ //929         allowedConnections: [{
+ //930         }],
+ //931         outgoingConnections: [
+ //932         ]
+ //933       }
+
+        //"publicKey": "f64hfl7c4uxt6krmhPutTheRealAddressOfANodeHere7kfm5m0.k",
+        //"ip4Address": "192.168.1.24",
+        //"ip6Address": "2001:123:ab::10"
+
+        //"6743gf5tw80ExampleExampleExampleExamplevlyb23zfnuzv0.k"
 
   // gen authorizedPasswords for exit node servers
     // UI: check exit node checkbox 
@@ -995,7 +1009,6 @@ function generateCjdnsCfg() {
   // workaround for the requirement that cjdns has of input with \x5c on Windows
   let confstr = JSON.stringify(cjdnsconf);
   if (confstr.indexOf("wincjdns") > -1) {
-    confstr = confstr.replace("wincjdns.sock", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns_sock");
     confstr = confstr.replace("wincjdns.pipe", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns_pipe");
   }
 

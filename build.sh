@@ -30,8 +30,8 @@ cp -r bin_linux bin
 npm run dist-lin --no-bin-link --rollback=false
 cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv
 
-#cd ../..
-#exit
+cd ../..
+exit
 
 #see alternate project.json file
 #rm -r bin

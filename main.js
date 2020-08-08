@@ -1,7 +1,10 @@
 const {app, dialog, Tray, Menu} = require('electron');
 const path = require('path');
+const vm = require('vm');
 const fs = require('fs');
 const url = require('url');
+const nThen = require('nthen');
+const util = require('util');
 const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
 const killer = require('tree-kill');
@@ -17,8 +20,24 @@ const config = require('./src/js/ws_config');
 const spawn = require('child_process').spawn;
 const exec = require('child_process').exec;
 const net = require('net');
+const Dns =  require('dns');
+
+const udp = require('dgram');
+const bencode = require('./src/js/extras/bencode');
+const nthen = require('nthen');
+const semaphore = require('./src/js/extras/Semaphore.js');
+const cjdnsadmin = require('./src/js/extras/cjdnsadmin');
+//const cjdnsniff = require('cjdnsniff');
+//const cjdnskeys = require('cjdnskeys');
+//const cjdnsctrl = require('cjdnsctrl');
+
 const navigator = require('navigator');
 const disk = require('diskusage');
+const socks = require('socksv5');
+const sshConnection = require('ssh2').Client;
+const inspect = require('util').inspect;
+const keypair = require('keypair');
+const forge = require('node-forge');
 const { autoUpdater } = require("electron-updater");
 const { setIntervalAsync } = require('set-interval-async/fixed');
 
@@ -69,6 +88,7 @@ app.daemonLastPid = null;
 app.localDaemonRunning = false;
 app.integratedDaemon = false;
 app.heightVal = 0;
+app.adminPassword=null;
 
 //app.cjdnsProcess=null;
 //app.cjdnsArgs=null;
@@ -77,6 +97,19 @@ app.heightVal = 0;
 app.primarySeedAddr = '18.222.96.134';
 app.secondarySeedAddr = '18.223.178.174'
 app.primarySeedHeight = 0;
+
+var now = function () { return (new Date()).getTime(); };
+var nowSeconds = function () { return Math.floor(now() / 1000); };
+
+var IP6_REGEX = new RegExp('^' + new Array(9).join(':[0-9a-f]{1,4}').substring(1) + '$');
+var LABEL_REGEX = new RegExp('^' + new Array(5).join('.[0-9a-f]{4}').substring(1) + '$');
+var ADDR_REGEX = new RegExp('^v[0-9]+' + new Array(5).join('\\.[0-9a-f]{4}') + '\\.[a-z0-9]{52}\\.k$');
+var validTarget = function (target) {
+    if (IP6_REGEX.test(target)) { return true; }
+    if (LABEL_REGEX.test(target)) { return true; }
+    if (ADDR_REGEX.test(target)) { return true; }
+    return false;
+};
 
 // Special syntax for main window...
 let win, callback;
@@ -241,7 +274,6 @@ function logDataStream(data) {
   log.warn("sock: "+print);
 }
 
-// This function create and return a net.Socket object to represent TCP client.
 function getConn(connName, porto) {
 
   try {
@@ -252,70 +284,386 @@ function getConn(connName, porto) {
     }
 
     // Create TCP client.
-    var client = net.createConnection(option, function () {
+    var hclient = net.createConnection(option, function () {
         log.warn('Connection name : ' + connName);
-        log.warn('Connection local address : ' + client.localAddress + ":" + client.localPort);
-        log.warn('Connection remote address : ' + client.remoteAddress + ":" + client.remotePort);
+        log.warn('Connection local address : ' + hclient.localAddress + ":" + hclient.localPort);
+        log.warn('Connection remote address : ' + hclient.remoteAddress + ":" + hclient.remotePort);
     });
 
-    client.setTimeout(1000);
-    client.setEncoding('utf8');
+    hclient.setTimeout(1000);
+    hclient.setEncoding('utf8');
 
     // When receive server send back data.
-    client.on('data', function (datr) {
+    hclient.on('data', function (datr) {
         log.warn('Server return data : ' + datr);
         logDataStream(datr);
     });
 
     // When connection disconnected.
-    client.on('end',function () {
+    hclient.on('end',function () {
         log.warn('Client socket disconnect. ');
     });
 
-    client.on('timeout', function () {
+    hclient.on('timeout', function () {
         log.warn('Client connection timeout. ');
     });
 
-    client.on('error', function (err) {
+    hclient.on('error', function (err) {
         log.warn(JSON.stringify(err));
     });
 
   } catch (e) {
-    log.warn(`Failed to connect to port for socks5: ${e.message}`);
+    log.warn(`Failed to connect to cjdns socket: ${e.message}`);
   }
 
-  return client;
+  return hclient;
 }
 
-setTimeout(function runSocks5Proxy() {
+var socksstarted = false;
+function connectSocks5ToSocket() {
+  var ssh_config = {
+    //host: '192.168.100.1',
+    //port: 22,
+    //username: 'nodejs',
+    //password: 'rules'
+    sock: path.join(app.getPath('userData'), 'cjdns_sock')
+  };
 
+  log.warn("launching socks5 proxy with connection to socket: "+path.join(app.getPath('userData'), 'cjdns_sock'));
+
+  socks.createServer(function(info, accept, deny) {
+    // NOTE: you could just use one ssh2 client connection for all forwards, but
+    // you could run into server-imposed limits if you have too many forwards open
+    // at any given time
+    var conn = new sshConnection();
+    log.warn("new sshClient created for forward");
+    conn.on('ready', function() {
+
+      log.warn("in ready() setting up forwarding...");
+      conn.forwardOut(info.srcAddr, info.srcPort, info.dstAddr, info.dstPort, function(err, stream) {
+        if (err) {
+          conn.end();
+          socksstarted = false;
+          return deny();
+        }
+
+        var clientSocket = accept(true);
+        if (clientSocket) {
+          stream.pipe(clientSocket).pipe(stream).on('close', function() {
+            conn.end();
+          });
+        } else
+          conn.end();
+
+        log.warn("ssh client is ready...");
+      });
+    }).on('error', function(err) {
+      socksstarted = false;
+      deny();
+    }).connect(ssh_config);
+  }).listen(1080, 'localhost', function() {
+    console.log('FedoraGold SOCKSv5 proxy server started on port 1080');
+  }).useAuth(socks.auth.None());
+}
+
+var exitnodestarted = false;
+function connectExitNodeToSocket() {
+  var utils = sshConnection.utils;
+  log.warn("in connectExitNodeToSocket() !!");
+
+  var allowedUser = Buffer.from('foo');
+  var allowedPassword = Buffer.from('bar');
+
+  var pair = keypair();
+  var allowedPubKey = forge.pki.publicKeyFromPem(pair.public);
+  var privKey = pair.private;
+  //var ssh = forge.ssh.publicKeyToOpenSSH(publicKey, 'user@domain.tld');
+
+  //log.warn('generated public key: %j',allowedPubKey);
+  //log.warn("generated private key: "+privKey);
+
+  new sshConnection.Server({
+    hostKeys: [privKey]
+  }, function(client) {
+    log.warn('Client connected!');
+ 
+    client.on('authentication', function(ctx) {
+      log.warn("client with authenticate now");
+
+      var user = Buffer.from(ctx.username);
+      if (user.length !== allowedUser.length
+          || !crypto.timingSafeEqual(user, allowedUser)) {
+        return ctx.reject();
+      }
+ 
+      switch (ctx.method) {
+        case 'password':
+          log.warn("check password");
+          var password = Buffer.from(ctx.password);
+          if (password.length !== allowedPassword.length
+              || !crypto.timingSafeEqual(password, allowedPassword)) {
+            log.warn("client password failure");
+            return ctx.reject();
+          }
+          break;
+        case 'publickey':
+          log.warn("check public key...");
+          var allowedPubSSHKey = allowedPubKey.getPublicSSH();
+          if (ctx.key.algo !== allowedPubKey.type
+              || ctx.key.data.length !== allowedPubSSHKey.length
+              || !crypto.timingSafeEqual(ctx.key.data, allowedPubSSHKey)
+              || (ctx.signature && allowedPubKey.verify(ctx.blob, ctx.signature) !== true)) {
+            log.warn("client publickey failure");
+            return ctx.reject();
+          }
+          break;
+        default:
+          return ctx.reject();
+      }
+ 
+      ctx.accept();
+    }).on('ready', function() {
+      log.warn('Client authenticated!');
+ 
+      client.on('session', function(accept, reject) {
+        var session = accept();
+        session.once('exec', function(accept, reject, info) {
+          log.warn('Client wants to execute: ' + inspect(info.command));
+          var stream = accept();
+          stream.stderr.write('Oh no, the dreaded errors!\n');
+          stream.write('Just kidding about the errors!\n');
+          stream.exit(0);
+          stream.end();
+        });
+      });
+    }).on('end', function() {
+      log.warn('Client disconnected');
+    });
+  }).listen(path.join(app.getPath('userData'), 'socks5_server_sock'), function() {
+    log.warn('Exit node listening on: '+path.join(app.getPath('userData'), 'socks5_server_sock'));
+  });
+}
+
+var writeSocket = function (sock, addr, port, pass, buff, callback) {
+    var cookieTxid = String(sock.counter++);
+    var cookieMsg = Buffer.from(bencode.encode({'q':'cookie','txid':cookieTxid}));
+
+    sock.send(buff, 0, buff.length, port, addr, callback);
+
+        /*
+        function(err, bytes) {
+        log.warn("cookie sent");
+        if (err) { callback(err); return; }
+        var cookie = ret.cookie;
+        if (typeof(cookie) !== 'string') { throw new Error("invalid cookie in [" + ret + "]"); }
+        var json = {
+            txid: String(sock.counter++),
+            q: buff
+            //args: {}
+        };
+        Object.keys(args).forEach(function (arg) {
+            json.args[arg] = args[arg];
+        });
+        if (pass) {
+            json.aq = json.q;
+            json.q = 'auth';
+
+            json.cookie = cookie;
+            json.hash = Crypto.createHash('sha256').update(pass + cookie).digest('hex');
+            json.hash = Crypto.createHash('sha256').update(Bencode.encode(json)).digest('hex');
+        }
+        */
+};
+
+function promisifyAll(obj) {
+    for (let k in obj) {
+        if (typeof obj[k] === 'function') {
+            //log.warn("function: "+obj[k]);
+            obj[k] = util.promisify(obj[k]);
+        }
+    }
+}
+
+async function pageFunctionList(cjdns, waitFor, page) {
+  cjdns.Admin_availableFunctions(page, waitFor(function (err, ret) {
+    if (err) { log.warn("functions: "+err.message); throw err; }
+    Object.keys(ret.availableFunctions).forEach(function(nm){log.warn("name: "+nm);});
+    //log.warn("objkeys more: %j", Object.keys(ret));
+    if (Number(ret.more) > 0) { pageFunctionList(cjdns, waitFor, page+1); }
+  }));
+
+  log.warn("page %d", (page+1));
+}
+
+async function createReadableCjdnsStream() {
+  log.warn("createReadableCjdnsStream()... with admin password: "+app.adminPassword);
+
+  //jojapoppa: need to parameterize this stuff...
+  let target = 'fc49:1b98:5322:be12:d324:f52a:a33c:e6b2';
+  let adminPort = 11234;
+
+  let cjdns;
+  if (app.adminPassword != null)
+    try {
+      nThen(function (waitFor) {
+        log.warn("call connect...");
+        cjdnsadmin.connect('127.0.0.1', adminPort, app.adminPassword, waitFor(function (c) { cjdns = c; }));
+
+        if (!validTarget(target)) {
+            Dns.lookup(target, 6, waitFor(function (err, res) {
+                if (err) { log.warn(err.message); throw err; }
+                console.log(target + ' has ip address ' + res);
+                target = res;
+            }));
+        }
+      }).nThen(function (waitFor) {
+        log.warn("getting functions list...");
+        pageFunctionList(cjdns, waitFor, 0);
+      }).nThen(function (waitFor) {
+        log.warn("function list completed.");
+      });
+
+/*
+        udpSocket.on("data", function(datr) {
+          log.warn("data in on udp: "+datr.toString());
+          // pack incoming data into the buffer
+          //buffer = Buffer.concat([buffer, Buffer.from(datr, 'hex')]);
+        });
+*/
+
+    //var Struct = require('struct').Struct;
+    //function makeAndParsePersonFromBinary(buffer){  
+    //var person = new Struct()
+    //                  .('word8', 'Sex')     // 0 or 1 for instance
+    //                  .('word32Ule', 'Age')
+    //                  .('chars','Name', 64);
+    //person._setBuff(buffer);
+    //return person;
+    //};
+    //var incomingPerson = makeAndParsePersonFromBinary(buffer);  
+    //var personName = incomingPerson.get('Name'); 
+
+      /*cjdnsniff.sniffTraffic(cjdns, 'CTRL', (err, ev) => {
+        if (!ev) { log.warn("error connecting to hyperboria"); throw err; }
+        ev.on('error', (e) => { log.warn(e); });
+
+        ev.on('message', (msg) => {
+            //::msg = (msg:Cjdnsniff_CtrlMsg_t);*
+            const pr = [];
+            pr.push(msg.routeHeader.isIncoming ? '>' : '<');
+            pr.push(msg.routeHeader.switchHeader.label);
+            pr.push(msg.content.type);
+            if (msg.content.type === 'ERROR') {
+                const content = (msg.content); //:Cjdnsctrl_ErrMsg_t
+                pr.push(content.errType);
+                log.warn(content.switchHeader);
+                if (content.switchHeader) {
+                    pr.push('label_at_err_node:', content.switchHeader.label);
+                }
+                if (content.nonce) {
+                    pr.push('nonce:', content.nonce);
+                }
+                pr.push(content.additional.toString('hex'));
+            } else {
+                const content = (msg.content); // :Cjdnsctrl_Ping_t
+                if (content.type in ['PING', 'PONG']) {
+                    pr.push('v' + content.version);
+                }
+                if (content.type in ['KEYPING', 'KEYPONG']) {
+                    pr.push(content.key);
+                }
+            }
+            log.warn(pr.join(' '));
+        });
+      }); */
+
+    } catch(e) {
+      log.warn("error in udp connection: "+e.message);
+    }
+}
+
+var sshClientConnected = false;
+function connectSSHClientToCjdnsSocket() {
+
+// note: YOU MAY WANT TO CREATE A NEW ONE EACH TIME ... SEE ABOVE sshConnection...
+
+  sshConnection.on('ready', function() {
+    log.warn('cjdns ssh client :: ready');
+    sshConnection.forwardOut('192.168.100.102', 8000, '127.0.0.1', 80, function(err, stream) {
+      if (err) throw err;
+      stream.on('close', function() {
+        log.warn('CJDNS :: CLOSED');
+        sshConnection.end();
+      }).on('data', function(data) {
+        log.warn('CJDNS :: DATA: ' + data);
+      }).end([ /* just sends a random http header over as a test... */
+      'HEAD / HTTP/1.1',
+      'User-Agent: curl/7.27.0',
+      'Host: 127.0.0.1',
+      'Accept: */*',
+      'Connection: close',
+      '',
+      ''
+      ].join('\r\n'));
+    });
+  }).connect({
+    //sock: '...' // expects a ReadableStream (Duplex mode)
+    username: 'frylock',
+    password: 'nodejsrules'
+  });
+}
+
+setTimeout(function connectCjdnsClient() {
+  log.warn("setup cjdns client");
+
+  if (!sshClientConnected) {
+    sshClientConnected = true;
+
+    // testing...
+    var cjdnsStream = createReadableCjdnsStream();
+    //connectSSHClientToCjdnsSocket(cjdnsStream);
+ 
+    log.warn("cjdns client ready to send/recieve info...");
+  }
+}, 11000);
+
+/*
+setTimeout(function runExitNode() {
+  log.warn("activate exit node service");
+
+  if (!exitnodestarted) {
+    exitnodestarted = true;
+    try {
+      connectExitNodeToSocket();
+    } catch(e) {
+      exitnodestarted = false;
+      log.warn("error launching exit node: "+e.message);
+      return false;
+    }
+    log.warn("exit node activated");
+  }
+
+  return true;
+}, 10000);
+
+setTimeout(function runSocks5Proxy() {
   log.warn("runSocks5Proxy");
 
-  // Create a java client socket.
-  var javaClient = getConn('Java', 49873);
+  if (!socksstarted) {
+    socksstarted = true;
+    try {
+      connectSocks5ToSocket();
+    } catch(e) {
+      socksstarted = false;
+      log.warn("error connecting socks5 to cjdns socket: "+e.message);
+      return false;
+    }
+    log.warn("socks5 proxy server started");
+  }
 
-  // Create node client socket.
-  var nodeClient = getConn('Node', 49873);
-
-  javaClient.write('Java is best programming language. ');
-  nodeClient.write('Node is more better than java. ');
-
-  //  client.on("data", function(datr) {
-  //    // pack incoming data into the buffer
-  //    buffer = Buffer.concat([buffer, Buffer.from(datr, 'hex')]);
-  //  });
-  //var Struct = require('struct').Struct;
-  //function makeAndParsePersonFromBinary(buffer){  
-  //var person = new Struct()
-  //                  .('word8', 'Sex')     // 0 or 1 for instance
-  //                  .('word32Ule', 'Age')
-  //                  .('chars','Name', 64);
-  //person._setBuff(buffer);
-  //return person;
-  //};
-  //var incomingPerson = makeAndParsePersonFromBinary(buffer);  
-  //var personName = incomingPerson.get('Name');  
-}, 14000);
+  return true;
+}, 5000);
+*/
 
 const checkSeedTimer = setIntervalAsync(() => {
   var aurl = "http://"+app.primarySeedAddr+":30159/getheight";

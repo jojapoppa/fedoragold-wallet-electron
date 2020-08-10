@@ -4,6 +4,7 @@
 /* globals List */
 
 const os = require('os');
+const net = require('net');
 const dns = require('dns');
 const path = require('path');
 const fs = require('fs');
@@ -857,13 +858,21 @@ function pipePath() {
   return "/tmp";
 }
 
-function socketPath() {
+function createSocketPath() {
   // https://thewebdev.info/2020/03/24/using-the-nodejs-os-modulepart-3/
   // https://www.tutorialspoint.com/nodejs/nodejs_os_module.htm
   // '/tmp/app.cjdns_sock'
-  let linuxuserdatapath = path.join(remote.app.getPath('userData'), 'cjdns_sock');
-  log.warn("launching cjdns with socket path: "+linuxuserdatapath);
-  return linuxuserdatapath;
+  let socketdatapath = path.join(remote.app.getPath('userData'), 'cjdns_sock');
+  log.warn("launching cjdns with socket path: "+socketdatapath);
+
+  try {
+    let soc = net.createConnection({ path: socketdatapath });
+    soc.end();
+  } catch(err) {
+    log.warn("socket er: "+err);
+  }
+
+  return socketdatapath;
 }
 
 function generateCjdnsCfg() {
@@ -923,7 +932,7 @@ function generateCjdnsCfg() {
       },
       interface: {
         type: "SocketInterface",
-        socketFullPath: socketPath(),
+        socketFullPath: createSocketPath(),
         socketAttemptToCreate: 1
       }
     },
@@ -1031,7 +1040,8 @@ async function runCjdns() {
   let cjdnsBin = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, CJDNS_FILENAME);
   let cjdnsCfg = generateCjdnsCfg();
 
-  wsmanager.runHyperboria(cjdnsBin, cjdnsCfg, updateHyperConsole);
+  setTimeout(wsmanager.runHyperboria, 14000, cjdnsBin, cjdnsCfg, updateHyperConsole);
+
   vpnTerminalLabel.innerHTML = "Hyperboria Console  (at IPv6  " + escapeHTML(ipv6) + ")";
 }
 

@@ -33,8 +33,10 @@ const cjdnsadmin = require('./src/js/extras/cjdnsadmin');
 
 const navigator = require('navigator');
 const disk = require('diskusage');
-const socks = require('socksv5');
-const sshConnection = require('ssh2').Client;
+const socksV5 = require('socksv5');
+const ssh2Client = require('ssh2').Client;
+const ssh2Server = require('ssh2').Server;
+const ssh2Utils = require('ssh2').utils;
 const inspect = require('util').inspect;
 const keypair = require('keypair');
 const forge = require('node-forge');
@@ -42,6 +44,8 @@ const { autoUpdater } = require("electron-updater");
 const { setIntervalAsync } = require('set-interval-async/fixed');
 
 process.env.UV_THREADPOOL_SIZE = 128;
+
+const delayToRunSocks5 = 5000;
 
 const IS_DEV  = (process.argv[1] === 'dev' || process.argv[2] === 'dev');
 const IS_DEBUG = IS_DEV || process.argv[1] === 'debug' || process.argv[2] === 'debug';
@@ -320,55 +324,66 @@ function getConn(connName, porto) {
 }
 
 var socksstarted = false;
-function connectSocks5ToSocket() {
-  var ssh_config = {
-    //host: '192.168.100.1',
-    //port: 22,
-    //username: 'nodejs',
-    //password: 'rules'
-    sock: path.join(app.getPath('userData'), 'cjdns_sock')
+var domainsocketstream = null;
+function connectSocks5ServerAndSSHClientToCjdnsSocket(sockstream) {
+
+  var ssh_config = { 
+    host: 'fc49:1b98:5322:be12:d324:f52a:a33c:e6b2',
+    port: 22,
+    username: 'nodejs',
+    password: 'rules',
+    sock: sockstream
   };
 
-  log.warn("launching socks5 proxy with connection to socket: "+path.join(app.getPath('userData'), 'cjdns_sock'));
+  log.warn("launching socks5 proxy with connection to socket");
 
-  socks.createServer(function(info, accept, deny) {
+  socksV5.createServer(function(info, accept, deny) {
     // NOTE: you could just use one ssh2 client connection for all forwards, but
     // you could run into server-imposed limits if you have too many forwards open
     // at any given time
-    var conn = new sshConnection();
+    var sshClientConn = new ssh2Client();
     log.warn("new sshClient created for forward");
-    conn.on('ready', function() {
 
-      log.warn("in ready() setting up forwarding...");
-      conn.forwardOut(info.srcAddr, info.srcPort, info.dstAddr, info.dstPort, function(err, stream) {
-        if (err) {
-          conn.end();
-          socksstarted = false;
-          return deny();
-        }
+    try {
+      sshClientConn.on('ready', function() {
+        log.warn("in ready() setting up forwarding...");
+        sshClientConn.forwardOut(info.srcAddr, info.srcPort, info.dstAddr, info.dstPort, function(err, stream) {
+          log.warn("attempting to forward a connection now...");
+          if (err) {
+            sshClientConn.end();
+            socksstarted = false;
+            log.warn("err in forward: "+err);
+            return deny();
+          }
 
-        var clientSocket = accept(true);
-        if (clientSocket) {
-          stream.pipe(clientSocket).pipe(stream).on('close', function() {
-            conn.end();
-          });
-        } else
-          conn.end();
+          log.warn("setup of tcp socket for client connection (routes through cjdns)");
+          var clientSocket = accept(true);
+          if (clientSocket) {
+            stream.pipe(clientSocket).pipe(stream).on('close', function() {
+              sshClientConn.end();
+            });
+          } else
+            sshClientConn.end();
 
-        log.warn("ssh client is ready...");
-      });
-    }).on('error', function(err) {
+          log.warn("ssh client is ready...");
+        });
+      }).on('error', function(err) {
+        log.warn("error in ssh client connection: "+err);
+        socksstarted = false;
+        deny();
+      }).connect(ssh_config);
+    } catch(e) {
       socksstarted = false;
-      deny();
-    }).connect(ssh_config);
-  }).listen(1080, 'localhost', function() {
+      log.warn("error creating ssh client: "+e);
+    }
+  }).listen(1080, '0.0.0.0', function() {
     console.log('FedoraGold SOCKSv5 proxy server started on port 1080');
-  }).useAuth(socks.auth.None());
+  }).useAuth(socksV5.auth.None());
 }
 
 var exitnodestarted = false;
-function connectExitNodeToSocket() {
-  var utils = sshConnection.utils;
+function connectSSHExitNodeToSocket(cjdnssockstream) {
+  var utils = ssh2Utils;
   log.warn("in connectExitNodeToSocket() !!");
 
   var allowedUser = Buffer.from('foo');
@@ -382,8 +397,9 @@ function connectExitNodeToSocket() {
   //log.warn('generated public key: %j',allowedPubKey);
   //log.warn("generated private key: "+privKey);
 
-  new sshConnection.Server({
-    hostKeys: [privKey]
+  new ssh2Server({
+    hostKeys: [privKey],
+    sock: cjdnssockstream
   }, function(client) {
     log.warn('Client connected!');
  
@@ -444,36 +460,36 @@ function connectExitNodeToSocket() {
   });
 }
 
+/*
 var writeSocket = function (sock, addr, port, pass, buff, callback) {
     var cookieTxid = String(sock.counter++);
     var cookieMsg = Buffer.from(bencode.encode({'q':'cookie','txid':cookieTxid}));
 
     sock.send(buff, 0, buff.length, port, addr, callback);
 
-        /*
-        function(err, bytes) {
-        log.warn("cookie sent");
-        if (err) { callback(err); return; }
-        var cookie = ret.cookie;
-        if (typeof(cookie) !== 'string') { throw new Error("invalid cookie in [" + ret + "]"); }
-        var json = {
-            txid: String(sock.counter++),
-            q: buff
-            //args: {}
-        };
-        Object.keys(args).forEach(function (arg) {
-            json.args[arg] = args[arg];
-        });
-        if (pass) {
-            json.aq = json.q;
-            json.q = 'auth';
-
-            json.cookie = cookie;
-            json.hash = Crypto.createHash('sha256').update(pass + cookie).digest('hex');
-            json.hash = Crypto.createHash('sha256').update(Bencode.encode(json)).digest('hex');
-        }
-        */
+//        function(err, bytes) {
+//        log.warn("cookie sent");
+//        if (err) { callback(err); return; }
+//        var cookie = ret.cookie;
+//        if (typeof(cookie) !== 'string') { throw new Error("invalid cookie in [" + ret + "]"); }
+//        var json = {
+//            txid: String(sock.counter++),
+//            q: buff
+//            //args: {}
+//        };
+//        Object.keys(args).forEach(function (arg) {
+//            json.args[arg] = args[arg];
+//        });
+//        if (pass) {
+//            json.aq = json.q;
+//            json.q = 'auth';
+//
+//            json.cookie = cookie;
+//            json.hash = Crypto.createHash('sha256').update(pass + cookie).digest('hex');
+//            json.hash = Crypto.createHash('sha256').update(Bencode.encode(json)).digest('hex');
+//        }
 };
+*/
 
 function promisifyAll(obj) {
     for (let k in obj) {
@@ -495,7 +511,51 @@ async function pageFunctionList(cjdns, waitFor, page) {
   log.warn("page %d", (page+1));
 }
 
-async function createReadableCjdnsStream() {
+var connections = {};
+function createDomainSocketServer(socket){
+    console.log('Creating domain socket server.');
+    var server = net.createServer(function(stream) {
+      console.log('Connection acknowledged.');
+
+      // Store all connections so we can terminate them if the server closes.
+      // An object is better than an array for these.
+      var self = Date.now();
+      connections[self] = (stream);
+
+      stream.on('connect', ()=>{
+        domainsocketstream = stream;
+        console.log("domain socket connected.");
+      });
+
+      stream.on('end', function() {
+        console.log('Client disconnected.');
+        delete connections[self];
+      });
+
+      // Messages are buffers. use toString
+      stream.on('data', function(msg) {
+        msg = msg.toString('base64');
+        console.log("stream data: "+msg);
+
+        //stream.write(msg); // or translate it if you want...
+      });
+
+      stream.on('error', function(data) {
+        log.warn('domainSocket error: '+data);
+      });
+    })
+    .listen(socket)
+    .on('connection', function(socket){
+      console.log('socket connected.');
+      //socket.write('__boop');
+      //console.log(Object.keys(socket));
+    });
+
+    return server;
+}
+
+/*
+THIS CODE ALLOWS YOU TO ACCESS THE ADMIN PORT ON CJDNS 
   log.warn("createReadableCjdnsStream()... with admin password: "+app.adminPassword);
 
   //jojapoppa: need to parameterize this stuff...
@@ -523,13 +583,11 @@ async function createReadableCjdnsStream() {
         log.warn("function list completed.");
       });
 
-/*
-        udpSocket.on("data", function(datr) {
-          log.warn("data in on udp: "+datr.toString());
-          // pack incoming data into the buffer
-          //buffer = Buffer.concat([buffer, Buffer.from(datr, 'hex')]);
-        });
-*/
+//        udpSocket.on("data", function(datr) {
+//          log.warn("data in on udp: "+datr.toString());
+//          // pack incoming data into the buffer
+//          //buffer = Buffer.concat([buffer, Buffer.from(datr, 'hex')]);
+//        });
 
     //var Struct = require('struct').Struct;
     //function makeAndParsePersonFromBinary(buffer){  
@@ -543,76 +601,80 @@ async function createReadableCjdnsStream() {
     //var incomingPerson = makeAndParsePersonFromBinary(buffer);  
     //var personName = incomingPerson.get('Name'); 
 
-      /*cjdnsniff.sniffTraffic(cjdns, 'CTRL', (err, ev) => {
-        if (!ev) { log.warn("error connecting to hyperboria"); throw err; }
-        ev.on('error', (e) => { log.warn(e); });
-
-        ev.on('message', (msg) => {
-            //::msg = (msg:Cjdnsniff_CtrlMsg_t);*
-            const pr = [];
-            pr.push(msg.routeHeader.isIncoming ? '>' : '<');
-            pr.push(msg.routeHeader.switchHeader.label);
-            pr.push(msg.content.type);
-            if (msg.content.type === 'ERROR') {
-                const content = (msg.content); //:Cjdnsctrl_ErrMsg_t
-                pr.push(content.errType);
-                log.warn(content.switchHeader);
-                if (content.switchHeader) {
-                    pr.push('label_at_err_node:', content.switchHeader.label);
-                }
-                if (content.nonce) {
-                    pr.push('nonce:', content.nonce);
-                }
-                pr.push(content.additional.toString('hex'));
-            } else {
-                const content = (msg.content); // :Cjdnsctrl_Ping_t
-                if (content.type in ['PING', 'PONG']) {
-                    pr.push('v' + content.version);
-                }
-                if (content.type in ['KEYPING', 'KEYPONG']) {
-                    pr.push(content.key);
-                }
-            }
-            log.warn(pr.join(' '));
-        });
-      }); */
+//      cjdnsniff.sniffTraffic(cjdns, 'CTRL', (err, ev) => {
+//        if (!ev) { log.warn("error connecting to hyperboria"); throw err; }
+//        ev.on('error', (e) => { log.warn(e); });
+//
+//        ev.on('message', (msg) => {
+//            //::msg = (msg:Cjdnsniff_CtrlMsg_t);*
+//            const pr = [];
+//            pr.push(msg.routeHeader.isIncoming ? '>' : '<');
+//            pr.push(msg.routeHeader.switchHeader.label);
+//            pr.push(msg.content.type);
+//            if (msg.content.type === 'ERROR') {
+//                const content = (msg.content); //:Cjdnsctrl_ErrMsg_t
+//                pr.push(content.errType);
+//                log.warn(content.switchHeader);
+//                if (content.switchHeader) {
+//                    pr.push('label_at_err_node:', content.switchHeader.label);
+//                }
+//                if (content.nonce) {
+//                    pr.push('nonce:', content.nonce);
+//                }
+//                pr.push(content.additional.toString('hex'));
+//            } else {
+//                const content = (msg.content); // :Cjdnsctrl_Ping_t
+//                if (content.type in ['PING', 'PONG']) {
+//                    pr.push('v' + content.version);
+//                }
+//                if (content.type in ['KEYPING', 'KEYPONG']) {
+//                    pr.push(content.key);
+//                }
+//            }
+//            log.warn(pr.join(' '));
+//        });
+//      }); 
 
     } catch(e) {
       log.warn("error in udp connection: "+e.message);
     }
 }
+*/
 
+/*
 var sshClientConnected = false;
 function connectSSHClientToCjdnsSocket() {
 
-// note: YOU MAY WANT TO CREATE A NEW ONE EACH TIME ... SEE ABOVE sshConnection...
+// note: YOU MAY WANT TO CREATE A NEW ONE EACH TIME ... SEE ABOVE ssh2...
 
-  sshConnection.on('ready', function() {
+  ssh2.on('ready', function() {
     log.warn('cjdns ssh client :: ready');
-    sshConnection.forwardOut('192.168.100.102', 8000, '127.0.0.1', 80, function(err, stream) {
+    ssh2.forwardOut('192.168.100.102', 8000, '127.0.0.1', 80, function(err, stream) {
       if (err) throw err;
       stream.on('close', function() {
         log.warn('CJDNS :: CLOSED');
-        sshConnection.end();
+        ssh2.end();
       }).on('data', function(data) {
         log.warn('CJDNS :: DATA: ' + data);
-      }).end([ /* just sends a random http header over as a test... */
+      }).end([ // just sends a random http header over as a test...
       'HEAD / HTTP/1.1',
       'User-Agent: curl/7.27.0',
       'Host: 127.0.0.1',
-      'Accept: */*',
+      'Accept: * /*',
       'Connection: close',
       '',
       ''
       ].join('\r\n'));
     });
   }).connect({
-    //sock: '...' // expects a ReadableStream (Duplex mode)
+    sock: path.join(remote.app.getPath('userData'), 'cjdns_sock'),
     username: 'frylock',
     password: 'nodejsrules'
   });
 }
+*/
 
+/*
 setTimeout(function connectCjdnsClient() {
   log.warn("setup cjdns client");
 
@@ -620,12 +682,13 @@ setTimeout(function connectCjdnsClient() {
     sshClientConnected = true;
 
     // testing...
-    var cjdnsStream = createReadableCjdnsStream();
+    //var cjdnsStream = createReadableCjdnsStream();
     //connectSSHClientToCjdnsSocket(cjdnsStream);
  
     log.warn("cjdns client ready to send/recieve info...");
   }
 }, 11000);
+*/
 
 /*
 setTimeout(function runExitNode() {
@@ -645,6 +708,7 @@ setTimeout(function runExitNode() {
 
   return true;
 }, 10000);
+*/
 
 setTimeout(function runSocks5Proxy() {
   log.warn("runSocks5Proxy");
@@ -652,7 +716,9 @@ setTimeout(function runSocks5Proxy() {
   if (!socksstarted) {
     socksstarted = true;
     try {
-      connectSocks5ToSocket();
+      createDomainSocketServer(path.join(app.getPath('userData'), 'cjdns_sock'));
+      setTimeout(connectSocks5ServerAndSSHClientToCjdnsSocket, 500, domainsocketstream);
+      setTimeout(connectSSHExitNodeToSocket, 1000, domainsocketstream);
     } catch(e) {
       socksstarted = false;
       log.warn("error connecting socks5 to cjdns socket: "+e.message);
@@ -662,8 +728,7 @@ setTimeout(function runSocks5Proxy() {
   }
 
   return true;
-}, 5000);
-*/
+}, delayToRunSocks5);
 
 const checkSeedTimer = setIntervalAsync(() => {
   var aurl = "http://"+app.primarySeedAddr+":30159/getheight";

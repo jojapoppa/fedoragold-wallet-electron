@@ -1,41 +1,36 @@
-<!doctype html>
+<!doctype html> 
 <html>
     <head>
+        <title>FedoraGold</title>
         <meta http-equiv="Content-Security-Policy" 
-            content="default-src 'none'; script-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://atom.io https://gh-contractor-zcbenz.s3.amazonaws.com; img-src 'self' file: data:; style-src 'self' 'unsafe-inline'; media-src 'self'">
+            content="default-src 'none'; script-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://atom.io https://gh-contractor-zcbenz.s3.amazonaws.com; img-src 'self' file: data:; style-src 'self' 'unsafe-inline'; media-src 'self'"/>
 
-        <!-- script defer src="../js/extras/fontawesome-solid.min.js"></script -->
         <script defer src="../js/extras/fontawesome-solid.src.js"></script> 
-
         <script defer src="../js/extras/toast.js"></script>
-
-        <!-- script defer src="../js/extras/list.min.js"></script -->
         <script defer src="../js/extras/list.js"></script>
 
-        <!-- CSS stylesheets -->
-        <link rel="stylesheet" href="../css/font-notosans.css">
-        <link rel="stylesheet" href="../css/common.css">
-        <link rel="stylesheet" href="../css/dark.css">
-        <!-- HTML pages (each page contains a section) -->
-        <link rel="import" href="./about.html">
-        <link rel="import" href="./settings.html">
-        <link rel="import" href="./miner.html">
-        <link rel="import" href="./transactions.html">
-        <link rel="import" href="./send.html">
-        <link rel="import" href="./welcome.html">
-        <link rel="import" href="./overview.html">
-        <link rel="import" href="./overview_load.html">
-        <link rel="import" href="./overview_show.html">
-        <link rel="import" href="./overview_import_key.html">
-        <link rel="import" href="./overview_import_seed.html">
-        <link rel="import" href="./overview_create.html">
-        <link rel="import" href="./address_book.html">
-        <link rel="import" href="./address_book_add.html">
-        <link rel="import" href="./vpn.html">
+        <link rel="stylesheet" href="../css/font-notosans.css"/>
+        <link rel="stylesheet" href="../css/common.css"/>
+        <link rel="stylesheet" href="../css/dark.css"/>
+
+        <link rel="import" href="./about.html"/>
+        <link rel="import" href="./settings.html"/>
+        <link rel="import" href="./miner.html"/>
+        <link rel="import" href="./transactions.html"/>
+        <link rel="import" href="./send.html"/>
+        <link rel="import" href="./welcome.html"/>
+        <link rel="import" href="./overview.html"/>
+        <link rel="import" href="./overview_load.html"/>
+        <link rel="import" href="./overview_show.html"/>
+        <link rel="import" href="./overview_import_key.html"/>
+        <link rel="import" href="./overview_import_seed.html"/>
+        <link rel="import" href="./overview_create.html"/>
+        <link rel="import" href="./address_book.html"/>
+        <link rel="import" href="./address_book_add.html"/>
+        <link rel="import" href="./vpn.html"/>
     </head>
 
     <body>
-        <!-- Top navbar -->
         <div class="navbar xgrid">
             <div class="idle" id="navbar-div-sync">
                 <i class="fas fa-pause-circle" id="navbar-icon-sync"></i>

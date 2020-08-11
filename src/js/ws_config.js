@@ -1,3 +1,4 @@
+"use strict";
 var config = {};
 
 // self explanatory, your application name, descriptions, etc

@@ -1,4 +1,5 @@
 /* eslint no-empty: 0 */
+"use strict";
 
 /* globals iqwerty */
 const {webFrame, remote} = require('electron');

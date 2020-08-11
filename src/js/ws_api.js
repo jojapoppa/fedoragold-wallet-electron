@@ -1,3 +1,4 @@
+"use strict";
 const config = require('./ws_config.js');
 const log = require('electron-log');
 const http = require('http');

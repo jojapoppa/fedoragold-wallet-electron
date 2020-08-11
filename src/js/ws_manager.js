@@ -1,8 +1,10 @@
 /* eslint no-empty: 0 */
+"use strict";
 
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const net = require('net');
 const childProcess = require('child_process');
 const exec = require('child_process').exec;
 const log = require('electron-log');
@@ -237,6 +239,31 @@ WalletShellManager.prototype.getWalletAddress = function() {
 
 WalletShellManager.prototype.getPlatform = function() {
   return plat;
+}
+
+WalletShellManager.prototype.createSocketPath = function() {
+  // https://thewebdev.info/2020/03/24/using-the-nodejs-os-modulepart-3/
+  // https://www.tutorialspoint.com/nodejs/nodejs_os_module.htm
+  // '/tmp/app.cjdns_sock'
+  let socketdatapath = path.join(remote.app.getPath('userData'), 'cjdns_sock');
+  let mplat = this.getPlatform();
+  let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
+  if (OSID === 'win') {
+    let apath = 'wincjdns.pipe';
+    socketdatapath = apath.replace("wincjdns.pipe", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns_sock");
+  }
+
+  try {
+    // test it
+    let soc = net.createConnection({ path: socketdatapath });
+    soc.end();
+  } catch(err) {
+    log.warn("socket access error: "+err);
+  }
+
+  remote.app.cjdnsSocketPath = socketdatapath;
+  log.warn("launching cjdns with socket path: "+socketdatapath);
+  return socketdatapath;
 }
 
 WalletShellManager.prototype.getResourcesPath = function() {

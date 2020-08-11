@@ -1,9 +1,14 @@
-const {app, dialog, Tray, Menu} = require('electron');
+"use strict";
+const electron = require('electron');
+const app = require('electron').app;
+const dialog = require('electron').dialog;
+const Tray = require('electron').Tray;
+const Menu = require('electron').Menu;
+//{app, dialog, Tray, Menu} = require('electron');
 const path = require('path');
 const vm = require('vm');
 const fs = require('fs');
 const url = require('url');
-const nThen = require('nthen');
 const util = require('util');
 const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
@@ -20,19 +25,13 @@ const config = require('./src/js/ws_config');
 const spawn = require('child_process').spawn;
 const exec = require('child_process').exec;
 const net = require('net');
-const Dns =  require('dns');
 
 const udp = require('dgram');
 const bencode = require('./src/js/extras/bencode');
-const nthen = require('nthen');
 const semaphore = require('./src/js/extras/Semaphore.js');
 const cjdnsadmin = require('./src/js/extras/cjdnsadmin');
-//const cjdnsniff = require('cjdnsniff');
-//const cjdnskeys = require('cjdnskeys');
-//const cjdnsctrl = require('cjdnsctrl');
 
 const navigator = require('navigator');
-const disk = require('diskusage');
 const socksV5 = require('socksv5');
 const ssh2Client = require('ssh2').Client;
 const ssh2Server = require('ssh2').Server;
@@ -93,6 +92,8 @@ app.localDaemonRunning = false;
 app.integratedDaemon = false;
 app.heightVal = 0;
 app.adminPassword=null;
+
+app.cjdnsSocketPath=path.join(app.getPath('userData'), 'socks5_server_sock');
 
 //app.cjdnsProcess=null;
 //app.cjdnsArgs=null;
@@ -173,6 +174,7 @@ function createWindow () {
     // Tried embedding ..Version ${versionInfo.version} has been.. in the text, but the version # doesn't display
     //   so, I gave up and just made the message generic...
     win.on('show', () => {
+
       autoUpdater.autoDownload = true;
       autoUpdater.allowDowngrade = false;
       autoUpdater.allowPrerelease = false;
@@ -208,6 +210,7 @@ function createWindow () {
 
     // show window
     win.once('ready-to-show', () => {
+
         win.setTitle(`${config.appDescription}`);
         app.timeStamp = Math.floor(Date.now());
     });
@@ -258,7 +261,7 @@ const getHttpContent = function(url) {
     });
     // handle connection errors of the request
     request.on('error', (err) => reject(err))
-    })
+  });
 };
 
 function logDataStream(data) {
@@ -455,8 +458,8 @@ function connectSSHExitNodeToSocket(cjdnssockstream) {
     }).on('end', function() {
       log.warn('Client disconnected');
     });
-  }).listen(path.join(app.getPath('userData'), 'socks5_server_sock'), function() {
-    log.warn('Exit node listening on: '+path.join(app.getPath('userData'), 'socks5_server_sock'));
+  }).listen(app.cjdnsSocketPath, function() {
+    log.warn('Exit node listening on: '+app.cjdnsSocketPath);
   });
 }
 
@@ -715,6 +718,7 @@ setTimeout(function runSocks5Proxy() {
 
   if (!socksstarted) {
     socksstarted = true;
+/*
     try {
       createDomainSocketServer(path.join(app.getPath('userData'), 'cjdns_sock'));
       setTimeout(connectSocks5ServerAndSSHClientToCjdnsSocket, 500, domainsocketstream);
@@ -725,8 +729,9 @@ setTimeout(function runSocks5Proxy() {
       return false;
     }
     log.warn("socks5 proxy server started");
-  }
 
+*/
+  }
   return true;
 }, delayToRunSocks5);
 
@@ -792,7 +797,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
             var errmsg = "fedoragold_daemon process already running at process ID: "+app.daemonPid;
             log.warn(errmsg);
             app.localDaemonRunning = true;
-            if (win!==null) win.webContents.send('console', errmsg);
+            if (win!==undefined&&win!==null) win.webContents.send('console', errmsg);
             /* eslint-disable-next-line no-empty */
             try{killer(app.daemonPid,'SIGKILL');}catch(err){} 
             return;
@@ -811,7 +816,6 @@ const checkDaemonTimer = setIntervalAsync(() => {
 
 const checkSyncTimer = setIntervalAsync(() => {
     if (app.localDaemonRunning && (app.daemonPid !== null)) {
-
         var myAgent = new http.Agent({
             keepAlive: true,
             keepAliveMsecs: 8000
@@ -947,8 +951,11 @@ function serviceBinCheck(){
     }catch(_e){}
 }
 
+electron.dialog.showErrorBox = (title, content) => {
+  console.log(`${title}\n${content}`);
+};
+
 process.on('unhandledRejection', function(err) {});
-process.on('uncaughtException', function(err) {});
 function terminateDaemon() {
 
     app.daemonLastPid = app.daemonPid;
@@ -1020,7 +1027,7 @@ function runDaemon() {
           if (win!==null) win.webContents.send('console',chunk);
         });
     } catch(e) {
-      log.error(e.message);
+      log.error("runDaemon: "+e.message);
     }
 }
 
@@ -1056,11 +1063,6 @@ const checkFallback = setIntervalAsync(() => {
 }, 30000);
 */
 
-var gbStorageAvailable = 0;
-disk.check('/', function(err, info) {
-  gbStorageAvailable = (info.available / (1024 * 1024 * 1024)).toFixed(1);
-});
-
 function sendConsoleThinMsg() {
   if (win!==null) {
     let text = "thin mode...\nInsufficient memory or storage to run a local daemon.\n";
@@ -1071,6 +1073,10 @@ function sendConsoleThinMsg() {
 }
 
 function checkMemoryAndStorage() {
+
+  //jojapoppa, need to check gbStorageAvailable too - can't use module 'disk', it's buggy
+  var gbStorageAvailable = 26;
+
   var gbMemoryAvailable = (opsys.totalmem() / (1024 * 1024 * 1024)).toFixed(1);
   //log.warn("memoryAvailable: "+gbMemoryAvailable);
   //log.warn("storageAvailable: "+gbStorageAvailable);
@@ -1164,7 +1170,7 @@ app.on('activate', () => {
 
 process.on('uncaughtException', function (e) {
     log.error(`Uncaught exception: ${e.message}`);
-    process.exit(1);
+    //process.exit(1);
 });
 
 process.on('beforeExit', (code) => {

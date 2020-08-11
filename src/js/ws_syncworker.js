@@ -1,4 +1,5 @@
 /* eslint no-empty: 0 */
+"use strict";
 
 const log = require('electron-log');
 const WalletShellApi = require('./ws_api');

@@ -2,10 +2,10 @@
 /*jshint bitwise: false*/
 /* globals iqwerty */
 /* globals List */
+"use strict";
 
 const os = require('os');
 const net = require('net');
-const dns = require('dns');
 const path = require('path');
 const fs = require('fs');
 const log = require('electron-log');
@@ -858,23 +858,6 @@ function pipePath() {
   return "/tmp";
 }
 
-function createSocketPath() {
-  // https://thewebdev.info/2020/03/24/using-the-nodejs-os-modulepart-3/
-  // https://www.tutorialspoint.com/nodejs/nodejs_os_module.htm
-  // '/tmp/app.cjdns_sock'
-  let socketdatapath = path.join(remote.app.getPath('userData'), 'cjdns_sock');
-  log.warn("launching cjdns with socket path: "+socketdatapath);
-
-  try {
-    let soc = net.createConnection({ path: socketdatapath });
-    soc.end();
-  } catch(err) {
-    log.warn("socket er: "+err);
-  }
-
-  return socketdatapath;
-}
-
 function generateCjdnsCfg() {
 
   var adminbind = "127.0.0.1:"+settings.get('cjdnsadmin_port');
@@ -883,13 +866,14 @@ function generateCjdnsCfg() {
   log.warn("my cjdns private key is: "+privateKey);
   log.warn("my cjdns public key is: "+publicKey);
 
-  var options = {
-    //hints: dns.ADDRCONFIG | dns.V4MAPPED
-  };
-  options.all = true;
-  dns.lookup(os.hostname(), options, function (err, addresses) {
-    log.warn('my ip addresses: %j', addresses);
-  })
+//dns module has many vulnerabilities, find better npm module for this
+//  var options = {
+//    //hints: dns.ADDRCONFIG | dns.V4MAPPED
+//  };
+//  options.all = true;
+//  dns.lookup(os.hostname(), options, function (err, addresses) {
+//    log.warn('my ip addresses: %j', addresses);
+//  })
 
   var cjdnsconf = {
     privateKey: privateKey,
@@ -932,7 +916,7 @@ function generateCjdnsCfg() {
       },
       interface: {
         type: "SocketInterface",
-        socketFullPath: createSocketPath(),
+        socketFullPath: wsmanager.createSocketPath(),
         socketAttemptToCreate: 1
       }
     },

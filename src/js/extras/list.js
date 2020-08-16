@@ -1,5 +1,6 @@
 /* eslint no-unexpected-multiline: 0 */
 /*! List.js v1.5.0 (http://listjs.com) by Jonny Strömberg (http://javve.com) */
+require('source-map-support').install();
 var List =
 /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache

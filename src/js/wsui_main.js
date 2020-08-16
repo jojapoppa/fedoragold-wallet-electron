@@ -917,7 +917,7 @@ function generateCjdnsCfg() {
       interface: {
         type: "SocketInterface",
         socketFullPath: wsmanager.createSocketPath(),
-        socketAttemptToCreate: 1
+        socketAttemptToCreate: 0
       }
     },
     security: [
@@ -931,7 +931,7 @@ function generateCjdnsCfg() {
     logging: {
       logTo: "stdout"
     },
-    noBackground: 0,
+    noBackground: 1,
     pipe: pipePath(),
     version: 2
   };
@@ -1002,8 +1002,13 @@ function generateCjdnsCfg() {
   // workaround for the requirement that cjdns has of input with \x5c on Windows
   let confstr = JSON.stringify(cjdnsconf);
   if (confstr.indexOf("wincjdns") > -1) {
+    confstr = confstr.replace("wincjdns.sock", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns_sock");
     confstr = confstr.replace("wincjdns.pipe", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns_pipe");
   }
+
+  log.warn("configuration string:");
+  log.warn(confstr);
+  log.warn(" ");
 
   return confstr;
 }

@@ -25,31 +25,36 @@ cp ./src/assets/icon.* ./build/
 
 set DEBUG=electron-builder
 
+#mkdir dist/linux-unpacked
+#cp node_modules/electron/dist/chrome-sandbox dist/linux-unpacked
+#sudo chown root dist/linux-unpacked/chrome-sandbox
+#sudo chmod 4755 dist/linux-unpacked/chrome-sandbox
+
 #linux build
-#rm -r bin
-#cp -r bin_linux bin
-#npm run dist-lin --no-bin-link --rollback=false
-#cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv
+rm -r bin
+cp -r bin_linux bin
+npm run dist-lin --no-bin-link --rollback=false
+cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv
 
 #cd ../..
 #exit
 
-#see alternate project.json file
+#android build: see alternate project.json file
 #rm -r bin
 #cp -r bin_android bin
 #npm run dist-lin --no-bin-link --rollback=false
 #cp dist/FedoraGoldWallet-v*apk /media/sf_sharedv
 
 #mac build
-#rm -r bin
-#cp -r bin_mac bin
-##export CSC_IDENTITY_AUTO_DISCOVERY=false
-#npm config set FedoraGoldWallet:resourcedir ./Resources/bin/mac
-#npm run dist-mac --no-bin-link --rollback=false --max-old-space-size=4096
-#cd dist/mac
-#zip -r FedoraGoldWalletMac.zip FedoraGoldWallet.app
-#cd ../..
-#cp dist/mac/FedoraGoldWalletMac.zip /media/sf_sharedv/FedoraGoldWalletMac-v.zip
+rm -r bin
+cp -r bin_mac bin
+#export CSC_IDENTITY_AUTO_DISCOVERY=false
+npm config set FedoraGoldWallet:resourcedir ./Resources/bin/mac
+npm run dist-mac --no-bin-link --rollback=false --max-old-space-size=4096
+cd dist/mac
+zip -r FedoraGoldWalletMac.zip FedoraGoldWallet.app
+cd ../..
+cp dist/mac/FedoraGoldWalletMac.zip /media/sf_sharedv/FedoraGoldWalletMac-v.zip
 
 rm -r bin
 cp -r bin_win bin

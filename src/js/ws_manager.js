@@ -248,21 +248,22 @@ WalletShellManager.prototype.createSocketPath = function() {
   let socketdatapath = path.join(remote.app.getPath('userData'), 'cjdns_sock');
   let mplat = this.getPlatform();
   let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
-  if (OSID === 'win') {
-    let apath = 'wincjdns.pipe';
-    socketdatapath = apath.replace("wincjdns.pipe", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns_sock");
-  }
-
-  try {
-    // test it
-    let soc = net.createConnection({ path: socketdatapath });
-    soc.end();
-  } catch(err) {
-    log.warn("socket access error: "+err);
-  }
-
   remote.app.cjdnsSocketPath = socketdatapath;
-  log.warn("launching cjdns with socket path: "+socketdatapath);
+  if (OSID === 'win') {
+    socketdatapath = 'wincjdns.sock';
+    remote.app.cjdnsSocketPath = socketdatapath.replace("wincjdns.sock", "\\\\.\\pipe\\cjdns_sock");
+  }
+
+  log.warn("launching cjdns with socket path: "+remote.app.cjdnsSocketPath);
+
+  //try {
+    // test it
+    //let soc = net.createConnection({ path: remote.app.cjdnsSocketPath });
+    //soc.end();
+  //} catch(err) {
+  //  log.warn("socket access error: "+err);
+  //}
+
   return socketdatapath;
 }
 
@@ -283,7 +284,7 @@ WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyper
   }
 
   try {
-    //log.warn("spawning: "+cjdnsBin);
+    log.warn("spawning: "+cjdnsBin);
     this.hyperProcess = childProcess.spawn(cjdnsBin);
     this.hyperPid = this.hyperProcess.pid;
 

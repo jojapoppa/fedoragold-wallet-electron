@@ -4,7 +4,7 @@ const app = require('electron').app;
 const dialog = require('electron').dialog;
 const Tray = require('electron').Tray;
 const Menu = require('electron').Menu;
-//{app, dialog, Tray, Menu} = require('electron');
+
 const path = require('path');
 const vm = require('vm');
 const fs = require('fs');
@@ -100,7 +100,7 @@ app.cjdnsSocketPath=path.join(app.getPath('userData'), 'socks5_server_sock');
 //app.cjdnsPid=null;
 
 app.primarySeedAddr = '18.222.96.134';
-app.secondarySeedAddr = '18.223.178.174'
+app.secondarySeedAddr = '18.223.178.174';
 app.primarySeedHeight = 0;
 
 var now = function () { return (new Date()).getTime(); };
@@ -145,10 +145,15 @@ function createWindow () {
     let darkmode = settings.get('darkmode', true);
     let bgColor = darkmode ? '#000000' : '#FFCC33';   // '#FFCC33'; //jojapoppa
 
+    // webPreferences: { ... devTools:true
     const winOpts = {
         title: `${config.appName} ${config.appDescription}`,
         icon: path.join(__dirname,'src/assets/walletshell_icon.png'),
         frame: true,
+      
+        webPreferences: {
+          nodeIntegration: true,
+          nodeIntegrationInWorker: true },
         width: DEFAULT_SIZE.width,
         height: DEFAULT_SIZE.height,
         transparent: false,
@@ -168,7 +173,7 @@ function createWindow () {
             width: 425,
             height: 325,
             transparent: true
-        },
+        }
     });
 
     // Tried embedding ..Version ${versionInfo.version} has been.. in the text, but the version # doesn't display
@@ -190,6 +195,20 @@ function createWindow () {
         };
         dialog.showMessageBox(win, dialogOptions, function() {
           ensureSafeQuitAndInstall();
+
+          // https://www.electron.build/auto-update
+
+          if (process.env.DESKTOPINTEGRATION === 'AppImageLauncher') {
+            // remap temporary running AppImage to actual source
+            autoUpdater.on.logger.info('rewriting $APPIMAGE', {
+              oldValue: process.env.APPIMAGE,
+              newValue: process.env.ARGV0,
+            });
+            process.env.APPIMAGE = process.env.ARGV0;
+          } else {
+            autoUpdater.on.logger.info('Not running in AppImageLauncher...')
+          }
+
           autoUpdater.quitAndInstall();
         });
       });
@@ -198,7 +217,6 @@ function createWindow () {
     win.on('hide', () => {});
     win.on('minimize', (event) => {});
 
-    //load the index.html of the app.
     win.loadURL(url.format({
         pathname: path.join(__dirname, 'src/html/index.html'),
         protocol: 'file:',
@@ -206,7 +224,8 @@ function createWindow () {
     }));
 
     // open devtools
-    if(IS_DEV && (win!==null)) win.webContents.openDevTools();
+    //if(IS_DEV && (win!==null))
+ win.webContents.openDevTools();
 
     // show window
     win.once('ready-to-show', () => {
@@ -260,7 +279,7 @@ const getHttpContent = function(url) {
       response.on('end', () => resolve(body.join('')));
     });
     // handle connection errors of the request
-    request.on('error', (err) => reject(err))
+    request.on('error', (err) => reject(err));
   });
 };
 
@@ -1092,7 +1111,7 @@ function initSettings(){
     Object.keys(DEFAULT_SETTINGS).forEach((k) => {
         if(!settings.has(k) || settings.get(k) === null){
             if(DEFAULT_SETTINGS[k]===undefined){
-		log.debug(`value of default setting is undefined for: ${k}`); 
+                log.debug(`value of default setting is undefined for: ${k}`); 
                 settings.set(k, '');
             } 
             else {
@@ -1179,6 +1198,7 @@ process.on('beforeExit', (code) => {
 
 process.on('exit', (code) => {
     terminateDaemon();
+});
 
 //    // needs it twice for some reason on an application exit... unreliable otherwise...
 //    try{
@@ -1189,7 +1209,6 @@ process.on('exit', (code) => {
 //        //log.warn("exit command sent to fedoragold_daemon");
 //      }
 //    }catch(e){/*eat any errors, no reporting nor recovery needed...*/}
-});
 
 process.on('warning', (warning) => {
     log.warn(`${warning.code}, ${warning.name}`);

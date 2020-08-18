@@ -408,13 +408,13 @@ function showFeeWarning(fee){
 
 function updateQr(address){
     if(!address){
+        log.warn("no address passed for QR code, triggering refresh instead...");
         triggerTxRefresh();
         return;
     }
 
     let walletHash = wsutil.b2sSum(address);
     wsession.set('walletHash', walletHash);
-
     let oldImg = document.getElementById('qr-gen-img');
     if(oldImg) oldImg.remove();
 
@@ -507,6 +507,7 @@ function updateUiState(msg){
             showFeeWarning(msg.data);
             break;
         case 'addressUpdated':
+            log.warn("******** addressUpdated message ... updateQr now");
             updateQr(msg.data);
             break;
         case 'sectionChanged':

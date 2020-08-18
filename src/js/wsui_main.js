@@ -2654,10 +2654,10 @@ function initHandlers(){
             defaultPath: recentDir
         };
 
-        log.warn("dialogType: "+dialogType);
-        log.warn("targetName: "+targetName);
-        log.warn("targetInput: "+targetInput);
-        log.warn("recentDir: "+recentDir);
+        //log.warn("dialogType: "+dialogType);
+        //log.warn("targetName: "+targetName);
+        //log.warn("targetInput: "+targetInput);
+        //log.warn("recentDir: "+recentDir);
 
         if(dialogType === 'saveFile') {
             dialogOpts.title = `Select directory to store your ${targetName}, and give it a filename.`;

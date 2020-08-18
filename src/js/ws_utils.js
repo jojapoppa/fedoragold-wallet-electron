@@ -2,7 +2,9 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const blake2s = require('blake2s');
 const {nativeImage} = require('electron');
+const log = require('electron-log');
 const qr = require('qr-image');
 const config = require('./ws_config');
 
@@ -95,9 +97,9 @@ exports.objInArray = (targetObjArr, objToSearch, objKey) => {
 
 exports.b2sSum = (inputStr) =>  {
     if(!inputStr) return false;
-    return crypto.createHash('blake2s256')
-        .update(inputStr)
-        .digest('hex');
+    let h = new blake2s(32);
+    h.update(Buffer.from(inputStr), 'utf8');
+    return h.digest('hex');
 };
 
 exports.genQrDataUrl = (inputStr) => {

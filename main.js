@@ -1094,17 +1094,19 @@ function sendConsoleThinMsg() {
 
 function checkMemoryAndStorage() {
 
-  //jojapoppa, need to check gbStorageAvailable too - can't use module 'disk', it's buggy
-  var gbStorageAvailable = 26;
+  let gbStorageAvailable = 26;
+  let locat = '/';
+  if (platform === 'win32') locat = 'C:/';
 
-  var gbMemoryAvailable = (opsys.totalmem() / (1024 * 1024 * 1024)).toFixed(1);
-  //log.warn("memoryAvailable: "+gbMemoryAvailable);
-  //log.warn("storageAvailable: "+gbStorageAvailable);
+  // Check storage later ... not yet critical
+  //log.warn("checkMemoryAndStorage()");
 
+  let gbMemoryAvailable = (opsys.totalmem() / (1024 * 1024 * 1024)).toFixed(1);
   if ((gbMemoryAvailable < 2.5) || (gbStorageAvailable < 25)) {
     sendConsoleThinMsg();
     return false;
   }
+
   return true;
 }
 

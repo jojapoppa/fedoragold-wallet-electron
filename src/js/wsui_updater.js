@@ -507,7 +507,6 @@ function updateUiState(msg){
             showFeeWarning(msg.data);
             break;
         case 'addressUpdated':
-            log.warn("******** addressUpdated message ... updateQr now");
             updateQr(msg.data);
             break;
         case 'sectionChanged':

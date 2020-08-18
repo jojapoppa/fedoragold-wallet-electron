@@ -152,6 +152,7 @@ function createWindow () {
         frame: true,
       
         webPreferences: {
+          enableRemoteModule: true,
           nodeIntegration: true,
           nodeIntegrationInWorker: true },
         width: DEFAULT_SIZE.width,
@@ -223,9 +224,9 @@ function createWindow () {
         slashes: true
     }));
 
-    // open devtools
+    // open devtools - DEBUG
     //if(IS_DEV && (win!==null))
- win.webContents.openDevTools();
+    //  win.webContents.openDevTools();
 
     // show window
     win.once('ready-to-show', () => {

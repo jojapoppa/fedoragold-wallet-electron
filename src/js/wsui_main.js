@@ -20,7 +20,6 @@ const wsutil = require('./ws_utils');
 const WalletShellSession = require('./ws_session');
 const WalletShellManager = require('./ws_manager');
 const config = require('./ws_config');
-const AnsiUp = require('ansi_up');
 const wsmanager = new WalletShellManager();
 const wsession = new WalletShellSession();
 const settings = new Store({ name: 'Settings' });
@@ -108,8 +107,8 @@ let sendMaxAmount;
 let sendOptimize;
 // create wallet
 let overviewButtonCreate;
-let walletCreateInputPath;
-// let walletCreateInputFilename;
+//let walletCreateInputPath;
+let walletCreateInputFilename;
 let walletCreateInputPassword;
 // import wallet keys
 let importKeyButtonImport;
@@ -199,6 +198,11 @@ function populateElementVars(){
     walletOpenButtonOpen = document.getElementById('button-load-load');
     walletOpenButtons = document.getElementById('walletOpenButtons');
 
+    // create wallet page
+    overviewButtonCreate = document.getElementById('button-create-create');
+    walletCreateInputFilename = document.getElementById('input-create-path');
+    walletCreateInputPassword = document.getElementById('input-create-password');
+
     // show/export keys page
     overviewShowKeyButton = document.getElementById('button-show-reveal');
     showkeyButtonExportKey = document.getElementById('button-show-export');
@@ -215,11 +219,6 @@ function populateElementVars(){
     // maxSendFormHelp = document.getElementById('sendFormHelp');
     sendMaxAmount = document.getElementById('sendMaxAmount');
     sendOptimize = document.getElementById('button-send-optimize');
-    // create wallet
-    overviewButtonCreate = document.getElementById('button-create-create');
-    walletCreateInputPath = document.getElementById('input-create-path');
-    //walletCreateInputFilename = document.getElementById('input-create-name');
-    walletCreateInputPassword = document.getElementById('input-create-password');
     // import wallet keys
     importKeyButtonImport = document.getElementById('button-import-import');
     importKeyInputPath = document.getElementById('input-import-path');
@@ -1585,13 +1584,16 @@ function handleWalletClose(){
 }
 
 function handleWalletCreate(){
+
     overviewButtonCreate.addEventListener('click', () => {
         formMessageReset();
-        let filePathValue = walletCreateInputPath.value ? walletCreateInputPath.value.trim() : '';
+        let filePathValue = walletCreateInputFilename.value ? walletCreateInputFilename.value.trim() : '';
         let passwordValue =  walletCreateInputPassword.value ? walletCreateInputPassword.value.trim() : '';
 
         // validate path
         wsutil.validateWalletPath(filePathValue, DEFAULT_WALLET_PATH).then((finalPath)=>{
+            log.warn("wallet finalPath: "+finalPath);
+
             // validate password
             if(!passwordValue.length){
                 formMessageSet('create','error', `Please enter a password, creating wallet without a password will not be supported!`);
@@ -1609,7 +1611,7 @@ function handleWalletCreate(){
                     fs.renameSync(finalPath, backfn);
                     //fs.unlinkSync(finalPath);
                 }catch(err){
-                   formMessageSet('create','error', `Unable to overwrite existing file, please enter new wallet file path`);
+                   formMessageSet('create','error', `Unable to overwrite existing file or invalid path`);
                    return;
                 }
            }
@@ -1814,9 +1816,10 @@ function handleWalletExport(){
 }
 
 function consoleUI(el, sChunk, bDaemon, rigID) {
-    var ansi_up = new AnsiUp.default;
+    //const AnsiUp = require('ansi_up'); (was at top)
+    //var ansi_up = new AnsiUp.default;
     var buffer = "";
-    var buffin = el.innerHTML + ansi_up.ansi_to_html(sChunk);
+    var buffin = el.innerHTML + sChunk.toString(); //ansi_up.ansi_to_html(sChunk);
 
     for (let i=0; i<buffin.length; i++) {
       let ch = buffin.charCodeAt(i);
@@ -2651,12 +2654,33 @@ function initHandlers(){
             defaultPath: recentDir
         };
 
+        log.warn("dialogType: "+dialogType);
+        log.warn("targetName: "+targetName);
+        log.warn("targetInput: "+targetInput);
+        log.warn("recentDir: "+recentDir);
+
         if(dialogType === 'saveFile') {
             dialogOpts.title = `Select directory to store your ${targetName}, and give it a filename.`;
             dialogOpts.buttonLabel = 'OK';
-            
-            remote.dialog.showSaveDialog(dialogOpts, (file) => {
-                if (file) targetInput.value = file;
+
+            let afilename = remote.dialog.showSaveDialog({}).then(result => {
+              let flename = result.filePath;
+              if (flename === undefined) {
+                alert('You need to provide a file name for your wallet.');
+                return;
+              }
+
+              let fbase = path.basename(flename);
+              if (fbase.length == 0) {
+                return;  // user hit Cancel
+              } else if ((fbase.indexOf('.wal') < 0) && (fbase.indexOf('.wallet') < 0)) {
+                flename = flename + '.wal';
+              }
+
+              //log.warn("selected wallet file name: "+flename);
+              targetInput.value = flename;
+            }).catch(err => {
+              alert('Error creating wallet file: '+err);
             });
         } else{
             dialogOpts.properties = [dialogType];

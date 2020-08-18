@@ -7,12 +7,12 @@
             <div class="div-input">
                 <div class="input-wrap">
                     <h4 class="text-spaced input-required">Select a folder & specify a name for your wallet</h4>
-                    <input required="required" data-fileobj="wallet file" 
+                    <input type="text" title="Required" required="required" data-fileobj="wallet file" 
                         data-selection="saveFile"  data-targetinput="input-create-path" 
-                        readonly="readonly" class="text-block path-input-button" id="input-create-path" 
+                        class="text-block path-input-button" id="input-create-path"
                         placeholder="Required, full path to store this wallet..."
-                        />
-                    <button  data-fileobj="wallet file" data-selection="saveFile"  data-targetinput="input-create-path" type="button" class="button-green path-input-button notabindex" id="button-create-browse"><i class="fas fa-folder-open"></i></button>
+                        readonly="readonly" style="padding: 12px 8px;" />
+                    <button data-fileobj="wallet file" data-selection="saveFile"  data-targetinput="input-create-path" type="button" class="button-green path-input-button" id="button-create-browse"><i class="fas fa-folder-open"></i></button>
                 </div>
                 <div class="input-wrap">
                     <h4 class="text-spaced input-required">Set password to open this wallet</h4>

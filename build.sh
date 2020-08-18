@@ -25,15 +25,11 @@ cp ./src/assets/icon.* ./build/
 
 set DEBUG=electron-builder
 
-#mkdir dist/linux-unpacked
-#cp node_modules/electron/dist/chrome-sandbox dist/linux-unpacked
-#sudo chown root dist/linux-unpacked/chrome-sandbox
-#sudo chmod 4755 dist/linux-unpacked/chrome-sandbox
-
 #linux build
 rm -r bin
 cp -r bin_linux bin
 npm run dist-lin --no-bin-link --rollback=false
+chmod o+rx dist/FedoraGoldWallet-v*AppImage
 cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv
 
 #cd ../..

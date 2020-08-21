@@ -2659,7 +2659,7 @@ function initHandlers(){
         //log.warn("targetInput: "+targetInput);
         //log.warn("recentDir: "+recentDir);
 
-        if(dialogType === 'saveFile') {
+        if (dialogType === 'saveFile') {
             dialogOpts.title = `Select directory to store your ${targetName}, and give it a filename.`;
             dialogOpts.buttonLabel = 'OK';
 
@@ -2682,11 +2682,18 @@ function initHandlers(){
             }).catch(err => {
               alert('Error creating wallet file: '+err);
             });
-        } else{
-            dialogOpts.properties = [dialogType];
+        } else {
+            let opts = {
+              defaultPath: recentDir,
+              title: 'Select the wallet to open',
+              properties: [dialogType]
+            };
 
-            remote.dialog.showOpenDialog(dialogOpts, (files) => {
-                if (files) targetInput.value = files[0];
+            remote.dialog.showOpenDialog(opts).then(result => {
+              //log.warn("result: %j", result);
+              let fles = result.filePaths;
+              if (fles === undefined) return;
+              targetInput.value = fles[0];
             });
         }
     }

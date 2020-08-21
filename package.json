@@ -60,7 +60,7 @@
   },
   "build": {
     "appId": "fed.fedoragold.walletshell",
-    "copyright": "Copyright (c) 2018, 2019 FedoraGold, Rixombea, Macroshock, TurtleCoin Developers",
+    "copyright": "Copyright (c) 2018-2020 FedoraGold, Rixombea, Macroshock, TurtleCoin Developers",
     "directories": {
       "output": "dist",
       "buildResources": "build"

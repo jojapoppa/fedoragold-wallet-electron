@@ -284,7 +284,7 @@ WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyper
   }
 
   try {
-    log.warn("spawning: "+cjdnsBin);
+    //log.warn("spawning: "+cjdnsBin);
     this.hyperProcess = childProcess.spawn(cjdnsBin);
     this.hyperPid = this.hyperProcess.pid;
 

@@ -150,7 +150,7 @@ function createWindow () {
         title: `${config.appName} ${config.appDescription}`,
         icon: path.join(__dirname,'src/assets/walletshell_icon.png'),
         frame: true,
-      
+     
         webPreferences: {
           enableRemoteModule: true,
           nodeIntegration: true,
@@ -180,13 +180,15 @@ function createWindow () {
     // Tried embedding ..Version ${versionInfo.version} has been.. in the text, but the version # doesn't display
     //   so, I gave up and just made the message generic...
     win.on('show', () => {
-
       autoUpdater.autoDownload = true;
       autoUpdater.allowDowngrade = false;
       autoUpdater.allowPrerelease = false;
       autoUpdater.logger = log;
       autoUpdater.logger.transports.file.level = "info";
-      autoUpdater.checkForUpdatesAndNotify();
+      autoUpdater.checkForUpdatesAndNotify().catch(err => {
+        log.warn('Error on update (NAME_NOT_RESOLVED is old yml on github): ',err);
+      });
+
       autoUpdater.on('update-downloaded', (versionInfo) => {
         var dialogOptions = {
           type: 'question',
@@ -196,9 +198,7 @@ function createWindow () {
         };
         dialog.showMessageBox(win, dialogOptions, function() {
           ensureSafeQuitAndInstall();
-
           // https://www.electron.build/auto-update
-
           if (process.env.DESKTOPINTEGRATION === 'AppImageLauncher') {
             // remap temporary running AppImage to actual source
             autoUpdater.on.logger.info('rewriting $APPIMAGE', {
@@ -226,7 +226,7 @@ function createWindow () {
 
     // open devtools - DEBUG
     //if(IS_DEV && (win!==null))
-    //  win.webContents.openDevTools();
+    win.webContents.openDevTools();
 
     // show window
     win.once('ready-to-show', () => {
@@ -351,7 +351,7 @@ var domainsocketstream = null;
 function connectSocks5ServerAndSSHClientToCjdnsSocket(sockstream) {
 
   var ssh_config = { 
-    host: 'fc49:1b98:5322:be12:d324:f52a:a33c:e6b2',
+    host: 'fc8a:864c:3270:a3b5:c722:cf46:c9bf:cf22',
     port: 22,
     username: 'nodejs',
     password: 'rules',
@@ -400,7 +400,7 @@ function connectSocks5ServerAndSSHClientToCjdnsSocket(sockstream) {
       log.warn("error creating ssh client: "+e);
     }
   }).listen(1080, '0.0.0.0', function() {
-    console.log('FedoraGold SOCKSv5 proxy server started on port 1080');
+    log.warn('FedoraGold SOCKSv5 proxy server started on port 1080');
   }).useAuth(socksV5.auth.None());
 }
 
@@ -535,10 +535,10 @@ async function pageFunctionList(cjdns, waitFor, page) {
 }
 
 var connections = {};
-function createDomainSocketServer(socket){
-    console.log('Creating domain socket server.');
+function createDomainSocketServerToCjdns(socket){
+    log.warn('Creating domain socket server.');
     var server = net.createServer(function(stream) {
-      console.log('Connection acknowledged.');
+      log.warn('Connection acknowledged.');
 
       // Store all connections so we can terminate them if the server closes.
       // An object is better than an array for these.
@@ -547,18 +547,18 @@ function createDomainSocketServer(socket){
 
       stream.on('connect', ()=>{
         domainsocketstream = stream;
-        console.log("domain socket connected.");
+        log.warn("domain socket connected.");
       });
 
       stream.on('end', function() {
-        console.log('Client disconnected.');
+        log.warn('Client disconnected.');
         delete connections[self];
       });
 
       // Messages are buffers. use toString
       stream.on('data', function(msg) {
         msg = msg.toString('base64');
-        console.log("stream data: "+msg);
+        log.warn("stream data: "+msg);
 
         //stream.write(msg); // or translate it if you want...
       });
@@ -569,7 +569,7 @@ function createDomainSocketServer(socket){
     })
     .listen(socket)
     .on('connection', function(socket){
-      console.log('socket connected.');
+      log.warn('socket connected.');
       //socket.write('__boop');
       //console.log(Object.keys(socket));
     });
@@ -740,7 +740,7 @@ setTimeout(function runSocks5Proxy() {
     socksstarted = true;
 /*
     try {
-      createDomainSocketServer(path.join(app.getPath('userData'), 'cjdns_sock'));
+      createDomainSocketServerToCjdns(path.join(app.getPath('userData'), 'cjdns_sock'));
       setTimeout(connectSocks5ServerAndSSHClientToCjdnsSocket, 500, domainsocketstream);
       setTimeout(connectSSHExitNodeToSocket, 1000, domainsocketstream);
     } catch(e) {
@@ -972,7 +972,7 @@ function serviceBinCheck(){
 }
 
 electron.dialog.showErrorBox = (title, content) => {
-  console.log(`${title}\n${content}`);
+  log.warn(`${title}\n${content}`);
 };
 
 process.on('unhandledRejection', function(err) {});

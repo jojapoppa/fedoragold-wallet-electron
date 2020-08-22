@@ -100,7 +100,7 @@ app.cjdnsSocketPath=path.join(app.getPath('userData'), 'socks5_server_sock');
 //app.cjdnsPid=null;
 
 app.primarySeedAddr = '18.222.96.134';
-app.secondarySeedAddr = '18.223.178.174';
+app.secondarySeedAddr = '213.136.89.252';
 app.primarySeedHeight = 0;
 
 var now = function () { return (new Date()).getTime(); };
@@ -1016,7 +1016,7 @@ function runDaemon() {
       '--rpc-bind-ip', '127.0.0.1',
       '--rpc-bind-port', settings.get('daemon_port'),
       '--add-priority-node', '18.222.96.134:30158', 
-      '--add-priority-node', '18.223.178.174:30158'
+      '--add-priority-node', '213.136.89.252:30158'
     ];
 
     // unable to get this mode working yet, but seems to work for Meroex!

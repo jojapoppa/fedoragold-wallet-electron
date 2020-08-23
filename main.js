@@ -1013,7 +1013,7 @@ function runDaemon() {
     require('events').EventEmitter.prototype._maxListeners = 250;
 
     let daemonArgs = [
-      '--rpc-bind-ip', '127.0.0.1',
+      '--rpc-bind-ip', '0.0.0.0',
       '--rpc-bind-port', settings.get('daemon_port'),
       '--add-priority-node', '18.222.96.134:30158', 
       '--add-priority-node', '213.136.89.252:30158'

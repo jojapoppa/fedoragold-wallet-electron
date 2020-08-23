@@ -19,6 +19,7 @@ const autoComplete = require('./extras/auto-complete');
 const wsutil = require('./ws_utils');
 const WalletShellSession = require('./ws_session');
 const WalletShellManager = require('./ws_manager');
+const ansi2html = require('ansi2html');
 const config = require('./ws_config');
 const wsmanager = new WalletShellManager();
 const wsession = new WalletShellSession();
@@ -1816,10 +1817,8 @@ function handleWalletExport(){
 }
 
 function consoleUI(el, sChunk, bDaemon, rigID) {
-    //const AnsiUp = require('ansi_up'); (was at top)
-    //var ansi_up = new AnsiUp.default;
     var buffer = "";
-    var buffin = el.innerHTML + sChunk.toString(); //ansi_up.ansi_to_html(sChunk);
+    var buffin = el.innerHTML + ansi2html(sChunk);
 
     for (let i=0; i<buffin.length; i++) {
       let ch = buffin.charCodeAt(i);
@@ -1847,7 +1846,10 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
         }
 
         if (firstline.length === 0) firstline = thisline;
-        updatedText = thisline + "<br/>" + updatedText;
+        if (thisline.indexOf("PASSED") > -1)
+          updatedText = "Checkpoint passed...<br/>" + updatedText;
+        else
+          updatedText = thisline + "<br/>" + updatedText;
         outlen++;
 
         // this tells you if the local daemon is truly ready yet... with its report block #
@@ -1915,7 +1917,7 @@ function updateHyperConsole(chunkBuf) {
   consoleUI(vpnConsole, chunkBuf, false, "");
 }
 
-function updateConsole(chunkBuf) {
+function updateMinerConsole(chunkBuf) {
   var elConsole = document.getElementById("miningterminal");
   consoleUI(elConsole, chunkBuf, false, last8_rigID);
 }
@@ -1927,7 +1929,7 @@ function handleMiner(){
     let minerp = wsmanager.getMinerPid();
     if (minerp > 0) { 
       wsmanager.killMiner(0);
-      updateConsole('Miner stopped.');
+      updateMinerConsole('Miner stopped.');
       return;
     }
 
@@ -1969,7 +1971,7 @@ function handleMiner(){
 
       // add option: --use-nicehash             the pool should run in nicehash mode
 
-      wsmanager.runMiner(minerBin, minerArgs, updateConsole);
+      wsmanager.runMiner(minerBin, minerArgs, updateMinerConsole);
     } else {
       wsmanager.killMiner();
     }
@@ -2922,6 +2924,7 @@ ipcRenderer.on('daemoncoreready', (event, flag) => {
 
 ipcRenderer.on('console', (event, sChunk) => {
     var el = document.getElementById("terminal");
+    //log.warn("sChunk is: "+sChunk.toString());
     consoleUI(el, sChunk, true, "");
 });
 

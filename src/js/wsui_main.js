@@ -1006,9 +1006,9 @@ function generateCjdnsCfg() {
     confstr = confstr.replace("wincjdns.pipe", "\\x5c\\x5c.\\x5cpipe\\x5ccjdns_pipe");
   }
 
-  log.warn("configuration string:");
-  log.warn(confstr);
-  log.warn(" ");
+  //log.warn("configuration string:");
+  //log.warn(confstr);
+  //log.warn(" ");
 
   return confstr;
 }
@@ -1818,8 +1818,9 @@ function handleWalletExport(){
 
 function consoleUI(el, sChunk, bDaemon, rigID) {
     var buffer = "";
-    var buffin = el.innerHTML + ansi2html(sChunk);
+    if (el === null) return;
 
+    var buffin = el.innerHTML + ansi2html(sChunk.toString());
     for (let i=0; i<buffin.length; i++) {
       let ch = buffin.charCodeAt(i);
       if (ch == 10) {

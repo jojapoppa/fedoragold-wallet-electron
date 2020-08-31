@@ -256,13 +256,12 @@ WalletShellManager.prototype.createSocketPath = function() {
 
   log.warn("launching cjdns with socket path: "+remote.app.cjdnsSocketPath);
 
-  //try {
-    // test it
-    //let soc = net.createConnection({ path: remote.app.cjdnsSocketPath });
-    //soc.end();
-  //} catch(err) {
-  //  log.warn("socket access error: "+err);
-  //}
+  // Some systems complain if we try to connect to an old socket... so delete it.
+  try {
+    fs.unlink(remote.app.cjdnsSocketPath, (err) => {});
+  } catch(err) {
+    // just eat any errors that happen...
+  }
 
   return socketdatapath;
 }
@@ -276,7 +275,7 @@ WalletShellManager.prototype.getMinerPid = function() {
 }
 
 WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyperConsole) {
-  //log.warn("runHyperboria with args: "+cjdnsArgs);
+  log.warn("run Hyperboria with args: "+cjdnsArgs);
 
   if (this.hyperPid > 0) {
     // if it's already running just return

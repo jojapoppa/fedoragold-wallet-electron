@@ -390,6 +390,7 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
           addressLabel.length, trimmed.length);
 
         if (walletAddress.length <= 0) {
+          log.warn("could not get walletAddress...");
           onError(ERROR_WALLET_PASSWORD);
           return;
         }
@@ -404,7 +405,7 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
 
         this._spawnService(walletFile, password, onError, onSuccess, onDelay);
       }
-    }, 500, walletFile, password, onError, onSuccess, onDelay);
+    }, 750, walletFile, password, onError, onSuccess, onDelay);
 }
 
 WalletShellManager.prototype.startService = function(walletFile, password, onError, onSuccess, onDelay) {

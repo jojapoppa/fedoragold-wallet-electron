@@ -1206,10 +1206,9 @@ function runDaemon() {
     var newTimeStamp;
 
     try {
-        // daemon must run detached, otherwise windows will not exit cleanly
         if (! app.integratedDaemon) { 
           app.daemonProcess = spawn(daemonPath, daemonArgs, 
-            {detached: true, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
+            {detached: false, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
           app.daemonPid = app.daemonProcess.pid;
         }
 

@@ -15,7 +15,9 @@ const url = require('url');
 const util = require('util');
 const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
+
 const websocket = require('websocket-driver');
+
 const killer = require('tree-kill');
 const request = require('request-promise-native');
 const opsys = require('os');
@@ -100,6 +102,7 @@ app.socksv5server=null;
 
 app.cjdnsSocketPath=path.join(app.getPath('userData'), 'socks5_server_sock');
 app.cjdnsTransform=null;
+app.cjdnsStream=null;
 app.sshClientTransform=null;
 app.sshClientStream=null;
 app.maxPacketSize=0;
@@ -163,7 +166,7 @@ function createWindow() {
         webPreferences: {
           enableRemoteModule: true,
           nodeIntegration: true,
-          nodeIntegrationInWorker: true },
+          nodeIntegrationInWorker: false},
         width: DEFAULT_SIZE.width,
         height: DEFAULT_SIZE.height,
         transparent: false,
@@ -447,7 +450,7 @@ var socksstarted = false;
 function connectSocks5ServerAndSSHClientToCjdnsSocket() {
 
 //  var ssh_config = { 
-//    host: 'fc5f:c4d1:d35f:5663:d94f:22c5:c1c4:4bc8',
+//    host: 'fcaa:1ab1:442a:84fa:4b7b:54e4:b9fe:23c0',
 //    port: 22,
 //    username: 'nodejs',
 //    password: 'rocks',
@@ -468,7 +471,7 @@ function connectSocks5ServerAndSSHClientToCjdnsSocket() {
     // you could run into server-imposed limits if you have too many forwards open
     // at any given time
     
-    connectSSHClientToCjdnsSocket('fce4:48e5:10cc:9c69:53f9:127d:8008:5b00', 22);
+    connectSSHClientToCjdnsSocket('fcb0:455d:6d4d:7bb9:5874:0138:a3af:f0ed', 22);
 
     /* 
     var sshClientConn = new ssh2Client();
@@ -717,7 +720,8 @@ app.cjdnsTransform._transform = function(data, encoding, callback) {
 
         let tag = Buffer.from('CJD');
         let b2 = Buffer.from(toArrayBufferInt32(packetSize), 0, 4);
-        if (app.sshClientTransform !== null) app.sshClientTransform.write(Buffer.concat([tag, b2, buf])); 
+//        if (app.sshClientTransform !== null) app.sshClientTransform.write(Buffer.concat([tag, b2, buf])); 
+this.push(buf);
         break;
       }
       case 1: {
@@ -737,27 +741,31 @@ app.cjdnsTransform._transform = function(data, encoding, callback) {
         break;
       }
       default: {
-        let endloc = buf.indexOf('SSH');
-        if (endloc == 0) {
-          log.warn("Cjdns transform: incoming from ssh");
+        //let endloc = buf.indexOf('SSH');
+        //if (endloc == 0) {
+        //  log.warn("Cjdns transform: incoming from ssh");
+        log.warn("writing data into cjdns now..."); 
   
-          buf = Buffer.from(data, i+3);
-          let len = buf.indexOf('SSH'); //, 'utf8');
-          if (len == -1) len = buf.length;
-  
-          let b1 = Buffer.from([0], 0, 1);
-          let b2 = Buffer.from(toArrayBufferInt32(len), 0, 4);
-          let b3 = Buffer.from(buf, 0, len);
-          buf = Buffer.concat([b1, b2, b3]);
-          this.push(buf);
-          logDataStream(buf);
-          log.warn("data sent to cjdns");
-          i += b3.length+6;
+        buf = Buffer.from(data); //, i+3);
+        //let len = buf.indexOf('SSH'); //, 'utf8');
+        //if (len == -1) len = buf.length;
+        let len = buf.length;
+
+        let b1 = Buffer.from([0], 0, 1);
+        let b2 = Buffer.from(toArrayBufferInt32(len), 0, 4);
+        let b3 = Buffer.from(buf, 0, len);
+        buf = Buffer.concat([b1, b2, b3]);
+        app.cjdnsStream.write(buf);
+        //this.push(buf);
+        logDataStream(buf);
+        log.warn("data sent to cjdns");
+        i += len;
+        //  i += b3.length+6;
           break;
-        } else {
-          log.warn("Unrecognized CJDNS data.");
-          i++;
-        } 
+        //} else {
+          //log.warn("Unrecognized CJDNS data.");
+          //i++;
+        //} 
       }
     }
   }
@@ -770,20 +778,34 @@ app.cjdnsTransform._transform = function(data, encoding, callback) {
   callback();
 };
 
+function setupWebDriver(driver) {
+  log.warn('Connection acknowledged, setup WebDriver next...');
+         
+  log.warn("driver created...");
+  driver.on('ping', function(event) { log.warn('websocket ping!'); });
+  driver.on('pong', function(event) { log.warn('websocket pong!'); });
+ 
+  driver.start();
+  driver.ping('fcaa:1ab1:442a:84fa:4b7b:54e4:b9fe:23c0');
+  log.warn("WebDriver working...");
+} 
+
 var connections = {};
 function createDomainSocketServerToCjdns(socketPath){
     log.warn('Creating domain socket server.');
     var server = net.createServer(function(stream) {
-      log.warn('Connection acknowledged, now assign cjdns socket next...');
 
-      var driver = websocket.client('ws://www.example.com/socket:8080');
+      app.cjdnsStream = stream; 
 
-// next use ping on the driver.io to prove connection and route that into transform after
+      var driver = websocket.client('ws://fcb0:455d:6d4d:7bb9:5874:0138:a3af:f0ed');
+      driver.messages.on('data', function(message) {
+        log.warn('websocket got a message: ', message);
+      });
+  
+      stream.pipe(app.cjdnsTransform).pipe(stream);
+      app.cjdnsTransform.pipe(driver.io).pipe(app.cjdnsTransform);
 
-//      stream.pipe(app.cjdnsTransform).pipe(stream);
-//      app.cjdnsTransform.pipe(driver.io).pipe(app.cjdnsTransform);
-
-      log.warn('********* cjdns domain socket to cjdns connected **********');
+      setTimeout(setupWebDriver, 20000, driver);
 
       // Store all connections so we can terminate them if the server closes.
       // An object is better than an array for these.
@@ -791,7 +813,6 @@ function createDomainSocketServerToCjdns(socketPath){
       connections[self] = (stream);
 
       stream.on('connect', ()=>{
-        driver.start();
         log.warn("cjdns stream connect event recieved **************");
       });
 
@@ -810,16 +831,14 @@ function createDomainSocketServerToCjdns(socketPath){
       stream.on('error', function(data) {
         log.warn('domainSocket error: '+data);
       });
-
-      //stream.pipe(stream); // send the data on its way...
     })
     .listen(socketPath)
-    //.on('connection', function(socket){
-    //  app.cjdnsTransform = socket;
-    //  log.warn('********* cjdns domain socket to cjdns connected **********');
-    //  //socket.write('__boop');
-    //  //console.log(Object.keys(socket));
-    //})
+    .on('connection', function(socket){
+      app.cjdnsTransform = socket;
+      log.warn('********* cjdns domain socket to cjdns connected ***************************************');
+      //socket.write('__boop');
+      //console.log(Object.keys(socket));
+    })
     .on('error', (err) => {
       log.warn("error creating cjdns domain socket: "+err);
     });
@@ -832,7 +851,7 @@ THIS CODE ALLOWS YOU TO ACCESS THE ADMIN PORT ON CJDNS
   log.warn("createReadableCjdnsStream()... with admin password: "+app.adminPassword);
 
   //jojapoppa: need to parameterize this stuff...
-  let target = 'fc49:1b98:5322:be12:d324:f52a:a33c:e6b2';
+  let target = 'fcaa:1ab1:442a:84fa:4b7b:54e4:b9fe:23c0';
   let adminPort = 11234;
 
   let cjdns;
@@ -951,6 +970,12 @@ const checkDaemonHeight = setIntervalAsync(() => {
 
 function splitLines(t) { return t.split(/\r\n|\r|\n/); }
 const checkDaemonTimer = setIntervalAsync(() => {
+
+    // reset doesn't work on mac osx, but seems stable there anyway, so just skip it...
+    if (app.localDaemonRunning && process.platform === 'darwin') {
+      return;
+    }
+
     var cmd = `ps -ex`;
     switch (process.platform) {
         case 'win32' : cmd = `tasklist`; break;
@@ -1024,9 +1049,10 @@ const checkSyncTimer = setIntervalAsync(() => {
             Agent: myAgent
         };
 
+        // NOTE: This method will not work on Darwin - don't check for inactivity on Mac...
         // when was the last time we had console output?
         var newTimeStamp = Math.floor(Date.now());
-        if (newTimeStamp - app.timeStamp > 300000) {  // (about 4mins)
+        if ((newTimeStamp - app.timeStamp > 300000) && (process.platform !== 'darwin')) {  // (about 4mins)
           // if no response for over x mins then reset daemon... 
           log.warn("restart the daemon due to inactivity..."); 
           terminateDaemon();
@@ -1346,8 +1372,7 @@ log.warn("window bounds");
     let ty = Math.ceil((bounds.height - (DEFAULT_SIZE.height))/2);
     if(tx > 0 && ty > 0) win.setPosition(parseInt(tx, 10), parseInt(ty,10));
 
-log.warn('set timeout to run daemon...');
-
+    log.warn('set timeout to run daemon...');
     // run in directly the 1st time so that it boots up quickly - not too fast on OSX
     setTimeout(function(){ runDaemon(); }, 1000);
 });

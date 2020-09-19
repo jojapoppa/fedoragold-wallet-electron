@@ -148,6 +148,19 @@ const getHttpContent = function(host, path, cookie) {
   });
 };
 
+WalletShellManager.prototype.getSockPath = function() {
+  log.warn("in getSockPath");
+  let socketdatapath = path.join(remote.app.getPath('userData'), 'cjdns_sock');
+  let mplat = this.getPlatform();
+  let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
+  let cjdSocketPath = socketdatapath;
+  if (OSID === 'win') {
+    socketdatapath = 'wincjdns.sock';
+    cjdSocketPath = socketdatapath.replace("wincjdns.sock", "\\\\.\\pipe\\cjdns_sock");
+  }
+  return cjdSocketPath;
+}
+
 WalletShellManager.prototype.init = function(password){
   this._getSettings();
   //if(this.serviceApi !== null) return; this messes you up when opening a new wallet
@@ -241,31 +254,6 @@ WalletShellManager.prototype.getPlatform = function() {
   return plat;
 }
 
-WalletShellManager.prototype.createSocketPath = function() {
-  // https://thewebdev.info/2020/03/24/using-the-nodejs-os-modulepart-3/
-  // https://www.tutorialspoint.com/nodejs/nodejs_os_module.htm
-  // '/tmp/app.cjdns_sock'
-  let socketdatapath = path.join(remote.app.getPath('userData'), 'cjdns_sock');
-  let mplat = this.getPlatform();
-  let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
-  remote.app.cjdnsSocketPath = socketdatapath;
-  if (OSID === 'win') {
-    socketdatapath = 'wincjdns.sock';
-    remote.app.cjdnsSocketPath = socketdatapath.replace("wincjdns.sock", "\\\\.\\pipe\\cjdns_sock");
-  }
-
-  log.warn("launching cjdns with socket path: "+remote.app.cjdnsSocketPath);
-
-  // Some systems complain if we try to connect to an old socket... so delete it.
-  try {
-    fs.unlink(remote.app.cjdnsSocketPath, (err) => {});
-  } catch(err) {
-    // just eat any errors that happen...
-  }
-
-  return socketdatapath;
-}
-
 WalletShellManager.prototype.getResourcesPath = function() {
   return process.resourcesPath;
 }
@@ -276,15 +264,14 @@ WalletShellManager.prototype.getMinerPid = function() {
 
 WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyperConsole) {
   log.warn("run Hyperboria with args: "+cjdnsArgs);
-
   if (this.hyperPid > 0) {
     // if it's already running just return
-    return;
+    return true;
   }
 
   try {
     //log.warn("spawning: "+cjdnsBin);
-    this.hyperProcess = childProcess.spawn(cjdnsBin);
+    this.hyperProcess = childProcess.spawn(cjdnsBin, {detached: false});
     this.hyperPid = this.hyperProcess.pid;
 
     this.hyperProcess.stdout.on('data', function(chunk) {

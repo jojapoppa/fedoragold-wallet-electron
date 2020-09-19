@@ -16,8 +16,6 @@ const util = require('util');
 const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
 
-const websocket = require('websocket-driver');
-
 const killer = require('tree-kill');
 const request = require('request-promise-native');
 const opsys = require('os');
@@ -49,8 +47,6 @@ const { autoUpdater } = require("electron-updater");
 const { setIntervalAsync } = require('set-interval-async/fixed');
 
 process.env.UV_THREADPOOL_SIZE = 128;
-
-const delayToRunSocks5 = 5000;
 
 const IS_DEV  = (process.argv[1] === 'dev' || process.argv[2] === 'dev');
 const IS_DEBUG = IS_DEV || process.argv[1] === 'debug' || process.argv[2] === 'debug';
@@ -99,8 +95,13 @@ app.integratedDaemon = false;
 app.heightVal = 0;
 app.adminPassword=null;
 app.socksv5server=null;
+app.cjdnsPreamble=0;
 
-app.cjdnsSocketPath=path.join(app.getPath('userData'), 'socks5_server_sock');
+app.socksStarted=false;
+app.cjdnsNodeAddress=null;
+app.exitNodeAddress=null;
+app.thisNodeAddress=null;
+app.cjdnsSocketPath=null;
 app.cjdnsTransform=null;
 app.cjdnsStream=null;
 app.sshClientTransform=null;
@@ -225,6 +226,10 @@ function createWindow() {
           autoUpdater.quitAndInstall();
         });
       });
+
+      if (!app.socksstarted) {
+        runSocks5Proxy();
+      } 
     });
 
     win.on('hide', () => {});
@@ -242,7 +247,6 @@ function createWindow() {
 
     // show window
     win.once('ready-to-show', () => {
-
         win.setTitle(`${config.appDescription}`);
         app.timeStamp = Math.floor(Date.now());
     });
@@ -391,6 +395,13 @@ var writeSocket = function (sock, addr, port, pass, buff, callback) {
 };
 */
 
+function toArrayBufferInt16 (num) {
+  let arr = new ArrayBuffer(2); // an Int16 takes 2 bytes
+  let view = new DataView(arr);
+  view.setUint16(0, num, false); // byteOffset = 0; litteEndian = false
+  return arr;
+}
+
 function toArrayBufferInt32 (num) {
   let arr = new ArrayBuffer(4); // an Int32 takes 4 bytes
   let view = new DataView(arr);
@@ -446,11 +457,10 @@ function connectSSHClientToCjdnsSocket(remotePeerIP, remotePeerPort) {
   });
 }
 
-var socksstarted = false;
 function connectSocks5ServerAndSSHClientToCjdnsSocket() {
 
 //  var ssh_config = { 
-//    host: 'fcaa:1ab1:442a:84fa:4b7b:54e4:b9fe:23c0',
+//    host: app.exitNodeAddress,
 //    port: 22,
 //    username: 'nodejs',
 //    password: 'rocks',
@@ -471,7 +481,7 @@ function connectSocks5ServerAndSSHClientToCjdnsSocket() {
     // you could run into server-imposed limits if you have too many forwards open
     // at any given time
     
-    connectSSHClientToCjdnsSocket('fcb0:455d:6d4d:7bb9:5874:0138:a3af:f0ed', 22);
+    connectSSHClientToCjdnsSocket(app.exitNodeAddress, 22);
 
     /* 
     var sshClientConn = new ssh2Client();
@@ -484,7 +494,7 @@ function connectSocks5ServerAndSSHClientToCjdnsSocket() {
           log.warn("attempting to forward a connection now...");
           if (err) {
             sshClientConn.end();
-            socksstarted = false;
+            app.socksstarted = false;
             log.warn("err in forward: "+err);
             return deny();
           }
@@ -502,11 +512,11 @@ function connectSocks5ServerAndSSHClientToCjdnsSocket() {
         });
       }).on('error', function(err) {
         log.warn("error in ssh client connection: "+err);
-        socksstarted = false;
+        app.socksstarted = false;
         deny();
       }).connect(ssh_config);
     } catch(e) {
-      socksstarted = false;
+      app.socksstarted = false;
       log.warn("error creating ssh client: "+e);
     }
 */
@@ -711,6 +721,7 @@ app.cjdnsTransform._transform = function(data, encoding, callback) {
         i += 5;
         if (data.length < packetSize) {
           log.warn("process truncated packet now with size: "+data.length);
+          log.warn("  ... packetSize was: "+packetSize);
           i += buf.length;
         } else if (packetSize > 0) {
           log.warn("process packet now with size: "+packetSize);
@@ -730,6 +741,7 @@ this.push(buf);
           data[i+7],data[i+8],data[i+9],data[i+10],data[i+11],data[i+12],data[i+13],data[i+14],
           data[i+15],data[i+16]]);
         log.warn("my cjdns source ipv6 address: "+iv6);
+        app.cjdnsNodeAddress = iv6;
         i += 17;
         break;
       }
@@ -778,72 +790,142 @@ this.push(buf);
   callback();
 };
 
-function setupWebDriver(driver) {
-  log.warn('Connection acknowledged, setup WebDriver next...');
-         
-  log.warn("driver created...");
-  driver.on('ping', function(event) { log.warn('websocket ping!'); });
-  driver.on('pong', function(event) { log.warn('websocket pong!'); });
- 
-  driver.start();
-  driver.ping('fcaa:1ab1:442a:84fa:4b7b:54e4:b9fe:23c0');
-  log.warn("WebDriver working...");
-} 
+function parseHexString(str, chunksize) { 
+    var result = [];
+    while (str.length >= chunksize) { 
+        result.push(parseInt(str.substring(0, chunksize), 16));
+
+        str = str.substring(chunksize, str.length);
+    }
+
+    return result;
+}
+
+function createHexString(arr) {
+    var result = "";
+    var z;
+
+    for (var i = 0; i < arr.length; i++) {
+        var str = arr[i].toString(16);
+
+        z = 8 - str.length + 1;
+        str = Array(z).join("0") + str;
+
+        result += str;
+    }
+
+    return result;
+}
+
+function sayHello() {
+
+  let output = 'hellohellohellohellohellohellohellohellohello';
+  app.exitNodeAddress = 'fc01:d301:b106:06ed:a5fe:5a00:e7ee:23ce';
+  app.cjdnsPreamble = 9+7+16+16;
+
+  log.warn("sending: "+output);
+
+  //  let adlen = Buffer.allocUnsafe(4);
+  //  adlen.writeUInt16BE(app.exitNodeAddress.length);
+  let ethertype = Buffer.from([0,0,0x86,0xDD], 0, 4); // ethertype is a const defined in cjdns
+  let version = Buffer.from([0x60], 0, 1); // encoding for ipv6 in cjdns socket protocol
+  //  let adprefix = Buffer.from([0], 0, 1);
+  //  let adpad1 = Buffer.from([0], 0, 1);
+  //  let adpad2 = Buffer.from([0,0], 0, 2);
+  //  let sockaddr = Buffer.concat([adlen, adflags, adprefix, adpad1, adpad2]);
+  //app.cjdnsStream.write([0], sockaddr);
+  //app.cjdnsStream.write(app.exitNodeAddress);
+
+  let zero = Buffer.from([0], 0, 1);
+  let bufLen = Buffer.from(toArrayBufferInt32(app.cjdnsPreamble+output.length), 0, 4);
+  let bufMsg = Buffer.from(output, 0, output.length);
+  //let buf = Buffer.concat([b3]);
+  //app.cjdnsStream.write(buf);
+
+  //let verClass = Buffer.from([0,0], 0, 2);
+  //let flowLabel = Buffer.from([0,0], 0, 2);
+
+  let classflowlabel = Buffer.from([0x00, 0x00, 0x00], 0, 3);
+
+  let payloadLen = Buffer.from(toArrayBufferInt16(output.length), 0, 2);
+  let nextHdr = Buffer.from([0], 0, 1);
+  let hopLimit = Buffer.from([50], 0, 1);
+  let srca = app.cjdnsNodeAddress.replace(/:/g, '');
+  log.warn("srcaddr: "+srca);
+  let src_enc = parseHexString(srca, 2);
+  //log.warn("src_enc len: "+src_enc.length);
+  let srcAddr = Buffer.from(src_enc, 0, 16);
+  logDataStream(src_enc);
+  let desta = app.exitNodeAddress.replace(/:/g, '');
+  log.warn("destaddr: "+desta);
+  let dest_enc = parseHexString(desta, 2);
+  //log.warn("dest_enc len: "+dest_enc.length);
+  let destAddr = Buffer.from(dest_enc, 0, 16);
+  logDataStream(dest_enc);
+  let ipv6hdr = Buffer.concat([classflowlabel, payloadLen, nextHdr, hopLimit, srcAddr, destAddr]);
+
+  let buffy = Buffer.concat([zero, zero, zero, zero, bufLen, ethertype, version, ipv6hdr, bufMsg]);
+  app.cjdnsStream.write(buffy, function() {
+    log.warn("done writting to stream...");
+  });
+  //app.cjdnsStream.write(Buffer.concat([0], sockaddr, app.exitNodeAddress, b3));
+}
 
 var connections = {};
 function createDomainSocketServerToCjdns(socketPath){
-    log.warn('Creating domain socket server.');
-    var server = net.createServer(function(stream) {
+  if (win!==null) win.webContents.send('cjdnsstart', 'true');
 
-      app.cjdnsStream = stream; 
+  log.warn('Creating domain socket server: '+socketPath);
+  var server = net.createServer(function(stream) {
+    log.warn("configuring domain socket server...");
 
-      var driver = websocket.client('ws://fcb0:455d:6d4d:7bb9:5874:0138:a3af:f0ed');
-      driver.messages.on('data', function(message) {
-        log.warn('websocket got a message: ', message);
-      });
-  
-      stream.pipe(app.cjdnsTransform).pipe(stream);
-      app.cjdnsTransform.pipe(driver.io).pipe(app.cjdnsTransform);
+    app.cjdnsStream = stream; 
+    stream.pipe(app.cjdnsTransform).pipe(stream);
 
-      setTimeout(setupWebDriver, 20000, driver);
+    setInterval(sayHello, 10000);
 
-      // Store all connections so we can terminate them if the server closes.
-      // An object is better than an array for these.
-      var self = Date.now();
-      connections[self] = (stream);
+    // Store all connections so we can terminate them if the server closes.
+    // An object is better than an array for these.
+    var self = Date.now();
+    connections[self] = (stream);
 
-      stream.on('connect', ()=>{
-        log.warn("cjdns stream connect event recieved **************");
-      });
-
-      stream.on('end', function() {
-        log.warn('Client disconnected.');
-        delete connections[self];
-      });
-
-      //stream.on('readable', function () {
-      //  let data = stream.read();
-      //  log.warn("starting readable stream from cjdns");
-      //  //logDataStream(data);
-      //  //stream.write(data); // or translate it if you want...
-      //});
-
-      stream.on('error', function(data) {
-        log.warn('domainSocket error: '+data);
-      });
-    })
-    .listen(socketPath)
-    .on('connection', function(socket){
-      app.cjdnsTransform = socket;
-      log.warn('********* cjdns domain socket to cjdns connected ***************************************');
-      //socket.write('__boop');
-      //console.log(Object.keys(socket));
-    })
-    .on('error', (err) => {
-      log.warn("error creating cjdns domain socket: "+err);
+    stream.on('connect', ()=>{
+      log.warn("cjdns stream connect event recieved **************");
     });
 
-    return server;
+    stream.on('data', (data)=> {
+      let payloadLength = data.length - app.cjdnsPreamble;
+      let buffy = Buffer.from(data, app.cjdnsPreamble, payloadLength);
+      log.warn("socket got data: "+buffy.toString());
+      logDataStream(buffy);
+    });
+
+    stream.on('end', function() {
+      log.warn('Client disconnected.');
+      delete connections[self];
+    });
+
+    //stream.on('readable', function () {
+    //  let data = stream.read();
+    //  log.warn("starting readable stream from cjdns");
+    //  //logDataStream(data);
+    //  //stream.write(data); // or translate it if you want...
+    //});
+
+    stream.on('error', function(data) {
+      log.warn('domainSocket error: '+data);
+      app.cjdnsTransform = null;
+    });
+  }).listen(socketPath).on('connection', function(socket){
+    app.cjdnsTransform = socket;
+    log.warn('********* cjdns domain socket to cjdns connected ***************************************');
+    //socket.write('__boop');
+    //console.log(Object.keys(socket));
+  }).on('error', (err) => {
+    log.warn("error creating cjdns domain socket: "+err);
+  });
+
+  return server;
 }
 
 /*
@@ -851,7 +933,7 @@ THIS CODE ALLOWS YOU TO ACCESS THE ADMIN PORT ON CJDNS
   log.warn("createReadableCjdnsStream()... with admin password: "+app.adminPassword);
 
   //jojapoppa: need to parameterize this stuff...
-  let target = 'fcaa:1ab1:442a:84fa:4b7b:54e4:b9fe:23c0';
+  let target = app.exitNodeAddress;
   let adminPort = 11234;
 
   let cjdns;
@@ -933,37 +1015,65 @@ THIS CODE ALLOWS YOU TO ACCESS THE ADMIN PORT ON CJDNS
 }
 */
 
-setTimeout(function runSocks5Proxy() {
-  log.warn("runSocks5Proxy with socket: "+app.cjdnsSocketPath);
+function createSocketPath() {
+  // https://thewebdev.info/2020/03/24/using-the-nodejs-os-modulepart-3/
+  // https://www.tutorialspoint.com/nodejs/nodejs_os_module.htm
+  // '/tmp/app.cjdns_sock'
+  let socketdatapath = path.join(app.getPath('userData'), 'cjdns_sock');
+  let mplat = process.platform;
+  log.warn("createSocketPath on platform: "+mplat);
+  let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
+  app.cjdnsSocketPath = socketdatapath;
+  if (OSID === 'win') {
+    socketdatapath = 'wincjdns.sock';
+    app.cjdnsSocketPath = socketdatapath.replace("wincjdns.sock", "\\\\.\\pipe\\cjdns_sock");
+  }
 
-  if (!socksstarted) {
-    socksstarted = true;
+  log.warn("createSocketPath: launching cjdns with socket path: "+app.cjdnsSocketPath);
+
+  // Some systems complain if we try to connect to an old socket... so delete it.
+  try {
+    fs.unlink(app.cjdnsSocketPath, (err) => {});
+  } catch(err) {
+    // just eat any errors that happen...
+  }
+
+  return socketdatapath;
+}
+
+function runSocks5Proxy() {
+  if (app.cjdnsSocketPath == null) {
+    createSocketPath();
+  }
+
+  log.warn("runSocks5Proxy with app.cjdnsSocketPath: "+app.cjdnsSocketPath);
+
+  if (!app.socksstarted) {
+    app.socksstarted = true;
     try {
       createDomainSocketServerToCjdns(app.cjdnsSocketPath);
-      setTimeout(connectSocks5ServerAndSSHClientToCjdnsSocket, 500);
+//      setTimeout(connectSocks5ServerAndSSHClientToCjdnsSocket, 500);
 //      setTimeout(connectSSHExitNodeToSocket, 1000);
     } catch(e) {
-      socksstarted = false;
+      app.socksstarted = false;
       log.warn("error connecting socks5 to cjdns socket: "+e.message);
-      return false;
+      return;
     }
   }
-  return true;
-}, delayToRunSocks5);
+}
 
 const checkSeedTimer = setIntervalAsync(() => {
   var aurl = "http://"+app.primarySeedAddr+":30159/getheight";
+  // grab whateveris between the : and the ,
   getHttpContent(aurl)
-  //grab whateveris between the : and the ,
   .then((html) => app.primarySeedHeight = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
   .catch((err) => app.primarySeedHeight = 0);
-
 }, 2500);
 
 const checkDaemonHeight = setIntervalAsync(() => {
   var aurl = `http://127.0.0.1:${settings.get('daemon_port')}/getheight`;
+  // grab whateveris between the : and the ,
   getHttpContent(aurl)
-  //grab whateveris between the : and the ,
   .then((html) => app.heightVal = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
   .catch((err) => app.heightVal = 0);
 }, 2500);
@@ -972,9 +1082,9 @@ function splitLines(t) { return t.split(/\r\n|\r|\n/); }
 const checkDaemonTimer = setIntervalAsync(() => {
 
     // reset doesn't work on mac osx, but seems stable there anyway, so just skip it...
-    if (app.localDaemonRunning && process.platform === 'darwin') {
-      return;
-    }
+    //if (app.localDaemonRunning && process.platform === 'darwin') {
+    //  return;
+    //}
 
     var cmd = `ps -ex`;
     switch (process.platform) {
@@ -1012,7 +1122,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
           var procAry = splitLines(procStr);
           procStr = procAry[procAry.length-1];
           procStr = procStr.trim();
-          //log.warn("detected PID is: "+parseInt(procStr.substr(0, procStr.indexOf(' ')), 10));
+          log.warn("detected daemon PID is: "+parseInt(procStr.substr(0, procStr.indexOf(' ')), 10));
 
           if (app.daemonPid === null) {
             app.daemonPid = parseInt(procStr.substr(0, procStr.indexOf(' ')), 10); 
@@ -1032,7 +1142,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
           app.daemonProcess = null;
           app.daemonPid = null;
           //log.warn(procStr);
-          log.warn("runDaemon()...");
+          //log.warn("runDaemon()...");
           runDaemon();
         }
     });
@@ -1184,6 +1294,8 @@ electron.dialog.showErrorBox = (title, content) => {
 process.on('unhandledRejection', function(err) {});
 function terminateDaemon() {
 
+    log.warn("terminateDaemon()");
+
     app.daemonLastPid = app.daemonPid;
     try{
       if (app.daemonProcess !== null) {
@@ -1200,7 +1312,7 @@ function runDaemon() {
 
     // if there are insufficient resources, just run the daemon in thin mode 
     if (! checkMemoryAndStorage()) {
-      log.warn("insufficient resources to run local daemon, will use remote instead");
+      //log.warn("insufficient resources to run local daemon, will use remote instead");
       return;
     }
 
@@ -1232,9 +1344,12 @@ function runDaemon() {
     var newTimeStamp;
 
     try {
+        let detach = false;
+        if (platform === 'win32') detach = true;
+
         if (! app.integratedDaemon) { 
           app.daemonProcess = spawn(daemonPath, daemonArgs, 
-            {detached: false, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+            {detached: detach, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
           app.daemonPid = app.daemonProcess.pid;
         }
 
@@ -1409,7 +1524,12 @@ process.on('beforeExit', (code) => {
 });
 
 process.on('exit', (code) => {
+    log.warn("exit called");
     terminateDaemon();
+
+    setTimeout((function() {
+      return process.exit(0);
+    }), 5000);
 });
 
 //    // needs it twice for some reason on an application exit... unreliable otherwise...

@@ -53,6 +53,8 @@ let genericEnterableInputs;
 let genericEditableInputs;
 let firstTab;
 let isRescan = false;
+let cjdnsBin = null;
+let cjdnsCfg = null;
 
 // settings page
 let settingsInputDaemonAddress;
@@ -244,6 +246,9 @@ function populateElementVars(){
     txInputNotify = document.getElementById('transaction-notify');
     txButtonExport = document.getElementById('transaction-export');
     txButtonReset = document.getElementById('transaction-reset');
+
+    // do all hyperboria config after the web page is initialized
+    //wsmanager.createSocketPath();
 }
 
 // crude/junk template :)
@@ -797,7 +802,6 @@ async function callMkPasswds() {
 
 var privateKey = '';
 var publicKey = '';
-var ipv6 = '';
 var keysmade = '';
 var makekeysProcess = null;
 async function callMakekeys() {
@@ -831,12 +835,12 @@ async function callMakekeys() {
     let publpos = keysmade.indexOf('publicKey: ')+11;
 
     privateKey = keysmade.substr(privpos, 64);
-    ipv6 = keysmade.substr(ipv6pos, 39);
+    remote.app.thisNodeAddress = keysmade.substr(ipv6pos, 39);
     publicKey = keysmade.substr(publpos, 54);
 
     //log.warn("privateKey: "+privateKey);
     //log.warn("publicKey: "+publicKey);
-    //log.warn("ipv6: "+ipv6);
+    log.warn("app.thisNodeAddress: "+remote.app.thisNodeAddress);
     keysReady = true;
   });
 }
@@ -878,7 +882,7 @@ function generateCjdnsCfg() {
   var cjdnsconf = {
     privateKey: privateKey,
     publicKey: publicKey,
-    ipv6: ipv6,
+    ipv6: remote.app.thisNodeAddress,
     authorizedPasswords: [
       {
         password: defaultUserPassword,
@@ -916,7 +920,7 @@ function generateCjdnsCfg() {
       },
       interface: {
         type: "SocketInterface",
-        socketFullPath: wsmanager.createSocketPath(),
+        socketFullPath: wsmanager.getSockPath(),
         socketAttemptToCreate: 0
       }
     },
@@ -1023,15 +1027,18 @@ function escapeHTML(s) {
 async function runCjdns() {
   while (!keysReady || !passwordsReady) { await new Promise(r => setTimeout(r, 150)); }
 
+  log.warn("runCjdns()...");
+
   let mplat = wsmanager.getPlatform();
   let CJDNS_FILENAME =  (mplat === 'win32' ? `cjdroute.exe` : `cjdroute` );
   let CJDNS_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
-  let cjdnsBin = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, CJDNS_FILENAME);
-  let cjdnsCfg = generateCjdnsCfg();
+  cjdnsBin = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, CJDNS_FILENAME);
 
-  setTimeout(wsmanager.runHyperboria, 14000, cjdnsBin, cjdnsCfg, updateHyperConsole);
+  log.warn("bin: "+cjdnsBin);
+  cjdnsCfg = generateCjdnsCfg();
 
-  vpnTerminalLabel.innerHTML = "Hyperboria Console  (at IPv6  " + escapeHTML(ipv6) + ")";
+  log.warn("hyperboria will run at: "+remote.app.thisNodeAddress); 
+  vpnTerminalLabel.innerHTML = "Hyperboria Console  (at IPv6  " + escapeHTML(remote.app.thisNodeAddress) + ")";
 }
 
 var savePending=false;
@@ -2921,6 +2928,11 @@ ipcRenderer.on('daemoncoreready', (event, flag) => {
     return;
   }
   wsmanager.daemonCoreReady = false;
+});
+
+ipcRenderer.on('cjdnsstart', (event, sChunk) => {
+  log.warn("socket ready... starting cjdnds at: "+cjdnsBin);
+  setTimeout(wsmanager.runHyperboria, 20000, cjdnsBin, cjdnsCfg, updateHyperConsole);
 });
 
 ipcRenderer.on('console', (event, sChunk) => {

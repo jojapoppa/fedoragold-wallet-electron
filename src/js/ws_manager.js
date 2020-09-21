@@ -271,7 +271,8 @@ WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyper
 
   try {
     //log.warn("spawning: "+cjdnsBin);
-    this.hyperProcess = childProcess.spawn(cjdnsBin, {detached: false});
+    this.hyperProcess = childProcess.spawn(cjdnsBin, {},
+      {detached: false, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
     this.hyperPid = this.hyperProcess.pid;
 
     this.hyperProcess.stdout.on('data', function(chunk) {
@@ -287,7 +288,7 @@ WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyper
     this.hyperProcess.stdin.write(cjdnsArgs + '\n');
     this.hyperProcess.stdin.end();
   } catch(e) {
-    log.warn(`cjdns is not running`);
+    log.warn(`cjdns is not running: %j`, e);
     return false;
   }
 }

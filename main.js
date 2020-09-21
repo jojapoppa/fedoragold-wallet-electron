@@ -95,12 +95,11 @@ app.integratedDaemon = false;
 app.heightVal = 0;
 app.adminPassword=null;
 app.socksv5server=null;
-app.cjdnsPreamble=0;
 
 app.socksStarted=false;
-app.cjdnsNodeAddress=null;
-app.exitNodeAddress=null;
-app.thisNodeAddress=null;
+app.cjdnsNodeAddress="";
+app.exitNodeAddress="";
+app.thisNodeAddress="";
 app.cjdnsSocketPath=null;
 app.cjdnsTransform=null;
 app.cjdnsStream=null;
@@ -417,14 +416,15 @@ function toIntFrom4Bytes (b1,b2,b3,b4) {
 
 function toHexIPv6String(bytes) {
 
-  let output = "";
-  for (let i=0; i < (bytes.length-1); i+=2) {
-    output += (bytes[i] & 0xFF).toString(16);
-    output += (bytes[i+1] & 0xFF).toString(16);
-    output += ":"
-  }
+  const buf = Buffer.from(bytes, 'utf8');
+  return buf.toString('hex');
 
-  return output;
+  //let output = "";
+  //for (let i=0; i < (bytes.length-1); i+=2) {
+  //  output += (bytes[i] & 0xFF).toString(16);
+  //  output += (bytes[i+1] & 0xFF).toString(16);
+  //}
+  //return output;
 } 
 
 function connectSSHClientToCjdnsSocket(remotePeerIP, remotePeerPort) {
@@ -713,26 +713,31 @@ app.cjdnsTransform._transform = function(data, encoding, callback) {
     switch (data[i]) {
       case 0: {
         log.warn("TYPE_TUN_PACKET");
+        i += 4; //skip magic 0,0,0,0
         let packetSize = toIntFrom4Bytes(data[i+4],data[i+3],data[i+2],data[i+1]);
-        if ((app.maxPacketSize > 0) && (packetSize > app.maxPacketSize))
+        log.warn("parsed packetSize: "+packetSize);
+        if ((app.maxPacketSize > 0) && (packetSize > app.maxPacketSize)) {
           packetSize = app.maxPacketSize;
-        log.warn("cjdns packet size: "+packetSize);
-        log.warn("data length is: "+data.length);
-        i += 5;
-        if (data.length < packetSize) {
-          log.warn("process truncated packet now with size: "+data.length);
-          log.warn("  ... packetSize was: "+packetSize);
-          i += buf.length;
-        } else if (packetSize > 0) {
-          log.warn("process packet now with size: "+packetSize);
-          buf = Buffer.from(data, i, packetSize);
-          i += packetSize;
         }
+        log.warn("cjdns max packet size: "+packetSize);
+        log.warn("data length is: "+data.length);
+        i += 4;
 
-        let tag = Buffer.from('CJD');
-        let b2 = Buffer.from(toArrayBufferInt32(packetSize), 0, 4);
+        let packlen = data.length;
+        if (data.length >= packetSize) packlen = packetSize;
+        log.warn("packlen: "+packlen);
+
+        // cjdns prefix is 8 bytes 0,0,0,0,32bitlength
+        let arrByte = new Uint8Array(data, i+8); 
+        logDataStream(arrByte);
+
+        i += packlen;
+
+//        let tag = Buffer.from('CJD');
+//        let b2 = Buffer.from(toArrayBufferInt32(packetSize), 0, 4);
 //        if (app.sshClientTransform !== null) app.sshClientTransform.write(Buffer.concat([tag, b2, buf])); 
-this.push(buf);
+
+//this.push(buf);
         break;
       }
       case 1: {
@@ -740,7 +745,7 @@ this.push(buf);
         let iv6 = toHexIPv6String([data[i+1],data[i+2],data[i+3],data[i+4],data[i+5],data[i+6],
           data[i+7],data[i+8],data[i+9],data[i+10],data[i+11],data[i+12],data[i+13],data[i+14],
           data[i+15],data[i+16]]);
-        log.warn("my cjdns source ipv6 address: "+iv6);
+        log.warn("my cjdns source ipv6 address:"+iv6);
         app.cjdnsNodeAddress = iv6;
         i += 17;
         break;
@@ -820,9 +825,7 @@ function createHexString(arr) {
 function sayHello() {
 
   let output = 'hellohellohellohellohellohellohellohellohello';
-  app.exitNodeAddress = 'fc01:d301:b106:06ed:a5fe:5a00:e7ee:23ce';
-  app.cjdnsPreamble = 9+7+16+16;
-
+  app.exitNodeAddress = 'fcb0:52bb:8ec5:b1a2:9725:36b0:bdc6:67c7';
   log.warn("sending: "+output);
 
   //  let adlen = Buffer.allocUnsafe(4);
@@ -837,8 +840,7 @@ function sayHello() {
   //app.cjdnsStream.write(app.exitNodeAddress);
 
   let zero = Buffer.from([0], 0, 1);
-  let bufLen = Buffer.from(toArrayBufferInt32(app.cjdnsPreamble+output.length), 0, 4);
-  let bufMsg = Buffer.from(output, 0, output.length);
+  let payload = Buffer.from(output, 0, output.length);
   //let buf = Buffer.concat([b3]);
   //app.cjdnsStream.write(buf);
 
@@ -847,70 +849,87 @@ function sayHello() {
 
   let classflowlabel = Buffer.from([0x00, 0x00, 0x00], 0, 3);
 
-  let payloadLen = Buffer.from(toArrayBufferInt16(output.length), 0, 2);
+  //log.warn("payload.length: "+payload.length);
+
+  let payloadLen = Buffer.from(toArrayBufferInt16(payload.length), 0, 2);
   let nextHdr = Buffer.from([0], 0, 1);
   let hopLimit = Buffer.from([50], 0, 1);
+  //log.warn("app.cjdnsNodeAddress: "+app.cjdnsNodeAddress);
   let srca = app.cjdnsNodeAddress.replace(/:/g, '');
-  log.warn("srcaddr: "+srca);
+  //log.warn("srcaddr:"+srca+":");
   let src_enc = parseHexString(srca, 2);
   //log.warn("src_enc len: "+src_enc.length);
   let srcAddr = Buffer.from(src_enc, 0, 16);
-  logDataStream(src_enc);
+  //logDataStream(src_enc);
   let desta = app.exitNodeAddress.replace(/:/g, '');
-  log.warn("destaddr: "+desta);
+  log.warn("destaddr:"+desta+":");
   let dest_enc = parseHexString(desta, 2);
   //log.warn("dest_enc len: "+dest_enc.length);
   let destAddr = Buffer.from(dest_enc, 0, 16);
-  logDataStream(dest_enc);
+  //logDataStream(dest_enc);
+  
+  //log.warn("classflowlabel.length: "+classflowlabel.length);
+  //log.warn("payloadLen.length: "+payloadLen.length);
+  //log.warn("nextHdr.length: "+nextHdr.length);
+  //log.warn("hopLimit.length: "+hopLimit.length);
+  //log.warn("srcAddr.length: "+srcAddr.length);
+  //log.warn("destAddr.length: "+destAddr.length);
   let ipv6hdr = Buffer.concat([classflowlabel, payloadLen, nextHdr, hopLimit, srcAddr, destAddr]);
 
-  let buffy = Buffer.concat([zero, zero, zero, zero, bufLen, ethertype, version, ipv6hdr, bufMsg]);
-  app.cjdnsStream.write(buffy, function() {
-    log.warn("done writting to stream...");
+  //log.warn("ethertype.length: "+ethertype.length);
+  //log.warn("version.length: "+version.length);
+  //log.warn("ipv6hdr.length: "+ipv6hdr.length);
+
+  let blen = ethertype.length+version.length+ipv6hdr.length+payload.length;
+  log.warn("overall packet size (outside of header): "+blen);
+  let bufLen = Buffer.from(toArrayBufferInt32(blen), 0, 4);
+
+  let buffy = Buffer.concat([zero, zero, zero, zero, bufLen, ethertype, version, ipv6hdr]);
+  let outbuf = Buffer.concat([buffy, payload]);
+
+  log.warn("writing out length: "+outbuf.length);
+  app.cjdnsStream.write(outbuf, function() {
+    //log.warn("done writting to stream...");
   });
-  //app.cjdnsStream.write(Buffer.concat([0], sockaddr, app.exitNodeAddress, b3));
 }
 
 var connections = {};
 function createDomainSocketServerToCjdns(socketPath){
-  if (win!==null) win.webContents.send('cjdnsstart', 'true');
-
   log.warn('Creating domain socket server: '+socketPath);
+
+  setTimeout(function() {
+    if (win!==null) win.webContents.send('cjdnsstart', 'true');
+  }, 1000);
+
   var server = net.createServer(function(stream) {
     log.warn("configuring domain socket server...");
 
     app.cjdnsStream = stream; 
     stream.pipe(app.cjdnsTransform).pipe(stream);
 
-    setInterval(sayHello, 10000);
-
-    // Store all connections so we can terminate them if the server closes.
-    // An object is better than an array for these.
-    var self = Date.now();
-    connections[self] = (stream);
-
-    stream.on('connect', ()=>{
-      log.warn("cjdns stream connect event recieved **************");
-    });
-
-    stream.on('data', (data)=> {
-      let payloadLength = data.length - app.cjdnsPreamble;
-      let buffy = Buffer.from(data, app.cjdnsPreamble, payloadLength);
-      log.warn("socket got data: "+buffy.toString());
-      logDataStream(buffy);
-    });
-
-    stream.on('end', function() {
-      log.warn('Client disconnected.');
-      delete connections[self];
-    });
-
-    //stream.on('readable', function () {
-    //  let data = stream.read();
-    //  log.warn("starting readable stream from cjdns");
-    //  //logDataStream(data);
-    //  //stream.write(data); // or translate it if you want...
-    //});
+//    // Store all connections so we can terminate them if the server closes.
+//    // An object is better than an array for these.
+//    var self = Date.now();
+//    connections[self] = (stream);
+// 
+//    stream.on('connect', ()=>{
+//      log.warn("cjdns stream connect event recieved **************");
+//    });
+//    stream.on('ready', ()=>{
+//      log.warn("socket ready now....... listen up! *********");
+//      //if (win!==null) win.webContents.send('cjdnsstart', 'true');
+//    });
+//    stream.on('data', (data)=> {
+//      log.warn("SOCKET GOT SOME DATA!");
+//      let payloadLength = data.length - app.cjdnsPreamble;
+//      let buffy = Buffer.from(data, app.cjdnsPreamble, payloadLength);
+//      log.warn("socket got data: length..."+buffy.length);
+//      logDataStream(buffy);
+//    });
+//    stream.on('end', function() {
+//      log.warn('peer-to-peer disconnected ********.');
+//      delete connections[self];
+//    });
 
     stream.on('error', function(data) {
       log.warn('domainSocket error: '+data);
@@ -919,7 +938,9 @@ function createDomainSocketServerToCjdns(socketPath){
   }).listen(socketPath).on('connection', function(socket){
     app.cjdnsTransform = socket;
     log.warn('********* cjdns domain socket to cjdns connected ***************************************');
-    //socket.write('__boop');
+
+    setInterval(sayHello, 5000);
+          
     //console.log(Object.keys(socket));
   }).on('error', (err) => {
     log.warn("error creating cjdns domain socket: "+err);

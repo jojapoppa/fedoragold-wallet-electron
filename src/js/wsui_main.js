@@ -865,7 +865,8 @@ function pipePath() {
 function generateCjdnsCfg() {
 
   var adminbind = "127.0.0.1:"+settings.get('cjdnsadmin_port');
-  var udpbind = "0.0.0.0:"+settings.get('cjdnsudp_port');
+  var udpbindipv4 = "0.0.0.0:"+settings.get('cjdnsudp_port');
+  var udpbindipv6 = "[::]:"+settings.get('cjdnsudp_port');
 
   log.warn("my cjdns private key is: "+privateKey);
   log.warn("my cjdns public key is: "+publicKey);
@@ -896,7 +897,7 @@ function generateCjdnsCfg() {
     interfaces: {
       UDPInterface: [
       {
-        bind: udpbind,
+        bind: udpbindipv4,
         beacon: 2,
         beaconDevices: ["all"],
         beaconPort: settings.get("cjdnsbeacon_port"),
@@ -910,6 +911,10 @@ function generateCjdnsCfg() {
             publicKey:"9jjq45h13t7fdq2t8tdf59p6cplnv8un35dhmwjf032wmf3340w0.k"
           }
         }
+      },
+      {
+        bind: udpbindipv6,
+        connectTo: {}
       }
       ]
     },
@@ -922,7 +927,11 @@ function generateCjdnsCfg() {
         type: "SocketInterface",
         socketFullPath: wsmanager.getSockPath(),
         socketAttemptToCreate: 0
-      }
+      },
+      ipTunnel: {
+        allowedConnections: [],
+        outgoingConnections: []
+      },
     },
     security: [
       { setuser: 0 },
@@ -935,7 +944,7 @@ function generateCjdnsCfg() {
     logging: {
       logTo: "stdout"
     },
-    noBackground: 1,
+    noBackground: 0,
     pipe: pipePath(),
     version: 2
   };
@@ -2931,8 +2940,8 @@ ipcRenderer.on('daemoncoreready', (event, flag) => {
 });
 
 ipcRenderer.on('cjdnsstart', (event, sChunk) => {
-  log.warn("socket ready... starting cjdnds at: "+cjdnsBin);
-  setTimeout(wsmanager.runHyperboria, 20000, cjdnsBin, cjdnsCfg, updateHyperConsole);
+  log.warn("cjdnsstart msg received... starting cjdnds at: "+cjdnsBin);
+  setTimeout(wsmanager.runHyperboria, 1000, cjdnsBin, cjdnsCfg, updateHyperConsole);
 });
 
 ipcRenderer.on('console', (event, sChunk) => {

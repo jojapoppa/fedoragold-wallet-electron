@@ -902,6 +902,11 @@ function generateCjdnsCfg() {
         beaconDevices: ["all"],
         beaconPort: settings.get("cjdnsbeacon_port"),
         connectTo: {
+          "94.23.31.145:17102":{
+            login:"cjd-snode",
+            password:"wwbn34yhxhtubtghq6y2pksyt7c9mm8",
+            publicKey:"9syly12vuwr1jh5qpktmjc817y38bc9ytsvs8d5qwcnvn6c2lwq0.k"
+          },
           "45.231.133.188:63319":{
             contact:"yangm97@gmail.com",
             gpg:"CC7D230C1C6ED7E2",

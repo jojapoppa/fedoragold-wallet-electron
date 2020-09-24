@@ -713,24 +713,26 @@ app.cjdnsTransform._transform = function(data, encoding, callback) {
     switch (data[i]) {
       case 0: {
         log.warn("TYPE_TUN_PACKET");
-        i += 4; //skip magic 0,0,0,0
+        i += 3; //skip magic 0,0,0,0 (3 more)
         let packetSize = toIntFrom4Bytes(data[i+4],data[i+3],data[i+2],data[i+1]);
-        log.warn("parsed packetSize: "+packetSize);
         if ((app.maxPacketSize > 0) && (packetSize > app.maxPacketSize)) {
           packetSize = app.maxPacketSize;
         }
-        log.warn("cjdns max packet size: "+packetSize);
         log.warn("data length is: "+data.length);
-        i += 4;
-
         let packlen = data.length;
         if (data.length >= packetSize) packlen = packetSize;
-        log.warn("packlen: "+packlen);
+        log.warn("packetlen: "+packlen);
+      
+        i += 5; // skip the ethertype and hopcount
 
         // cjdns prefix is 8 bytes 0,0,0,0,32bitlength
-        let arrByte = new Uint8Array(data, i+8); 
-        logDataStream(arrByte);
+        let inData = "client:" + data.toString();
+        inData = inData.substring(58); // skip the tcp header...
+        i += 58;
 
+        log.warn("string len: "+inData.length);
+        log.warn("got inData: "+inData);
+        //logDataStream(arrByte);
         i += packlen;
 
 //        let tag = Buffer.from('CJD');
@@ -825,7 +827,7 @@ function createHexString(arr) {
 function sayHello() {
 
   let output = 'hellohellohellohellohellohellohellohellohello';
-  app.exitNodeAddress = 'fcb0:52bb:8ec5:b1a2:9725:36b0:bdc6:67c7';
+  app.exitNodeAddress = 'fc97:b9bc:111f:b637:2188:ca16:f27e:7d11';
   log.warn("sending: "+output);
 
   //  let adlen = Buffer.allocUnsafe(4);
@@ -878,7 +880,7 @@ function sayHello() {
 
   //log.warn("ethertype.length: "+ethertype.length);
   //log.warn("version.length: "+version.length);
-  //log.warn("ipv6hdr.length: "+ipv6hdr.length);
+  log.warn("ipv6hdr.length: "+ipv6hdr.length);
 
   let blen = ethertype.length+version.length+ipv6hdr.length+payload.length;
   log.warn("overall packet size (outside of header): "+blen);

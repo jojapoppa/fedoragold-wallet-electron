@@ -57,6 +57,7 @@
     "set-interval-async": "^1.0.29",
     "source-map-support": "^0.5.19",
     "ssh2": "^0.8.9",
+    "ssh2-streams": "^0.4.10",
     "system-sleep": "^1.3.6",
     "tree-kill": "^1.2.1",
     "util": "^0.12.3"

@@ -39,6 +39,7 @@ const navigator = require('navigator');
 const socksv5 = require('lum_socksv5');
 const ssh2Client = require('ssh2').Client;
 const ssh2Server = require('ssh2').Server;
+const ssh2Stream = require('ssh2-streams').SSH2Stream;
 const ssh2Utils = require('ssh2').utils;
 const inspect = require('util').inspect;
 const keypair = require('keypair');
@@ -96,13 +97,17 @@ app.heightVal = 0;
 app.adminPassword=null;
 app.socksv5server=null;
 
+app.HOST_ALGORITHMS = { serverHostKey: ['ssh-rsa'] };
+
 app.socksStarted=false;
 app.cjdnsNodeAddress="";
 app.exitNodeAddress="";
 app.thisNodeAddress="";
 app.cjdnsSocketPath=null;
 app.cjdnsTransform=null;
+app.sshServerTransform=null;
 app.cjdnsStream=null;
+app.ssh2StreamSvr=null;
 app.sshClientTransform=null;
 app.sshClientStream=null;
 app.maxPacketSize=0;
@@ -450,6 +455,7 @@ function connectSSHClientToCjdnsSocket(remotePeerIP, remotePeerPort) {
     port: remotePeerPort,
     tryKeyboard: true,
     debug: console.log,
+    algorithms: app.HOST_ALGORITHMS,
     readyTimeout: 99999,
     sock: app.sshClientTransform,
     username: 'nodejs',
@@ -464,7 +470,6 @@ function connectSocks5ServerAndSSHClientToCjdnsSocket() {
 //    port: 22,
 //    username: 'nodejs',
 //    password: 'rocks',
-// //   sock: app.cjdnsTransform
 //  };
 
   log.warn("launching socks5 proxy with connection to socket");
@@ -566,12 +571,27 @@ function connectSSHExitNodeToSocket() {
   //log.warn('generated public key: %j',allowedPubKey);
   //log.warn("generated private key: "+privKey);
 
+  app.ssh2StreamSvr = new ssh2Stream({
+    server: true,
+    hostKeys: [privKey],
+    username: 'nodejs',
+    password: 'rocks',
+    port: 22,
+    tryKeyboard: true,
+    debug: console.log,
+    algorithms: app.HOST_ALGORITHMS
+  });
+
+  if (app.sshServerTransform !== null) app.sshServerTransform.pipe(app.ssh2StreamSvr).pipe(app.sshServerTransform);
+
+/*
   new ssh2Server({
     hostKeys: [privKey],
     username: 'nodejs',
     password: 'rocks',
     port: 22,
-    sock: app.cjdnsTransform
+    debug: console.log
+    //sock: app.sshServerTransform
   }, function(client) {
     log.warn('an ssh client has connected to server!!!!!!!!!!!!!!!!');
  
@@ -613,17 +633,17 @@ function connectSSHExitNodeToSocket() {
     }).on('ready', function() {
       log.warn('Client authenticated!');
 
-      /*client.on('session', function(accept, reject) {
-        var session = accept();
-        session.once('exec', function(accept, reject, info) {
-          log.warn('Client wants to execute: ' + inspect(info.command));
-          var stream = accept();
-          stream.stderr.write('Oh no, the dreaded errors!\n');
-          stream.write('Just kidding about the errors!\n');
-          stream.exit(0);
-          stream.end();
-        });
-      });*/
+      //client.on('session', function(accept, reject) {
+      //  var session = accept();
+      //  session.once('exec', function(accept, reject, info) {
+      //    log.warn('Client wants to execute: ' + inspect(info.command));
+      //    var stream = accept();
+      //    stream.stderr.write('Oh no, the dreaded errors!\n');
+      //    stream.write('Just kidding about the errors!\n');
+      //    stream.exit(0);
+      //    stream.end();
+      //  });
+      //});
 
       client.on('tcpip', function(accept, reject) {
         log.warn("the ssh client has requested an outbound tcp connection.");
@@ -632,9 +652,10 @@ function connectSSHExitNodeToSocket() {
     }).on('end', function() {
       log.warn('Client disconnected');
     });
-  }).listen(function() {
+  }).listen(app.sshServerTransform, function() {
     log.warn('Exit node listening on: '+app.cjdnsSocketPath);
   });
+*/
 }
 
 function promisifyAll(obj) {
@@ -663,7 +684,7 @@ app.sshClientTransform._transform = function(data, encoding, callback) {
   logDataStream(data);
   
   let buf = null;
-  let i = 0; 
+  let i = 0;
 
   while (i < data.length) {
     buf = Buffer.from(data, i);
@@ -689,7 +710,9 @@ app.sshClientTransform._transform = function(data, encoding, callback) {
       let tag = Buffer.from('SSH');
       if (endloc > 0) buf = Buffer.from(data, i, endloc-i-1);
       let outp = Buffer.concat([tag, buf, tag]);
-      if (app.cjdnsTransform !== null) app.cjdnsTransform.write(outp);
+      if (app.cjdnsTransform !== null) {
+        sendToCjdns('FEDSVR', 'fc26:89e8:e6d3:c159:ae1f:f0b8:86b7:f2db', buf);
+      }
       i += buf.length;
     }
   }
@@ -699,101 +722,6 @@ app.sshClientTransform._transform = function(data, encoding, callback) {
   } 
 
   log.warn("ssh client transform done");
-  callback();
-};
-
-app.cjdnsTransform = new transform({objectMode: false});
-app.cjdnsTransform._transform = function(data, encoding, callback) {
-  log.warn("cjdns transform function: ");
-  logDataStream(data);
-  let i = 0; 
-
-  while (i < data.length) {
-    let buf = Buffer.from(data, i, data.length);
-    switch (data[i]) {
-      case 0: {
-        log.warn("TYPE_TUN_PACKET");
-        i += 3; //skip magic 0,0,0,0 (3 more)
-        let packetSize = toIntFrom4Bytes(data[i+4],data[i+3],data[i+2],data[i+1]);
-        if ((app.maxPacketSize > 0) && (packetSize > app.maxPacketSize)) {
-          packetSize = app.maxPacketSize;
-        }
-        log.warn("data length is: "+data.length);
-        let packlen = data.length;
-        if (data.length >= packetSize) packlen = packetSize;
-        log.warn("packetlen: "+packlen);
-      
-        i += 5; // skip the ethertype and hopcount
-
-        // cjdns prefix is 8 bytes 0,0,0,0,32bitlength
-        let inData = "client:" + data.toString();
-        inData = inData.substring(58); // skip the tcp header...
-        i += 58;
-
-        log.warn("string len: "+inData.length);
-        log.warn("got inData: "+inData);
-        //logDataStream(arrByte);
-        i += packlen;
-
-//        let tag = Buffer.from('CJD');
-//        let b2 = Buffer.from(toArrayBufferInt32(packetSize), 0, 4);
-//        if (app.sshClientTransform !== null) app.sshClientTransform.write(Buffer.concat([tag, b2, buf])); 
-
-//this.push(buf);
-        break;
-      }
-      case 1: {
-        log.warn("TYPE_CONF_ADD_IPV6_ADDRESS");
-        let iv6 = toHexIPv6String([data[i+1],data[i+2],data[i+3],data[i+4],data[i+5],data[i+6],
-          data[i+7],data[i+8],data[i+9],data[i+10],data[i+11],data[i+12],data[i+13],data[i+14],
-          data[i+15],data[i+16]]);
-        log.warn("my cjdns source ipv6 address:"+iv6);
-        app.cjdnsNodeAddress = iv6;
-        i += 17;
-        break;
-      }
-      case 2: {
-        log.warn("TYPE_CONF_SET_MTU");
-        app.maxPacketSize = toIntFrom4Bytes(data[i+4],data[i+3],data[i+2],data[i+1]);
-        log.warn("cjdns MTU (max packet size): "+app.maxPacketSize);
-        i += 5;
-        break;
-      }
-      default: {
-        //let endloc = buf.indexOf('SSH');
-        //if (endloc == 0) {
-        //  log.warn("Cjdns transform: incoming from ssh");
-        log.warn("writing data into cjdns now..."); 
-  
-        buf = Buffer.from(data); //, i+3);
-        //let len = buf.indexOf('SSH'); //, 'utf8');
-        //if (len == -1) len = buf.length;
-        let len = buf.length;
-
-        let b1 = Buffer.from([0], 0, 1);
-        let b2 = Buffer.from(toArrayBufferInt32(len), 0, 4);
-        let b3 = Buffer.from(buf, 0, len);
-        buf = Buffer.concat([b1, b2, b3]);
-        app.cjdnsStream.write(buf);
-        //this.push(buf);
-        logDataStream(buf);
-        log.warn("data sent to cjdns");
-        i += len;
-        //  i += b3.length+6;
-          break;
-        //} else {
-          //log.warn("Unrecognized CJDNS data.");
-          //i++;
-        //} 
-      }
-    }
-  }
-
-  if (i < data.length) {
-    log.warn("cjdns data leftover: need unshift logic");
-  }
-
-  log.warn("cjdns transform done");
   callback();
 };
 
@@ -824,11 +752,11 @@ function createHexString(arr) {
     return result;
 }
 
-function sayHello() {
+function sendToCjdns(payloadprefix, destAd, output) {
 
-  let output = 'hellohellohellohellohellohellohellohellohello';
-  app.exitNodeAddress = 'fc97:b9bc:111f:b637:2188:ca16:f27e:7d11';
+  app.exitNodeAddress = destAd;
   log.warn("sending: "+output);
+  log.warn("payload prefix: "+payloadprefix);
 
   //  let adlen = Buffer.allocUnsafe(4);
   //  adlen.writeUInt16BE(app.exitNodeAddress.length);
@@ -851,9 +779,11 @@ function sayHello() {
 
   let classflowlabel = Buffer.from([0x00, 0x00, 0x00], 0, 3);
 
-  //log.warn("payload.length: "+payload.length);
+  log.warn("send to cjdns payload.length: "+payload.length);
 
-  let payloadLen = Buffer.from(toArrayBufferInt16(payload.length), 0, 2);
+  // payload prefix is always 6 chars in length FEDCLI, FEDSVR etc
+  let payloadLen = Buffer.from(toArrayBufferInt16(payload.length+6), 0, 2);
+
   let nextHdr = Buffer.from([0], 0, 1);
   let hopLimit = Buffer.from([50], 0, 1);
   //log.warn("app.cjdnsNodeAddress: "+app.cjdnsNodeAddress);
@@ -869,7 +799,7 @@ function sayHello() {
   //log.warn("dest_enc len: "+dest_enc.length);
   let destAddr = Buffer.from(dest_enc, 0, 16);
   //logDataStream(dest_enc);
-  
+
   //log.warn("classflowlabel.length: "+classflowlabel.length);
   //log.warn("payloadLen.length: "+payloadLen.length);
   //log.warn("nextHdr.length: "+nextHdr.length);
@@ -882,12 +812,15 @@ function sayHello() {
   //log.warn("version.length: "+version.length);
   log.warn("ipv6hdr.length: "+ipv6hdr.length);
 
-  let blen = ethertype.length+version.length+ipv6hdr.length+payload.length;
+  // payload prefix is always 6 chars (FEDCLI, FEDSVR, etc...)
+  let blen = ethertype.length+version.length+ipv6hdr.length+payload.length+6;
+
   log.warn("overall packet size (outside of header): "+blen);
   let bufLen = Buffer.from(toArrayBufferInt32(blen), 0, 4);
 
+  let payloadpref = Buffer.from(payloadprefix);
   let buffy = Buffer.concat([zero, zero, zero, zero, bufLen, ethertype, version, ipv6hdr]);
-  let outbuf = Buffer.concat([buffy, payload]);
+  let outbuf = Buffer.concat([buffy, payloadpref, payload]);
 
   log.warn("writing out length: "+outbuf.length);
   app.cjdnsStream.write(outbuf, function() {
@@ -895,9 +828,154 @@ function sayHello() {
   });
 }
 
+Array.prototype.subarray = function(start, end) {
+    if (!end) { end = -1; } 
+    return this.slice(start, this.length + 1 - (end * -1));
+};
+
+app.sshServerTransform = new transform({objectMode: false}); 
+app.sshServerTransform._transform = function(data, encoding, callback) {
+  log.warn("ssh server transform function: ");
+  logDataStream(data);
+
+  let buf = Buffer.from(data);
+  this.push(buf);
+
+  log.warn("ssh server transform done");
+  callback();
+};
+
+app.cjdnsTransform = new transform({objectMode: false});
+app.cjdnsTransform._transform = function(data, encoding, callback) {
+  log.warn("cjdns transform function: ");
+  logDataStream(data);
+  let i = 0; 
+
+  while (i < data.length) {
+    let buf = Buffer.from(data, i, data.length);
+    switch (data[i]) {
+      case 0: {
+        log.warn("TYPE_TUN_PACKET");
+        i += 3; //skip magic 0,0,0,0 (3 more)
+        let packetSize = toIntFrom4Bytes(data[i+4],data[i+3],data[i+2],data[i+1]);
+        log.warn("parsed packetsize: "+packetSize);
+        if ((app.maxPacketSize > 0) && (packetSize > app.maxPacketSize)) {
+          packetSize = app.maxPacketSize;
+        }
+        log.warn("data length is: "+data.length);
+        let packlen = data.length;
+        if (data.length >= packetSize) packlen = packetSize;
+        log.warn("packetlen: "+packlen);
+        i += 49; // skip the ethertype and hopcount and ipv6 hdr
+
+        //let srca = app.cjdnsNodeAddress.replace(/:/g, '');
+        //log.warn("my address:"+srca+":");
+        //let src_enc = parseHexString(srca, 2);
+
+        // TODO: jojapoppa, may want to try stream-to-array module here instead, and compare speed
+        let indata = []; 
+        let payloaddata = [];
+        for (var idx = i; idx < data.length; idx++) {
+          indata.push(data[idx]);
+          if (idx > i+5) payloaddata.push(data[idx]);
+        }
+        let strData = indata.toString();
+        log.warn("string len: "+strData.length);
+        log.warn("got inData (ascii vals): "+strData);
+
+        i += packlen;
+
+//        let tag = Buffer.from('CJD');
+//        let b2 = Buffer.from(toArrayBufferInt32(packetSize), 0, 4);
+//        app.sshClientTransform.write(Buffer.concat([tag, b2, buf]));
+     
+        // payload prefix is always 6 chars in length (FEDSVR, FEDCLI, etc)
+        let payloadpfx = Buffer.from(indata).toString().substring(0, 6);
+        log.warn("got inData with payload prefix: "+payloadpfx);
+
+        let outar = new Uint8Array(payloaddata); //Buffer.from(payloaddata);
+        if (payloadpfx === "FEDSVR") {
+          log.warn("pushing data to server: "+outar.toString());
+          if (app.sshServerTransform !== null) {
+            app.sshServerTransform.write(outar);
+          } else {
+            log.warn("sshServer not initialized yet...");
+          }
+        } else {
+          log.warn("pushing data to client: "+outar.toString());
+          if (app.sshClientTransform !== null) app.sshClientTransform.push(outar);
+        }
+        break;
+      }
+      case 1: {
+        log.warn("TYPE_CONF_ADD_IPV6_ADDRESS");
+        let iv6 = toHexIPv6String([data[i+1],data[i+2],data[i+3],data[i+4],data[i+5],data[i+6],
+          data[i+7],data[i+8],data[i+9],data[i+10],data[i+11],data[i+12],data[i+13],data[i+14],
+          data[i+15],data[i+16]]);
+        log.warn("my cjdns source ipv6 address:"+iv6);
+        app.cjdnsNodeAddress = iv6;
+        i += 17;
+        break;
+      }
+      case 2: {
+        log.warn("TYPE_CONF_SET_MTU");
+        app.maxPacketSize = toIntFrom4Bytes(data[i+4],data[i+3],data[i+2],data[i+1]);
+        log.warn("cjdns MTU (max packet size): "+app.maxPacketSize);
+        i += 5;
+        break;
+      }
+      default: {
+        log.warn("hit transform default!");
+        
+        //let endloc = buf.indexOf('SSH');
+        //if (endloc == 0) {
+        //  log.warn("Cjdns transform: incoming from ssh");
+        log.warn("writing data into cjdns now..."); 
+  
+        buf = Buffer.from(data); //, i+3);
+        //let len = buf.indexOf('SSH'); //, 'utf8');
+        //if (len == -1) len = buf.length;
+        let len = buf.length;
+
+        //let b1 = Buffer.from([0], 0, 1);
+        //let b2 = Buffer.from(toArrayBufferInt32(len), 0, 4);
+        //let b3 = Buffer.from(buf, 0, len);
+        //buf = Buffer.concat([b1, b2, b3]);
+
+        // send back to client now
+        sendToCjdns('FEDCLI', 'fceb:c984:a263:ed67:2d2b:2055:7f73:b3af', buf);
+
+        //app.cjdnsStream.write(buf);
+        //this.push(buf);
+        logDataStream(buf);
+        log.warn("data sent to cjdns");
+        i += len;
+        //  i += b3.length+6;
+        
+        break;
+        //} else {
+          //log.warn("Unrecognized CJDNS data.");
+          //i++;
+        //} 
+      }
+    }
+  }
+
+  if (i < data.length) {
+    log.warn("cjdns data leftover: need unshift logic");
+  }
+
+  log.warn("cjdns transform done");
+  callback();
+};
+
 var connections = {};
 function createDomainSocketServerToCjdns(socketPath){
   log.warn('Creating domain socket server: '+socketPath);
+
+  // allow lots of listeners... that's my crazy design... it works
+  require('events').EventEmitter.prototype._maxListeners = 150;
+  require('events').defaultMaxListeners = 150;
 
   setTimeout(function() {
     if (win!==null) win.webContents.send('cjdnsstart', 'true');
@@ -941,7 +1019,7 @@ function createDomainSocketServerToCjdns(socketPath){
     app.cjdnsTransform = socket;
     log.warn('********* cjdns domain socket to cjdns connected ***************************************');
 
-    setInterval(sayHello, 5000);
+    //setInterval(sendToCjdns, 5000, 'fcc9:c843:8f05:00bb:04ff:70a1:ea68:db0a', 'hellohellohellohellohellohellohellohellohello');
           
     //console.log(Object.keys(socket));
   }).on('error', (err) => {
@@ -1075,8 +1153,8 @@ function runSocks5Proxy() {
     app.socksstarted = true;
     try {
       createDomainSocketServerToCjdns(app.cjdnsSocketPath);
-//      setTimeout(connectSocks5ServerAndSSHClientToCjdnsSocket, 500);
-//      setTimeout(connectSSHExitNodeToSocket, 1000);
+      setTimeout(connectSocks5ServerAndSSHClientToCjdnsSocket, 500);
+      setTimeout(connectSSHExitNodeToSocket, 750);
     } catch(e) {
       app.socksstarted = false;
       log.warn("error connecting socks5 to cjdns socket: "+e.message);

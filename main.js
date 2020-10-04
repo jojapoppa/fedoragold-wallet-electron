@@ -470,7 +470,7 @@ function createSSHClientConnectionPool() {
   app.pool = new Pool({
     maxSize: 300,
     delayCreation:false,
-    growBy: 3,
+    growBy: 1,
     create: function(callback) {
       let connection = connectSSHClientToCjdnsSocket(app.exitNodeAddress, 22);
       connection.connect(function(err) { callback(err, connection); });
@@ -1207,7 +1207,7 @@ function runSocks5Proxy() {
   app.fakeUserID = 'FEDSSHCLIENT_'+crypto.randomBytes(8).toString('hex');
 
   // pull the value from the selected node in the listbox here...
-  app.exitNodeAddress = 'fcce:4429:d742:9667:9b12:8826:5bc3:f55d';
+  app.exitNodeAddress = 'fc68:52aa:5998:a07a:7086:9718:264c:b1c7';
 
   log.warn("runSocks5Proxy with app.cjdnsSocketPath: "+app.cjdnsSocketPath);
 
@@ -1215,8 +1215,10 @@ function runSocks5Proxy() {
     app.socksstarted = true;
     try {
       createDomainSocketServerToCjdns(app.cjdnsSocketPath);
-      setTimeout(connectSocks5ServerAndSSHClientToCjdnsSocket, 500);
-      setTimeout(connectSSHExitNodeToSocket, 750);
+
+      // it takes 2 seconds to run Hyperboria - so wait 3 at least...
+      setTimeout(connectSocks5ServerAndSSHClientToCjdnsSocket, 3000);
+      setTimeout(connectSSHExitNodeToSocket, 3500);
     } catch(e) {
       app.socksstarted = false;
       log.warn("error connecting socks5 to cjdns socket: "+e.message);

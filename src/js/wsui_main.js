@@ -2205,7 +2205,7 @@ function handleSendTransfer(){
           return;
         }
 
-        if(!confirm('You are about to perform wallet optimization. This process may take up to 24hrs to complete, are you sure?')) return;
+        if(!confirm('You are about to perform wallet optimization. This process may take several hours to complete, are you sure?')) return;
         showToast('Optimization started, your balance may appear incorrect during the process...', 3000);
         FUSION_IN_PROGRESS = true;
         wsmanager.optimizeWallet().then( () => {

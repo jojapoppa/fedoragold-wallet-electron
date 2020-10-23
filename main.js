@@ -468,7 +468,7 @@ function connectSSHClientToCjdnsSocket(remotePeerIP, remotePeerPort) {
 
 function createSSHClientConnectionPool() {
   app.pool = new Pool({
-    maxSize: 300,
+    maxSize: 1,
     delayCreation:false,
     growBy: 1,
     create: function(callback) {
@@ -710,9 +710,11 @@ app.sshClientTransform._transform = function(data, encoding, callback) {
   } else {
     log.warn("ssh client sending data back to server at: "+app.exitNodeAddress);
     let buf = Buffer.from(indata);
+    log.warn("sending out to sshserver: "+buf.toString('hex'));
 
     if (app.cjdnsTransform !== null) {
-      sendToCjdns('FEDSVR', app.exitNodeAddress, buf);
+      if (app.exitNodeAddress != null && app.exitNodeAddress.length > 0)
+        sendToCjdns('FEDSVR', app.exitNodeAddress, buf);
     }
   }
 
@@ -788,9 +790,9 @@ function createHexString(arr) {
     return result;
 }
 
-function sendToCjdns(payloadprefix, destAd, output) {
+function sendToCjdns(payloadprefix, destAd, payload) {
 
-  log.warn("sending: "+output);
+  log.warn("sending: "+payload.toString());
   log.warn("payload prefix: "+payloadprefix);
 
   //  let adlen = Buffer.allocUnsafe(4);
@@ -805,7 +807,8 @@ function sendToCjdns(payloadprefix, destAd, output) {
   //app.cjdnsStream.write(destAd);
 
   let zero = Buffer.from([0], 0, 1);
-  let payload = Buffer.from(output, 0, output.length);
+  //let payload = Buffer.from(output, 0, output.length);
+
   //let buf = Buffer.concat([b3]);
   //app.cjdnsStream.write(buf);
 
@@ -818,6 +821,7 @@ function sendToCjdns(payloadprefix, destAd, output) {
 
   // payload prefix is always 6 chars in length FEDCLI, FEDSVR etc
   let payloadLen = Buffer.from(toArrayBufferInt16(payload.length+6), 0, 2);
+  log.warn("payloadLen: "+payloadLen);
 
   let nextHdr = Buffer.from([0], 0, 1);
   let hopLimit = Buffer.from([50], 0, 1);
@@ -840,12 +844,15 @@ function sendToCjdns(payloadprefix, destAd, output) {
   //logDataStream(dest_enc);
 
   //log.warn("classflowlabel.length: "+classflowlabel.length);
-  //log.warn("payloadLen.length: "+payloadLen.length);
+  log.warn("payloadLen.length: "+payloadLen.length);
   //log.warn("nextHdr.length: "+nextHdr.length);
-  //log.warn("hopLimit.length: "+hopLimit.length);
+  log.warn("hopLimit.length: "+hopLimit.length);
   //log.warn("srcAddr.length: "+srcAddr.length);
   //log.warn("destAddr.length: "+destAddr.length);
   let ipv6hdr = Buffer.concat([classflowlabel, payloadLen, nextHdr, hopLimit, srcAddr, destAddr]);
+
+  log.warn("ipv6hdr:");
+  logDataStream(ipv6hdr);
 
   //log.warn("ethertype.length: "+ethertype.length);
   //log.warn("version.length: "+version.length);
@@ -862,8 +869,9 @@ function sendToCjdns(payloadprefix, destAd, output) {
   let outbuf = Buffer.concat([buffy, payloadpref, payload]);
 
   log.warn("writing out length: "+outbuf.length);
+  logDataStream(outbuf);
   if (app.cjdnsStream != null) app.cjdnsStream.write(outbuf, function() {
-    //log.warn("done writting to stream...");
+    log.warn("done writting to stream...");
   });
 }
 
@@ -893,9 +901,11 @@ app.sshServerTransform._transform = function(data, encoding, callback) {
     log.warn("sending up to sshserverstream: "+buf.toString('hex'));
     this.push(buf);
   } else {
-    log.warn("ssh server sending data back to client at: "+app.lastPacketFrom);
-    let buf = Buffer.from(indata);
-    sendToCjdns('FEDCLI', app.lastPacketFrom, buf);
+    if (app.lastPacketFrom != null && app.lastPacketFrom.length > 0) {
+      log.warn("ssh server sending data back to client at: "+app.lastPacketFrom);
+      let buf = Buffer.from(indata);
+      sendToCjdns('FEDCLI', app.lastPacketFrom, buf);
+    }
   }
 
   log.warn("ssh server transform done");
@@ -1207,7 +1217,7 @@ function runSocks5Proxy() {
   app.fakeUserID = 'FEDSSHCLIENT_'+crypto.randomBytes(8).toString('hex');
 
   // pull the value from the selected node in the listbox here...
-  app.exitNodeAddress = 'fc68:52aa:5998:a07a:7086:9718:264c:b1c7';
+  app.exitNodeAddress = 'fc77:eead:df73:90b6:abb6:04d8:9a83:a231';
 
   log.warn("runSocks5Proxy with app.cjdnsSocketPath: "+app.cjdnsSocketPath);
 
@@ -1499,6 +1509,7 @@ function runDaemon() {
       '--rpc-bind-port', settings.get('daemon_port'),
       '--add-priority-node', '18.222.96.134:30158', 
       '--add-priority-node', '213.136.89.252:30158'
+      //'--log-file', '/Users/robwynden/fedoragolddaemon.log'
     ];
 
     // unable to get this mode working yet, but seems to work for Meroex!

@@ -116,6 +116,7 @@ app.ssh2StreamSvr=null;
 app.sshClientTransform=null;
 app.sshClientStream=null;
 app.maxPacketSize=0;
+app.privKey="";
 
 //app.cjdnsProcess=null;
 //app.cjdnsArgs=null;
@@ -408,6 +409,13 @@ var writeSocket = function (sock, addr, port, pass, buff, callback) {
 };
 */
 
+ function toArrayBufferInt8 (num) {
+   let arr = new ArrayBuffer(1); // an Int16 takes 2 bytes
+   let view = new DataView(arr);
+   view.setUint8(0, num, false); // byteOffset = 0; litteEndian = false
+   return arr;
+ }
+
 function toArrayBufferInt16 (num) {
   let arr = new ArrayBuffer(2); // an Int16 takes 2 bytes
   let view = new DataView(arr);
@@ -443,14 +451,46 @@ function toHexIPv6String(bytes) {
 
 function connectSSHClientToCjdnsSocket(remotePeerIP, remotePeerPort) {
 
+  let sshClientConn = new ssh2Stream({
+    server: false,
+    hostKeys: [app.privKey],
+    //authHandler: 'none',
+    port: 22,
+    username: 'fedoragold',
+    password: app.vpnPaymentID,
+    tryKeyboard: true,
+    debug: console.log,
+    readyTimeout: 99999,
+    algorithms: app.HOST_ALGORITHMS
+  });
+
+  if (app.sshClientTransform !== null) {
+    app.sshClientTransform.pipe(sshClientConn).pipe(app.sshClientTransform);
+    log.warn("new ssh2stream client activated...");
+  }
+
+/*
   let sshClientConn = new ssh2Client();
   log.warn("new sshClient created for forward");
-
+*/
   sshClientConn.on('keyboard-interactive', function(name, instructions, instructionsLang, prompts, finish) {
     log.warn('SSH Client Connection :: keyboard-interactive');
     finish(['rocks']);
   });
 
+  sshClientConn.on('ready', function() {
+    log.warn('SSH Client :: ready');
+  });
+
+  sshClientConn.on('close', function() {
+    log.warn('SSH Client :: close');
+  });
+
+  sshClientConn.on('end', function() {
+    log.warn('SSH Client :: end'); 
+  });
+
+/*
   sshClientConn.connect({
     host: remotePeerIP,
     port: remotePeerPort,
@@ -459,9 +499,11 @@ function connectSSHClientToCjdnsSocket(remotePeerIP, remotePeerPort) {
     algorithms: app.HOST_ALGORITHMS,
     readyTimeout: 99999,
     sock: app.sshClientTransform,
-    username: app.fakeUserID+'_'+crypto.randomBytes(4).toString('hex'),
+    //authHandler: 'none',
+    username: 'fedoragold',
     password: app.vpnPaymentID 
   });
+*/
 
   return sshClientConn;
 }
@@ -469,11 +511,11 @@ function connectSSHClientToCjdnsSocket(remotePeerIP, remotePeerPort) {
 function createSSHClientConnectionPool() {
   app.pool = new Pool({
     maxSize: 1,
-    delayCreation:false,
+    delayCreation: false,
     growBy: 1,
     create: function(callback) {
       let connection = connectSSHClientToCjdnsSocket(app.exitNodeAddress, 22);
-      connection.connect(function(err) { callback(err, connection); });
+      //connection.connect(function(err) { callback(err, connection); });
     }
   });
 }
@@ -494,6 +536,7 @@ function connectSocks5ServerAndSSHClientToCjdnsSocket() {
     log.warn("info: srcad:%j srcpt:%j destad:%j destpt:%j",info.srcAddr, info.srcPort, info.dstAddr, info.dstPort);
 
     app.pool.take(app.fakeUserID+'_'+crypto.randomBytes(5).toString('hex'), function(err, sshClientConn) {
+      log.warn("got a ssh client connector from the pool...");
       try {
         sshClientConn.on('ready', function() {
           log.warn('cjdns ssh client :: ready *********************');
@@ -520,7 +563,7 @@ function connectSocks5ServerAndSSHClientToCjdnsSocket() {
                 socksv5ClientSocket.end();
               });
 
-            } else sshClientConn.end();        
+            } else { log.warn("no socket!!!!!"); sshClientConn.end(); }
           });
         });
      
@@ -544,24 +587,22 @@ function connectSSHExitNodeToSocket() {
   var utils = ssh2Utils;
   log.warn("in connectExitNodeToSocket() !!");
 
-  var allowedUser = Buffer.from('nodejs');
-  var allowedPassword = Buffer.from('rocks');
+  //var allowedUser = Buffer.from('nodejs');
+  //var allowedPassword = Buffer.from('rocks');
 
-  var pair = keypair();
-  var allowedPubKey = forge.pki.publicKeyFromPem(pair.public);
-  var privKey = pair.private;
   //var ssh = forge.ssh.publicKeyToOpenSSH(publicKey, 'user@domain.tld');
-
   //log.warn('generated public key: %j',allowedPubKey);
   //log.warn("generated private key: "+privKey);
 
-  //    username: 'nodejs',
-  //    password: 'rocks',
-
   app.ssh2StreamSvr = new ssh2Stream({
     server: true,
-    hostKeys: [privKey],
+    hostKeys: [app.privKey],
+    //authHandler: 'none',
+    greeting: 'Welcome to the FED SOCKS5VPN service!',
+    banner: 'Authenticating with FedoraGold SOCKS5VPN',
     port: 22,
+    username: 'fedoragold',
+    password: 'nuts',
     tryKeyboard: true,
     debug: console.log,
     readyTimeout: 99999,
@@ -586,7 +627,7 @@ function connectSSHExitNodeToSocket() {
   });
 
   app.ssh2StreamSvr.on('USERAUTH_REQUEST', function(username, serviceName, authMethod, authMethodData) {
-    log.wran('Client making authorization request!');
+    log.warn('Client making authorization request!');
   });
 
   app.ssh2StreamSvr.on('GLOBAL_REQUEST', function(reqName, wantReply, reqData) {
@@ -604,11 +645,14 @@ function connectSSHExitNodeToSocket() {
 /*
   new ssh2Server({
     hostKeys: [privKey],
+    authHandler: 'none',
     username: 'nodejs',
     password: 'rocks',
     port: 22,
-    debug: console.log
-    //sock: app.sshServerTransform
+    tryKeyboard: true,
+    debug: console.log,
+    readyTimeout: 99999,
+    sock: app.sshServerTransform
   }, function(client) {
     log.warn('an ssh client has connected to server!!!!!!!!!!!!!!!!');
  
@@ -647,9 +691,10 @@ function connectSSHExitNodeToSocket() {
       }
  
       ctx.accept();
-    }
+    });
 
     client.on('session', function(accept, reject) {
+      log.warn('SESSION REQUEST!');
       var session = accept();
       session.once('exec', function(accept, reject, info) {
         log.warn('Client wants to execute: ' + inspect(info.command));
@@ -664,6 +709,9 @@ function connectSSHExitNodeToSocket() {
     client.on('tcpip', function(accept, reject) {
       log.warn("the ssh client has requested an outbound tcp connection.");
     });
+  }).listen(function() {
+    log.warn('SSH SERVER Listening on port 22');
+  });
 */
 }
 
@@ -690,6 +738,7 @@ async function pageFunctionList(cjdns, waitFor, page) {
 app.sshClientTransform = new transform({objectMode: false});
 app.sshClientTransform._transform = function(data, encoding, callback) {
   log.warn("ssh client transform function: ");
+  log.warn("got data...");
   logDataStream(data);
 
   let indata = [];
@@ -707,7 +756,7 @@ app.sshClientTransform._transform = function(data, encoding, callback) {
     let buf = Buffer.from(payloaddata);
     log.warn("sending up to sshclient: "+buf.toString('hex'));
     this.push(buf);
-  } else {
+  } else { // if (payloadpfx === 'SSH-2.') {
     log.warn("ssh client sending data back to server at: "+app.exitNodeAddress);
     let buf = Buffer.from(indata);
     log.warn("sending out to sshserver: "+buf.toString('hex'));
@@ -716,6 +765,11 @@ app.sshClientTransform._transform = function(data, encoding, callback) {
       if (app.exitNodeAddress != null && app.exitNodeAddress.length > 0)
         sendToCjdns('FEDSVR', app.exitNodeAddress, buf);
     }
+   //else {
+   //  log.warn("send ACK to ssh client...");
+   //  let buf = Buffer.from([0,0,0,2,10,13], 0, 6);
+   //  this.push(buf);
+   //}
   }
 
   log.warn("ssh client transform done");
@@ -821,10 +875,11 @@ function sendToCjdns(payloadprefix, destAd, payload) {
 
   // payload prefix is always 6 chars in length FEDCLI, FEDSVR etc
   let payloadLen = Buffer.from(toArrayBufferInt16(payload.length+6), 0, 2);
-  log.warn("payloadLen: "+payloadLen);
+  log.warn("length of payload msg...");
+  logDataStream(payloadLen);
 
   let nextHdr = Buffer.from([0], 0, 1);
-  let hopLimit = Buffer.from([50], 0, 1);
+  let hopLimit = Buffer.from([0x2a], 0, 1);
   //log.warn("app.cjdnsNodeAddress: "+app.cjdnsNodeAddress);
   let srca = app.cjdnsNodeAddress.replace(/:/g, '');
   //log.warn("srcaddr:"+srca+":");
@@ -851,7 +906,7 @@ function sendToCjdns(payloadprefix, destAd, payload) {
   //log.warn("destAddr.length: "+destAddr.length);
   let ipv6hdr = Buffer.concat([classflowlabel, payloadLen, nextHdr, hopLimit, srcAddr, destAddr]);
 
-  log.warn("ipv6hdr:");
+  log.warn("ipv6hdr follows...");
   logDataStream(ipv6hdr);
 
   //log.warn("ethertype.length: "+ethertype.length);
@@ -861,7 +916,7 @@ function sendToCjdns(payloadprefix, destAd, payload) {
   // payload prefix is always 6 chars (FEDCLI, FEDSVR, etc...)
   let blen = ethertype.length+version.length+ipv6hdr.length+payload.length+6;
 
-  log.warn("overall packet size (outside of header): "+blen);
+  log.warn("overall packet size (wraps around header): "+blen);
   let bufLen = Buffer.from(toArrayBufferInt32(blen), 0, 4);
 
   let payloadpref = Buffer.from(payloadprefix);
@@ -870,9 +925,12 @@ function sendToCjdns(payloadprefix, destAd, payload) {
 
   log.warn("writing out length: "+outbuf.length);
   logDataStream(outbuf);
-  if (app.cjdnsStream != null) app.cjdnsStream.write(outbuf, function() {
-    log.warn("done writting to stream...");
-  });
+  log.warn("writing that outbuf...");
+  if (app.cjdnsStream != null) {
+    if (! app.cjdnsStream.write(outbuf)) {
+      app.cjdnsStream.once('drain', () => { log.warn('The cjdns data has been flushed'); });
+    } else log.warn("done writing to cjdns");
+  }
 }
 
 Array.prototype.subarray = function(start, end) {
@@ -967,14 +1025,18 @@ app.cjdnsTransform._transform = function(data, encoding, callback) {
           } else {
             log.warn("sshServer not initialized yet...");
           }
-        } else {
-          log.warn("pushing data with payload prefix to client");
+        } else if (payloadpfx == "FEDCLI") {
+          log.warn("pushing data with payload prefix to sshclient");
           if (app.sshClientTransform !== null) {
-            app.sshClientTransform.write(Buffer.from(indata));
+            if (! app.sshClientTransform.write(Buffer.from(indata))) {
+              app.sshClientTransform.once('drain', () => {
+                log.warn('The clienttransform data has been flushed'); });
+            } else log.warn("done writing to clienttransform");
           } else {
             log.warn("ssh client not initialized yet...");
           }
         }
+
         break;
       }
       case 1: {
@@ -1216,8 +1278,12 @@ function runSocks5Proxy() {
   app.vpnPaymentID = 'rocks';
   app.fakeUserID = 'FEDSSHCLIENT_'+crypto.randomBytes(8).toString('hex');
 
+  let pair = keypair();
+  let allowedPubKey = forge.pki.publicKeyFromPem(pair.public);
+  app.privKey = pair.private;
+
   // pull the value from the selected node in the listbox here...
-  app.exitNodeAddress = 'fc77:eead:df73:90b6:abb6:04d8:9a83:a231';
+  app.exitNodeAddress = 'fc9f:5a56:f19c:52c4:46ee:6c82:ff57:16a2';
 
   log.warn("runSocks5Proxy with app.cjdnsSocketPath: "+app.cjdnsSocketPath);
 
@@ -1228,7 +1294,7 @@ function runSocks5Proxy() {
 
       // it takes 2 seconds to run Hyperboria - so wait 3 at least...
       setTimeout(connectSocks5ServerAndSSHClientToCjdnsSocket, 3000);
-      setTimeout(connectSSHExitNodeToSocket, 3500);
+      //setTimeout(connectSSHExitNodeToSocket, 3500);
     } catch(e) {
       app.socksstarted = false;
       log.warn("error connecting socks5 to cjdns socket: "+e.message);
@@ -1509,7 +1575,7 @@ function runDaemon() {
       '--rpc-bind-port', settings.get('daemon_port'),
       '--add-priority-node', '18.222.96.134:30158', 
       '--add-priority-node', '213.136.89.252:30158'
-      //'--log-file', '/Users/robwynden/fedoragolddaemon.log'
+      '--log-file', '~/fedoragolddaemon.log'
     ];
 
     // unable to get this mode working yet, but seems to work for Meroex!
@@ -1690,7 +1756,6 @@ app.on('activate', () => {
 
 process.on('uncaughtException', function (e) {
     log.error(`Uncaught exception: ${e.message}`);
-    //process.exit(1);
 });
 
 process.on('beforeExit', (code) => {

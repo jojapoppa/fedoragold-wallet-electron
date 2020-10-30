@@ -6,8 +6,9 @@
   "homepage": "https://github.com/jojapoppa/fedoragold-wallet-electron",
   "repository": "https://github.com/jojapoppa/fedoragold-wallet-electron",
   "main": "main.js",
+  "nodejs": true,
   "scripts": {
-    "start": "electron .",
+    "start": "electron --no-sandbox .",
     "debug": "electron . debug",
     "dev": "electron . dev",
     "dist-win": "./node_modules/.bin/electron-builder --x64 --win",

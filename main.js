@@ -7,6 +7,7 @@ const Menu = require('electron').Menu;
 const readable = require('stream').Readable;
 const writeable = require('stream').Writeable;
 const transform = require('stream').Transform;
+const v8 = require('v8');
 
 const path = require('path');
 const vm = require('vm');
@@ -1536,6 +1537,11 @@ process.on('unhandledRejection', function(err) {});
 function terminateDaemon() {
 
     log.warn("terminateDaemon()");
+  
+    // hit the stop_daemon rest interface...
+    let aurl = `http://127.0.0.1:${settings.get('daemon_port')}/stop_daemon`;
+    let libr = aurl.startsWith('https') ? require('https') : require('http');
+    libr.get(aurl);
 
     app.daemonLastPid = app.daemonPid;
     try{
@@ -1546,8 +1552,17 @@ function terminateDaemon() {
         app.daemonProcess.stdin.write("exit\n");
         app.daemonProcess.stdin.end();
       }
-    }catch(e){/*eat any errors, no reporting nor recovery needed...*/}
+    } catch(e) {/*eat any errors, no reporting nor recovery needed...*/}
 }
+
+app.on('window-all-closed', app.quit);
+app.on('before-quit', () => {
+    terminateDaemon();
+    setTimeout(function() {
+      electron.remote.getCurrentWindow().removeAllListeners('close');
+      electron.remote.getCurrentWindow().close();
+    }, 1000);
+});
 
 function runDaemon() {
 
@@ -1575,8 +1590,13 @@ function runDaemon() {
       '--rpc-bind-port', settings.get('daemon_port'),
       '--add-priority-node', '18.222.96.134:30158', 
       '--add-priority-node', '213.136.89.252:30158'
-      '--log-file', '~/fedoragolddaemon.log'
+      //'--log-file', 'fedoragolddaemon.log'
     ];
+
+    //log.warn(v8.getHeapStatistics());
+    //let totalHeapSize = v8.getHeapStatistics().total_available_size;
+    //let totalHeapSizeGB = (totalHeapSize / 1024 / 1024 / 1024).toFixed(2);
+    //log.warn("Total heap: "+totalHeapSizeGB+"GB");
 
     // unable to get this mode working yet, but seems to work for Meroex!
     app.integratedDaemon = false;
@@ -1585,7 +1605,9 @@ function runDaemon() {
 
     try {
         let detach = false;
-        if (platform === 'win32') detach = true;
+        if (platform === 'win32' || platform === 'darwin') detach = true;
+
+        log.warn("++++++++++ running daemon with detach: "+detach);
 
         if (! app.integratedDaemon) { 
           app.daemonProcess = spawn(daemonPath, daemonArgs, 

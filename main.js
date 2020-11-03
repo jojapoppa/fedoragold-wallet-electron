@@ -1,6 +1,8 @@
 "use strict";
 const electron = require('electron');
 const app = require('electron').app;
+//this.app.commandLine.appendSwitch('no-sandbox');
+
 const dialog = require('electron').dialog;
 const Tray = require('electron').Tray;
 const Menu = require('electron').Menu;
@@ -30,11 +32,12 @@ const splash = require('@trodi/electron-splashscreen');
 const config = require('./src/js/ws_config');
 const spawn = require('cross-spawn'); //require('child_process').spawn;
 const exec = require('child_process').exec;
+const execSync = require('child_process').execSync;
 const net = require('net');
 
 const udp = require('dgram');
 const bencode = require('./src/js/extras/bencode');
-const semaphore = require('./src/js/extras/Semaphore.js');
+//const semaphore = require('./src/js/extras/Semaphore.js');
 const cjdnsadmin = require('./src/js/extras/cjdnsadmin');
 
 const navigator = require('navigator');
@@ -1535,18 +1538,14 @@ electron.dialog.showErrorBox = (title, content) => {
 
 process.on('unhandledRejection', function(err) {});
 function terminateDaemon() {
-
-    log.warn("terminateDaemon()");
-  
     // hit the stop_daemon rest interface...
     let aurl = `http://127.0.0.1:${settings.get('daemon_port')}/stop_daemon`;
     let libr = aurl.startsWith('https') ? require('https') : require('http');
-    libr.get(aurl);
+    try {libr.get(aurl);} catch (e) {/*do nothing*/}
 
     app.daemonLastPid = app.daemonPid;
     try{
       if (app.daemonProcess !== null) {
-
         // this offers clean exit on all platforms
         log.warn("exit command sent to fedoragold_daemon"); 
         app.daemonProcess.stdin.write("exit\n");
@@ -1557,15 +1556,19 @@ function terminateDaemon() {
 
 app.on('window-all-closed', app.quit);
 app.on('before-quit', () => {
-    terminateDaemon();
-    setTimeout(function() {
-      electron.remote.getCurrentWindow().removeAllListeners('close');
-      electron.remote.getCurrentWindow().close();
-    }, 1000);
+  terminateDaemon();
+
+  switch(process.platform) {
+  case 'win32':
+    exec('taskkill /F /IM ' + 'FedoraGoldWallet Helper (Renderer)'+ '.exe /T');
+    break;
+  default: //Linux + Darwin
+    exec('pkill ' + 'FedoraGoldWallet Helper');
+    break;
+  }
 });
 
 function runDaemon() {
-
     // if there are insufficient resources, just run the daemon in thin mode 
     if (! checkMemoryAndStorage()) {
       //log.warn("insufficient resources to run local daemon, will use remote instead");
@@ -1590,7 +1593,7 @@ function runDaemon() {
       '--rpc-bind-port', settings.get('daemon_port'),
       '--add-priority-node', '18.222.96.134:30158', 
       '--add-priority-node', '213.136.89.252:30158'
-      //'--log-file', 'fedoragolddaemon.log'
+      //'--log-file', 'fedoragolddaemon.log' // may want to add an optional switch for this later...
     ];
 
     //log.warn(v8.getHeapStatistics());
@@ -1604,8 +1607,9 @@ function runDaemon() {
     var newTimeStamp;
 
     try {
-        let detach = false;
-        if (platform === 'win32' || platform === 'darwin') detach = true;
+        //let detach = false;
+        //if (platform === 'win32' || platform === 'darwin') detach = true;
+        let detach = true;
 
         log.warn("++++++++++ running daemon with detach: "+detach);
 
@@ -1717,7 +1721,7 @@ app.on('second-instance', () => {
         win.focus();
     }
 });
-if (!silock) app.quit();
+if (!silock) app.quit;
 
 app.on('ready', () => {
     initSettings();
@@ -1767,7 +1771,7 @@ app.on('window-all-closed', () => {
             win.focus();
       }
 
-    app.quit();
+    app.quit;
 });
 
 app.on('activate', () => {
@@ -1789,8 +1793,9 @@ process.on('exit', (code) => {
     terminateDaemon();
 
     setTimeout((function() {
-      return process.exit(0);
-    }), 5000);
+      //return process.exit(0);
+      app.quit; 
+    }), 8000);
 });
 
 //    // needs it twice for some reason on an application exit... unreliable otherwise...

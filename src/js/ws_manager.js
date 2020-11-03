@@ -665,8 +665,8 @@ WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daem
     });
 
     wsm.syncWorker.on('close', function() {
-        wsm.syncWorker = null;
         try{wsm.syncWorker.kill('SIGKILL');}catch(e){}
+        wsm.syncWorker = null;
         log.debug(`service worker terminated.`);
     });
 

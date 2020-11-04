@@ -1,7 +1,7 @@
 "use strict";
 const electron = require('electron');
 const app = require('electron').app;
-//this.app.commandLine.appendSwitch('no-sandbox');
+const log = require('electron-log');
 
 const dialog = require('electron').dialog;
 const Tray = require('electron').Tray;
@@ -27,7 +27,6 @@ const platform = require('os').platform();
 const crypto = require('crypto');
 const Store = require('electron-store');
 const settings = new Store({name: 'Settings'});
-const log = require('electron-log');
 const splash = require('@trodi/electron-splashscreen');
 const config = require('./src/js/ws_config');
 const spawn = require('cross-spawn'); //require('child_process').spawn;

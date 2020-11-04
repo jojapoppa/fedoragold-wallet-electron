@@ -1841,13 +1841,14 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
     var buffer = "";
     if (el === null) return;
 
-    var buffin = el.innerHTML + ansi2html(sChunk.toString());
+    var buffin = el.innerHTML + ansi2html(sChunk.toString()); //.replace(/[^\x20-\x7E]/g, ''));
     for (let i=0; i<buffin.length; i++) {
       let ch = buffin.charCodeAt(i);
       if (ch == 10) {
         buffer += "<br/>";
       } else {
-        if (ch != 13)
+        //if (ch != 13)
+        if (ch >=32 && ch <=127)
           buffer += String.fromCharCode(ch);
       }
     }
@@ -1915,6 +1916,7 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
          (firstline.search("Failed")===-1) && (firstline.search("folder")===-1) &&
          (firstline.search("wrong")===-1) && (firstline.search("Block with id")===-1) &&
          (firstline.search("CHECKPOINT")===-1) ) {
+
         let rescandata = {
           type: 'rescan',
           data: {

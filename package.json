@@ -8,7 +8,7 @@
   "main": "main.js",
   "nodejs": true,
   "scripts": {
-    "start": "electron . --no-sandbox",
+    "start": "electron .",
     "debug": "electron . debug",
     "dev": "electron . dev",
     "dist-win": "./node_modules/.bin/electron-builder --x64 --win",
@@ -43,6 +43,7 @@
     "electron-store": "^2.0.0",
     "electron-updater": "^4.3.5",
     "forge": "^2.3.0",
+    "fs-extra": "^9.0.1",
     "is-running": "^2.1.0",
     "keypair": "^1.0.1",
     "lum_socksv5": "0.0.12",
@@ -62,6 +63,7 @@
     "ssh2-streams": "^0.4.10",
     "system-sleep": "^1.3.7",
     "tree-kill": "^1.2.2",
+    "typescript": "^4.0.5",
     "util": "^0.12.3"
   },
   "build": {
@@ -71,6 +73,7 @@
       "output": "dist",
       "buildResources": "build"
     },
+    "afterPack": "./afterPackLinux.js",
     "files": [
       "**/*",
       "build/icon.*"

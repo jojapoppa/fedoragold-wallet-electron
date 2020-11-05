@@ -1606,9 +1606,8 @@ function runDaemon() {
     var newTimeStamp;
 
     try {
-        //let detach = false;
-        //if (platform === 'win32' || platform === 'darwin') detach = true;
         let detach = true;
+        //if (platform === 'win32') detach = false;
 
         log.warn("++++++++++ running daemon with detach: "+detach);
 

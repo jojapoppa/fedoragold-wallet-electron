@@ -10,6 +10,8 @@ const readable = require('stream').Readable;
 const writeable = require('stream').Writeable;
 const transform = require('stream').Transform;
 const v8 = require('v8');
+const ip2int = require('ip2int');
+const endianCode = require('endian-code');
 
 const path = require('path');
 const vm = require('vm');
@@ -18,7 +20,7 @@ const url = require('url');
 const util = require('util');
 const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
-const Pool = require('connection_pool');
+const pidusage = require('pidusage-tree');
 
 const killer = require('tree-kill');
 const request = require('request-promise-native');
@@ -40,7 +42,9 @@ const bencode = require('./src/js/extras/bencode');
 const cjdnsadmin = require('./src/js/extras/cjdnsadmin');
 
 const navigator = require('navigator');
-const socksv5 = require('lum_socksv5');
+const socksv5 = require('ts-socks');
+const socksv5Client = require('lum_socksv5');
+
 const ssh2Client = require('ssh2').Client;
 const ssh2Server = require('ssh2').Server;
 const ssh2Stream = require('ssh2-streams').SSH2Stream;
@@ -100,10 +104,10 @@ app.integratedDaemon = false;
 app.heightVal = 0;
 app.adminPassword=null;
 app.socksv5server=null;
+app.socksv5exitNode=null;
 
 app.HOST_ALGORITHMS = { serverHostKey: ['ssh-rsa'] };
 
-app.pool=null;
 app.vpnPaymentID="";
 app.fakeUserID="";
 app.lastPacketFrom="";
@@ -113,10 +117,10 @@ app.exitNodeAddress="";
 app.thisNodeAddress="";
 app.cjdnsSocketPath=null;
 app.cjdnsTransform=null;
-app.sshServerTransform=null;
+app.exitNodeTransform=null;
 app.cjdnsStream=null;
-app.ssh2StreamSvr=null;
-app.sshClientTransform=null;
+app.socks5ClientTransform=null;
+app.sshClientConn=null;
 app.sshClientStream=null;
 app.maxPacketSize=0;
 app.privKey="";
@@ -439,6 +443,12 @@ function toIntFrom4Bytes (b1,b2,b3,b4) {
   return new Uint32Array(u32bytes)[0];
 }
 
+function toIntFrom2Bytes (b1,b2) {
+  let arr = new Uint8Array([b1,b2]);
+  let u16bytes = arr.buffer.slice(-2);
+  return new Uint16Array(u16bytes)[0];
+}
+
 function toHexIPv6String(bytes) {
 
   const buf = Buffer.from(bytes, 'utf8');
@@ -452,270 +462,114 @@ function toHexIPv6String(bytes) {
   //return output;
 } 
 
-function connectSSHClientToCjdnsSocket(remotePeerIP, remotePeerPort) {
+function tunnelSocks5Request(info, sockssocket, requestID) {
+  log.warn("requestID: "+requestID.toString('hex'));
+  log.warn("info: destad:%j destpt:%j",info.dstAddr, info.dstPort);
 
-  let sshClientConn = new ssh2Stream({
-    server: false,
-    hostKeys: [app.privKey],
-    //authHandler: 'none',
-    port: 22,
-    username: 'fedoragold',
-    password: app.vpnPaymentID,
-    tryKeyboard: true,
-    debug: console.log,
-    readyTimeout: 99999,
-    algorithms: app.HOST_ALGORITHMS
+  return new Promise(resolve => {
+    //sockssocket.pipe(app.socks5ClientTransform).pipe(sockssocket);
+    //socksv5CientSocket.end('write back here...');
+
+    sockssocket.setEncoding('utf8');
+    sockssocket.on('data', function (data) {
+      var buff = Buffer.from(data);
+      log.warn("data on socks5 socket: ", buff.length);
+      sendToCjdns('FEDSVR', app.exitNodeAddress, requestID, info, buff);
+      resolve('resolved');
+    });
   });
+}
 
-  if (app.sshClientTransform !== null) {
-    app.sshClientTransform.pipe(sshClientConn).pipe(app.sshClientTransform);
-    log.warn("new ssh2stream client activated...");
+async function genSocks5Request(proxy) {
+
+  let requestID = crypto.randomBytes(32);
+
+  let info = {
+    dstAddr : proxy.remote.remoteAddress,
+    dstPort : proxy.remote.remotePort
   }
 
-/*
-  let sshClientConn = new ssh2Client();
-  log.warn("new sshClient created for forward");
-*/
-  sshClientConn.on('keyboard-interactive', function(name, instructions, instructionsLang, prompts, finish) {
-    log.warn('SSH Client Connection :: keyboard-interactive');
-    finish(['rocks']);
-  });
-
-  sshClientConn.on('ready', function() {
-    log.warn('SSH Client :: ready');
-  });
-
-  sshClientConn.on('close', function() {
-    log.warn('SSH Client :: close');
-  });
-
-  sshClientConn.on('end', function() {
-    log.warn('SSH Client :: end'); 
-  });
-
-/*
-  sshClientConn.connect({
-    host: remotePeerIP,
-    port: remotePeerPort,
-    tryKeyboard: true,
-    debug: console.log,
-    algorithms: app.HOST_ALGORITHMS,
-    readyTimeout: 99999,
-    sock: app.sshClientTransform,
-    //authHandler: 'none',
-    username: 'fedoragold',
-    password: app.vpnPaymentID 
-  });
-*/
-
-  return sshClientConn;
+  const result = await tunnelSocks5Request(info, proxy.origin, requestID);
+  log.warn("socksv5 request resolved: "+info.dstAddr);
 }
 
-function createSSHClientConnectionPool() {
-  app.pool = new Pool({
-    maxSize: 1,
-    delayCreation: false,
-    growBy: 1,
-    create: function(callback) {
-      let connection = connectSSHClientToCjdnsSocket(app.exitNodeAddress, 22);
-      //connection.connect(function(err) { callback(err, connection); });
-    }
-  });
-}
-
-function connectSocks5ServerAndSSHClientToCjdnsSocket() {
+function connectSocks5ServerToCjdnsSocket() {
 
   log.warn("launching socks5 proxy with connection to socket");
-  createSSHClientConnectionPool();
 
-  app.socksv5server = socksv5.createServer(function(info, accept, deny) {
-    log.warn("socksv5 got a client connection request");
+  app.socksv5server = new socksv5({
+    options: {
+        listen: 1080,
+        allowNoAuth: true,
+    },
+    users: [{username: 'nodejs', password: 'rocks'}],
+  }).on('connection', (proxy) => {
+    log.warn("socksv5 got a client connection request from ts-socks");
 
-    let socksv5ClientSocket = accept(true);
-    if (socksv5ClientSocket) {
-      log.warn("got a socksv5client socket");
+    if (app.cjdnsTransform != null) {
+      genSocks5Request(proxy);
+      log.warn("handle next socks5 request...");
+    } else {
+      app.socksstarted = false;
+      log.warn("error creating socksv5 connection");
     }
-
-    log.warn("info: srcad:%j srcpt:%j destad:%j destpt:%j",info.srcAddr, info.srcPort, info.dstAddr, info.dstPort);
-
-    app.pool.take(app.fakeUserID+'_'+crypto.randomBytes(5).toString('hex'), function(err, sshClientConn) {
-      log.warn("got a ssh client connector from the pool...");
-      try {
-        sshClientConn.on('ready', function() {
-          log.warn('cjdns ssh client :: ready *********************');
-          sshClientConn.forwardOut(info.srcAddr, info.srcPort, info.dstAddr, info.dstPort, function(err, stream) {
-                //remotePeerIP, remotePeerPort, '127.0.0.1', 1080, function(err, stream) {
-            app.sshClientStream = stream;
-            log.warn('app.sshClientStream forwarding... ready.');
-
-            if (err) {
-              sshClientConn.end();
-              app.socksstarted = false;
-              log.warn("err in forward: "+err);
-              return deny();
-            }
-
-            let clientSocket = accept(true);
-            if (clientSocket) {
-              stream.pipe(clientSocket).pipe(stream).on('close', function() {
-                log.warn("ssh forwarding stream closed");
-                sshClientConn.end();
-              });
-              clientSocket.pipe(socksv5ClientSocket).pipe(clientSocket).on('close', function() {
-                log.warn("close socksv5 connection"); 
-                socksv5ClientSocket.end();
-              });
-
-            } else { log.warn("no socket!!!!!"); sshClientConn.end(); }
-          });
-        });
-     
-        sshClientConn.on('error', function(err) {
-          log.warn("error in ssh client connection: "+err);
-          app.socksstarted = false;
-          deny();
-        });
-      } catch(e) {
-        app.socksstarted = false;
-        log.warn("error creating ssh client: "+e);
-      }
-    });
-  }).listen(1080, '0.0.0.0', function() {
-    log.warn('FedoraGold SOCKSv5 proxy server started on port 1080');
-  }).useAuth(socksv5.auth.None());
+  });
 }
 
-var exitnodestarted = false;
-function connectSSHExitNodeToSocket() {
-  var utils = ssh2Utils;
-  log.warn("in connectExitNodeToSocket() !!");
-
-  //var allowedUser = Buffer.from('nodejs');
-  //var allowedPassword = Buffer.from('rocks');
-
-  //var ssh = forge.ssh.publicKeyToOpenSSH(publicKey, 'user@domain.tld');
-  //log.warn('generated public key: %j',allowedPubKey);
-  //log.warn("generated private key: "+privKey);
-
-  app.ssh2StreamSvr = new ssh2Stream({
-    server: true,
-    hostKeys: [app.privKey],
-    //authHandler: 'none',
-    greeting: 'Welcome to the FED SOCKS5VPN service!',
-    banner: 'Authenticating with FedoraGold SOCKS5VPN',
-    port: 22,
-    username: 'fedoragold',
-    password: 'nuts',
-    tryKeyboard: true,
-    debug: console.log,
-    readyTimeout: 99999,
-    algorithms: app.HOST_ALGORITHMS
-  });
-
-  if (app.sshServerTransform !== null) {
-    app.sshServerTransform.pipe(app.ssh2StreamSvr).pipe(app.sshServerTransform);
-    log.warn("ssh2stream svr activated");
-  }
-
-  app.ssh2StreamSvr.on('ready', function() {
-    log.warn('Client authenticated!');
-  });
-
-  app.ssh2StreamSvr.on('end', function() {
-    log.warn('Client disconnected!');
-  });
-
-  app.ssh2StreamSvr.on('SERVICE_REQUEST', function(serviceName) {
-    log.warn('Client made service request!');
-  });
-
-  app.ssh2StreamSvr.on('USERAUTH_REQUEST', function(username, serviceName, authMethod, authMethodData) {
-    log.warn('Client making authorization request!');
-  });
-
-  app.ssh2StreamSvr.on('GLOBAL_REQUEST', function(reqName, wantReply, reqData) {
-    log.warn('Client made global request!');
-  });
-
-  app.ssh2StreamSvr.on('CHANNEL_OPEN', function(channelInfo) {
-    log.warn('Client sent channel open event!');
-  });
-
-  app.ssh2StreamSvr.on('CHANNEL_REQUEST:123', function(reqInfo) {
-    log.warn('Client sent a specific channel request!');
-  });
-
 /*
-  new ssh2Server({
-    hostKeys: [privKey],
-    authHandler: 'none',
-    username: 'nodejs',
-    password: 'rocks',
-    port: 22,
-    tryKeyboard: true,
-    debug: console.log,
-    readyTimeout: 99999,
-    sock: app.sshServerTransform
-  }, function(client) {
-    log.warn('an ssh client has connected to server!!!!!!!!!!!!!!!!');
- 
-    client.on('authentication', function(ctx) {
-      log.warn("ssh server will authenticate client now");
-
-      var user = Buffer.from(ctx.username);
-      if (user.length !== allowedUser.length
-          || !crypto.timingSafeEqual(user, allowedUser)) {
-        return ctx.reject();
-      }
- 
-      switch (ctx.method) {
-        case 'password':
-          log.warn("check password");
-          var password = Buffer.from(ctx.password);
-          if (password.length !== allowedPassword.length
-              || !crypto.timingSafeEqual(password, allowedPassword)) {
-            log.warn("client password failure");
-            return ctx.reject();
-          }
-          break;
-        case 'publickey':
-          log.warn("check public key...");
-          var allowedPubSSHKey = allowedPubKey.getPublicSSH();
-          if (ctx.key.algo !== allowedPubKey.type
-              || ctx.key.data.length !== allowedPubSSHKey.length
-              || !crypto.timingSafeEqual(ctx.key.data, allowedPubSSHKey)
-              || (ctx.signature && allowedPubKey.verify(ctx.blob, ctx.signature) !== true)) {
-            log.warn("client publickey failure");
-            return ctx.reject();
-          }
-          break;
-        default:
-          return ctx.reject();
-      }
- 
-      ctx.accept();
+function sendExitRequest(remote, buf, reqiddata) {
+  return new Promise(resolve => {
+    remote.end(buf);
+  
+    remote.setEncoding('utf8');
+    remote.on('data', function (data) {
+      var buff = Buffer.from(data);
+      log.warn("data returned from remote with length: ", buff.length);
+      logDataStream(buff);
+      log.warn("SEND BACK NOW FOR REQUEST: "+this.reqiddata.toString('hex'));
+      resolve('resolved');
     });
-
-    client.on('session', function(accept, reject) {
-      log.warn('SESSION REQUEST!');
-      var session = accept();
-      session.once('exec', function(accept, reject, info) {
-        log.warn('Client wants to execute: ' + inspect(info.command));
-        var stream = accept();
-        stream.stderr.write('Oh no, the dreaded errors!\n');
-        stream.write('Just kidding about the errors!\n');
-        stream.exit(0);
-        stream.end();
-      });
-    });
-
-    client.on('tcpip', function(accept, reject) {
-      log.warn("the ssh client has requested an outbound tcp connection.");
-    });
-  }).listen(function() {
-    log.warn('SSH SERVER Listening on port 22');
   });
+}
+  
+async function genRemoteRequest(remote, buf, reqiddata) {
+  const result = await sendExitRequest(remote, buf);
+  log.warn("respose processed for: "+reqiddata.toString('hex'));
+}
 */
+
+function issueRequestToExitNode(reqiddata, destaddress, destport, buf) {
+  log.warn("in issueRequestToExitNode() !!");
+
+  app.socksv5exitNode = new socksv5({
+    options: {
+      listen: 1081,
+      allowNoAuth: true,
+    },
+    users: [{username: 'nodejs', password: 'rocks'}],
+  }).on('connection', (proxy) => {
+      log.warn("socksv5 exit node server connected...");
+
+//    log.warn("Sending exit node request to remote server for reqID: "+reqiddata);
+//    log.warn("  destination IP: "+this.destaddress+" Port: "+this.destport);
+//    genRemoteRequest(proxy.remote, this.buf, this.reqiddata);
+  });
+
+  // this just launches an exit node for each socksv5 session
+  var client = socksv5Client.connect({
+    host: destaddress,
+    port: destport,
+    proxyHost: '127.0.0.1',
+    proxyPort: 1081,
+    auths: [ socksv5Client.auth.None() ]
+  }, function(socket) {
+    log.warn(">> Client Exit node Connection successful");
+    socket.write(this.buf);
+
+    socket.pipe(process.stdout);
+  }); 
+
+  log.warn("done with issueRequestToExitNode()...");
 }
 
 function promisifyAll(obj) {
@@ -738,9 +592,9 @@ async function pageFunctionList(cjdns, waitFor, page) {
   log.warn("page %d", (page+1));
 }
 
-app.sshClientTransform = new transform({objectMode: false});
-app.sshClientTransform._transform = function(data, encoding, callback) {
-  log.warn("ssh client transform function: ");
+app.socks5ClientTransform = new transform({objectMode: false});
+app.socks5ClientTransform._transform = function(data, encoding, callback) {
+  log.warn("socks5 client transform function: ");
   log.warn("got data...");
   logDataStream(data);
 
@@ -752,22 +606,25 @@ app.sshClientTransform._transform = function(data, encoding, callback) {
   }
 
   let payloadpfx = Buffer.from(indata).toString().substring(0, 6);
-  log.warn("sshClientTransform got inData with payload prefix: "+payloadpfx);
+  log.warn("socks5ClientTransform got inData with payload prefix: "+payloadpfx);
 
   let outar = new Uint8Array(payloaddata);
   if (payloadpfx === "FEDCLI") {
     let buf = Buffer.from(payloaddata);
     log.warn("sending up to sshclient: "+buf.toString('hex'));
-    this.push(buf);
+    //this.push(buf);
+    app.sshClientConn.write(buf);
   } else { // if (payloadpfx === 'SSH-2.') {
     log.warn("ssh client sending data back to server at: "+app.exitNodeAddress);
     let buf = Buffer.from(indata);
     log.warn("sending out to sshserver: "+buf.toString('hex'));
 
+/* this is taken out for now... working on it
     if (app.cjdnsTransform !== null) {
       if (app.exitNodeAddress != null && app.exitNodeAddress.length > 0)
         sendToCjdns('FEDSVR', app.exitNodeAddress, buf);
     }
+*/
    //else {
    //  log.warn("send ACK to ssh client...");
    //  let buf = Buffer.from([0,0,0,2,10,13], 0, 6);
@@ -776,46 +633,6 @@ app.sshClientTransform._transform = function(data, encoding, callback) {
   }
 
   log.warn("ssh client transform done");
-
-//  log.warn("ssh client transform function: ");
-//  logDataStream(data);
-//  
-//  let buf = null;
-//  let i = 0;
-//
-//  while (i < data.length) {
-//    buf = Buffer.from(data, i);
-//    let endloc = buf.indexOf('CJD');
-//    if (endloc == 0) {
-//      log.warn("CJDNS info recieved, sending to SSH client");
-//      
-//      let packetSize = toIntFrom4Bytes(data[i+6],data[i+5],data[i+4],data[i+3]);
-//      if ((app.maxPacketSize > 0) && (packetSize > app.maxPacketSize))
-//        packetSize = app.maxPacketSize;
-//      log.warn("cjdns packet size: "+packetSize);
-//      log.warn("data length is: "+data.length);
-//      i += 7;
-//
-//      if (packetSize > 0) {
-//        log.warn("process packet now with size: "+packetSize);
-//        buf = Buffer.from(data, i, packetSize);
-//        i += packetSize;
-//        this.push(buf);
-//      }
-//    } else {
-//      log.warn("sending ssh client info to cjdns");
-//      let tag = Buffer.from('SSH');
-//      if (endloc > 0) buf = Buffer.from(data, i, endloc-i-1);
-//      let outp = Buffer.concat([tag, buf, tag]);
-//      if (app.cjdnsTransform !== null) {
-//        app.exitNodeAddress = 'fc49:756c:e073:5fc9:0bea:688f:9b45:83cf';
-//        sendToCjdns('FEDSVR', app.exitNodeAddress, buf);
-//      }
-//      i += buf.length;
-//    }
-//  }
-//
-//  log.warn("ssh client transform done");
 
   callback();
 };
@@ -847,13 +664,15 @@ function createHexString(arr) {
     return result;
 }
 
-function sendToCjdns(payloadprefix, destAd, payload) {
+function sendToCjdns(payloadprefix, destAdCjdns, requestID, info, payload) {
 
-  log.warn("sending: "+payload.toString());
+  log.warn("^^^^^^^^^^^^^^^^^^^^^^^sendToCjdns() payload length is: "+payload.length);
+  log.warn("sending payload to CJDNS...");
+  logDataStream(payload);
   log.warn("payload prefix: "+payloadprefix);
 
   //  let adlen = Buffer.allocUnsafe(4);
-  //  adlen.writeUInt16BE(destAd.length);
+  //  adlen.writeUInt16BE(destAdCjdns.length);
   let ethertype = Buffer.from([0,0,0x86,0xDD], 0, 4); // ethertype is a const defined in cjdns
   let version = Buffer.from([0x60], 0, 1); // encoding for ipv6 in cjdns socket protocol
   //  let adprefix = Buffer.from([0], 0, 1);
@@ -861,7 +680,7 @@ function sendToCjdns(payloadprefix, destAd, payload) {
   //  let adpad2 = Buffer.from([0,0], 0, 2);
   //  let sockaddr = Buffer.concat([adlen, adflags, adprefix, adpad1, adpad2]);
   //app.cjdnsStream.write([0], sockaddr);
-  //app.cjdnsStream.write(destAd);
+  //app.cjdnsStream.write(destAdCjdns);
 
   let zero = Buffer.from([0], 0, 1);
   //let payload = Buffer.from(output, 0, output.length);
@@ -876,11 +695,6 @@ function sendToCjdns(payloadprefix, destAd, payload) {
 
   log.warn("send to cjdns payload.length: "+payload.length);
 
-  // payload prefix is always 6 chars in length FEDCLI, FEDSVR etc
-  let payloadLen = Buffer.from(toArrayBufferInt16(payload.length+6), 0, 2);
-  log.warn("length of payload msg...");
-  logDataStream(payloadLen);
-
   let nextHdr = Buffer.from([0], 0, 1);
   let hopLimit = Buffer.from([0x2a], 0, 1);
   //log.warn("app.cjdnsNodeAddress: "+app.cjdnsNodeAddress);
@@ -892,17 +706,45 @@ function sendToCjdns(payloadprefix, destAd, payload) {
   //logDataStream(src_enc);
  
   // if we don't have an exit node address yet, then bail out - preinit
-  if (destAd.length == 0) return; 
+  if (destAdCjdns.length == 0) return; 
    
-  let desta = destAd.replace(/:/g, '');
+  let desta = destAdCjdns.replace(/:/g, '');
   log.warn("destaddr:"+desta+":");
   let dest_enc = parseHexString(desta, 2);
   //log.warn("dest_enc len: "+dest_enc.length);
   let destAddr = Buffer.from(dest_enc, 0, 16);
   //logDataStream(dest_enc);
 
+  log.warn("info dst addr: "+info.dstAddr);
+  let infodsta = ip2int.ip2int(info.dstAddr);
+  log.warn("converted dst: "+infodsta);
+  let infodstAddr = Buffer.from(toArrayBufferInt32(infodsta), 0, 4);
+  logDataStream(infodstAddr);
+
+  let infodstp = Buffer.from(toArrayBufferInt16(info.dstPort), 0, 2);
+  log.warn("port: "+info.dstPort);
+  logDataStream(infodstp);
+
+  let info_secsz=6;
+  let reqid_secsz=32;
+  let prefixsz=6;
+
+  let info_sec = Buffer.concat([infodstAddr, infodstp]);
+  let reqid_sec = Buffer.from(requestID, 0, 32);
+  log.warn("requestID: "+requestID.toString('hex'));
+  logDataStream(reqid_sec);
+
+  info_secsz = info_sec.length;
+  reqid_secsz = reqid_sec.length;
+  prefixsz = payloadprefix.length;
+
+  // payload prefix is always 6 chars in length FEDCLI, FEDSVR etc
+  let pldlen = prefixsz+reqid_secsz+info_secsz+payload.length; 
+  let payloadLen = Buffer.from(toArrayBufferInt16(pldlen), 0, 2);
+  log.warn("length of overall payload msg... with length: "+pldlen);
+  logDataStream(payloadLen);
+
   //log.warn("classflowlabel.length: "+classflowlabel.length);
-  log.warn("payloadLen.length: "+payloadLen.length);
   //log.warn("nextHdr.length: "+nextHdr.length);
   log.warn("hopLimit.length: "+hopLimit.length);
   //log.warn("srcAddr.length: "+srcAddr.length);
@@ -915,16 +757,14 @@ function sendToCjdns(payloadprefix, destAd, payload) {
   //log.warn("ethertype.length: "+ethertype.length);
   //log.warn("version.length: "+version.length);
   log.warn("ipv6hdr.length: "+ipv6hdr.length);
-
-  // payload prefix is always 6 chars (FEDCLI, FEDSVR, etc...)
-  let blen = ethertype.length+version.length+ipv6hdr.length+payload.length+6;
+  let blen = ethertype.length+version.length+ipv6hdr.length+pldlen;
 
   log.warn("overall packet size (wraps around header): "+blen);
   let bufLen = Buffer.from(toArrayBufferInt32(blen), 0, 4);
 
   let payloadpref = Buffer.from(payloadprefix);
   let buffy = Buffer.concat([zero, zero, zero, zero, bufLen, ethertype, version, ipv6hdr]);
-  let outbuf = Buffer.concat([buffy, payloadpref, payload]);
+  let outbuf = Buffer.concat([buffy, payloadpref, reqid_sec, info_sec, payload]);
 
   log.warn("writing out length: "+outbuf.length);
   logDataStream(outbuf);
@@ -941,31 +781,58 @@ Array.prototype.subarray = function(start, end) {
     return this.slice(start, this.length + 1 - (end * -1));
 };
 
-app.sshServerTransform = new transform({objectMode: false}); 
-app.sshServerTransform._transform = function(data, encoding, callback) {
-  log.warn("ssh server transform function: ");
+app.exitNodeTransform = new transform({objectMode: false}); 
+app.exitNodeTransform._transform = function(data, encoding, callback) {
+  log.warn("exit node transform function: ");
   logDataStream(data);
 
-  let indata = [];
+  //let indata = [];
+  let pprefix = [];
+  let reqiddata = [];
+  let infodata = [];
   let payloaddata = [];
-  for (var idx = 0; idx < data.length; idx++) {
-    indata.push(data[idx]);
-    if (idx > 5) payloaddata.push(data[idx]);
+  for (let i1 =0; i1 < 6; i1++) {
+    pprefix.push(data[i1]); 
+  }
+  for (let i2=0; i2 < 32; i2++) {
+    reqiddata.push(data[6+i2]);
+  }
+  for (let i3=0; i3 < 6; i3++) {
+    infodata.push(data[6+32+i3]);
+  }
+  for (let idx=0; idx < (data.length-6-32-6); idx++) {
+    payloaddata.push(data[6+32+6+idx]);
   }
 
-  let payloadpfx = Buffer.from(indata).toString().substring(0, 6);
-  log.warn("sshServerTransform got inData with payload prefix: "+payloadpfx);
+  let payloadpfx = Buffer.from(pprefix); //Buffer.from(indata).toString().substring(0, 6);
+  log.warn("exitNodeTransform got inData with payload prefix: "+payloadpfx.toString());
+  log.warn("reqid...");
+  logDataStream(reqiddata);
   
-  let outar = new Uint8Array(payloaddata);
-  if (payloadpfx === "FEDSVR") {
-    let buf = Buffer.from(payloaddata);
-    log.warn("sending up to sshserverstream: "+buf.toString('hex'));
-    this.push(buf);
+  log.warn("infodata...");
+  logDataStream(infodata);
+  let destaddressint = toIntFrom4Bytes(infodata[3],infodata[2],infodata[1],infodata[0]);
+  log.warn("infodata address integer: "+destaddressint);
+  let destaddress = ip2int.int2ip(destaddressint);
+  log.warn("dest addr: "+destaddress);
+  let destport = toIntFrom2Bytes(infodata[5],infodata[4]);
+  log.warn("infodata port: "+destport);
+
+  if (payloadpfx.toString() === "FEDSVR") {
+    log.warn("sending up to exit node... bytes: "+payloaddata.length);
+
+    let pload = Buffer.from(payloaddata);
+    log.warn("payload before decoding... bytes: "+pload.length);
+    logDataStream(pload);
+
+    issueRequestToExitNode(reqiddata, destaddress, destport, pload);
   } else {
     if (app.lastPacketFrom != null && app.lastPacketFrom.length > 0) {
       log.warn("ssh server sending data back to client at: "+app.lastPacketFrom);
-      let buf = Buffer.from(indata);
+/*      let buf = Buffer.from(indata);
+   taken out for now... working on it
       sendToCjdns('FEDCLI', app.lastPacketFrom, buf);
+*/
     }
   }
 
@@ -973,9 +840,9 @@ app.sshServerTransform._transform = function(data, encoding, callback) {
   callback();
 };
 
-app.cjdnsTransform = new transform({objectMode: false});
+app.cjdnsTransform = new transform({objectMode: false, decodeStrings: false});
 app.cjdnsTransform._transform = function(data, encoding, callback) {
-  log.warn("cjdns transform function: ");
+  log.warn("************ cjdns transform function: ");
   logDataStream(data);
   let i = 0; 
 
@@ -1007,32 +874,33 @@ app.cjdnsTransform._transform = function(data, encoding, callback) {
         for (var idx = i; idx < data.length; idx++) {
           indata.push(data[idx]);
         }
-        let strData = indata.toString();
-        log.warn("string len: "+strData.length);
-        log.warn("got inData (ascii vals): "+strData);
+        log.warn("cjdns got len: "+indata.length);
+        //log.warn("cjdns got inData...");
+        //logDataStream(indata);
 
         i += packlen;
 
 //        let tag = Buffer.from('CJD');
 //        let b2 = Buffer.from(toArrayBufferInt32(packetSize), 0, 4);
-//        app.sshClientTransform.write(Buffer.concat([tag, b2, buf]));
+//        app.socks5ClientTransform.write(Buffer.concat([tag, b2, buf]));
      
         // payload prefix is always 6 chars in length (FEDSVR, FEDCLI, etc)
         let payloadpfx = Buffer.from(indata).toString().substring(0, 6);
         log.warn("got inData with payload prefix: "+payloadpfx);
 
         if (payloadpfx === "FEDSVR") {
-          log.warn("pushing data with payload prefix to server");
-          if (app.sshServerTransform !== null) {
-            app.sshServerTransform.write(Buffer.from(indata));
+          log.warn("pushing data with payload prefix to exit node");
+          if (app.exitNodeTransform !== null) {
+            app.exitNodeTransform.write(Buffer.from(indata));
+            return;
           } else {
-            log.warn("sshServer not initialized yet...");
+            log.warn("exit node not initialized yet...");
           }
         } else if (payloadpfx == "FEDCLI") {
           log.warn("pushing data with payload prefix to sshclient");
-          if (app.sshClientTransform !== null) {
-            if (! app.sshClientTransform.write(Buffer.from(indata))) {
-              app.sshClientTransform.once('drain', () => {
+          if (app.socks5ClientTransform !== null) {
+            if (! app.socks5ClientTransform.write(Buffer.from(indata))) {
+              app.socks5ClientTransform.once('drain', () => {
                 log.warn('The clienttransform data has been flushed'); });
             } else log.warn("done writing to clienttransform");
           } else {
@@ -1286,8 +1154,8 @@ function runSocks5Proxy() {
   app.privKey = pair.private;
 
   // pull the value from the selected node in the listbox here...
-  app.exitNodeAddress = 'fc9f:5a56:f19c:52c4:46ee:6c82:ff57:16a2';
-
+  app.exitNodeAddress = 'fc82:c88e:1b59:d32b:cd52:4271:796d:55f1';
+        
   log.warn("runSocks5Proxy with app.cjdnsSocketPath: "+app.cjdnsSocketPath);
 
   if (!app.socksstarted) {
@@ -1296,8 +1164,8 @@ function runSocks5Proxy() {
       createDomainSocketServerToCjdns(app.cjdnsSocketPath);
 
       // it takes 2 seconds to run Hyperboria - so wait 3 at least...
-      setTimeout(connectSocks5ServerAndSSHClientToCjdnsSocket, 3000);
-      //setTimeout(connectSSHExitNodeToSocket, 3500);
+      setTimeout(connectSocks5ServerToCjdnsSocket, 3000);
+      // now created as new requests come in... setTimeout(connectExitNodeToSocket, 3500);
     } catch(e) {
       app.socksstarted = false;
       log.warn("error connecting socks5 to cjdns socket: "+e.message);
@@ -1324,6 +1192,10 @@ const checkDaemonHeight = setIntervalAsync(() => {
 
 function splitLines(t) { return t.split(/\r\n|\r|\n/); }
 const checkDaemonTimer = setIntervalAsync(() => {
+
+    if (app.daemonPid > 0) pidusage(app.daemonPid, function(err, stats) {
+      log.warn("pidusage stats: "+util.inspect(stats, {depth: null}));
+    });
 
     // reset doesn't work on mac osx, but seems stable there anyway, so just skip it...
     //if (app.localDaemonRunning && process.platform === 'darwin') {
@@ -1542,6 +1414,8 @@ function terminateDaemon() {
     let libr = aurl.startsWith('https') ? require('https') : require('http');
     try {libr.get(aurl);} catch (e) {/*do nothing*/}
 
+    log.warn("terminateDaemon() called...");
+
     app.daemonLastPid = app.daemonPid;
     try{
       if (app.daemonProcess !== null) {
@@ -1559,10 +1433,10 @@ app.on('before-quit', () => {
 
   switch(process.platform) {
   case 'win32':
-    exec('taskkill /F /IM ' + 'FedoraGoldWallet Helper (Renderer)'+ '.exe /T');
+    exec('taskkill /F /IM ' + '"FedoraGoldWallet Helper (Renderer)'+ '.exe" /T');
     break;
   default: //Linux + Darwin
-    exec('pkill ' + 'FedoraGoldWallet Helper');
+    exec('pkill ' + 'FedoraGoldWallet\\ Helper');
     break;
   }
 });
@@ -1605,15 +1479,12 @@ function runDaemon() {
     app.chunkBuf = "\n ********Running Daemon from main.js ***********\n";
     var newTimeStamp;
 
+    log.warn("spawning new daemon...");
+
     try {
-        let detach = true;
-        //if (platform === 'win32') detach = false;
-
-        log.warn("++++++++++ running daemon with detach: "+detach);
-
         if (! app.integratedDaemon) { 
           app.daemonProcess = spawn(daemonPath, daemonArgs, 
-            {detached: detach, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+            {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
           app.daemonPid = app.daemonProcess.pid;
         }
 

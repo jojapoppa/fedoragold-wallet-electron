@@ -33,6 +33,7 @@
   "dependencies": {
     "@trodi/electron-splashscreen": "^0.3.4",
     "ansi2html": "0.0.1",
+    "associative-array": "^1.0.2",
     "blake2s": "^1.1.0",
     "cross-spawn": "^7.0.3",
     "csv-writer": "^1.6.0",
@@ -41,7 +42,6 @@
     "electron-log": "^2.2.17",
     "electron-store": "^2.0.0",
     "electron-updater": "^4.3.5",
-    "endian-code": "^1.0.5",
     "forge": "^2.3.0",
     "fs-extra": "^9.0.1",
     "ip2int": "^1.0.1",

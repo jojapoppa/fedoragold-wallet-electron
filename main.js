@@ -11,7 +11,7 @@ const writeable = require('stream').Writeable;
 const transform = require('stream').Transform;
 const v8 = require('v8');
 const ip2int = require('ip2int');
-const endianCode = require('endian-code');
+const associativeArray = require('associative-array');
 
 const path = require('path');
 const vm = require('vm');
@@ -104,7 +104,7 @@ app.integratedDaemon = false;
 app.heightVal = 0;
 app.adminPassword=null;
 app.socksv5server=null;
-app.socksv5exitNode=null;
+app.socksv5Sessions=null;
 
 app.HOST_ALGORITHMS = { serverHostKey: ['ssh-rsa'] };
 
@@ -467,13 +467,12 @@ function tunnelSocks5Request(info, sockssocket, requestID) {
   log.warn("info: destad:%j destpt:%j",info.dstAddr, info.dstPort);
 
   return new Promise(resolve => {
-    //sockssocket.pipe(app.socks5ClientTransform).pipe(sockssocket);
-    //socksv5CientSocket.end('write back here...');
-
     sockssocket.setEncoding('utf8');
     sockssocket.on('data', function (data) {
       var buff = Buffer.from(data);
+
       log.warn("data on socks5 socket: ", buff.length);
+      log.warn("  for reqID: "+requestID.toString('hex'));
       sendToCjdns('FEDSVR', app.exitNodeAddress, requestID, info, buff);
       resolve('resolved');
     });
@@ -483,14 +482,26 @@ function tunnelSocks5Request(info, sockssocket, requestID) {
 async function genSocks5Request(proxy) {
 
   let requestID = crypto.randomBytes(32);
-
   let info = {
     dstAddr : proxy.remote.remoteAddress,
     dstPort : proxy.remote.remotePort
   }
 
   const result = await tunnelSocks5Request(info, proxy.origin, requestID);
-  log.warn("socksv5 request resolved: "+info.dstAddr);
+
+  var myInterval = setInterval(function(reqid, origin){
+    if (app.socksv5Sessions != null) {
+      let asess = app.socksv5Sessions.get(reqid);
+      if ((asess != null) && (typeof asess != "undefined")) {
+        log.warn("Exit node response buf for reqID...");
+        logDataStream(asess.buf);
+        origin.end(asess.buf);
+        clearInterval(myInterval);
+      }
+    }
+  }, 100, requestID.toString('hex'), proxy.origin);
+
+  log.warn("socksv5 request resolved for now: "+info.dstAddr);
 }
 
 function connectSocks5ServerToCjdnsSocket() {
@@ -504,6 +515,7 @@ function connectSocks5ServerToCjdnsSocket() {
     },
     users: [{username: 'nodejs', password: 'rocks'}],
   }).on('connection', (proxy) => {
+    log.warn(" ");
     log.warn("socksv5 got a client connection request from ts-socks");
 
     if (app.cjdnsTransform != null) {
@@ -516,44 +528,75 @@ function connectSocks5ServerToCjdnsSocket() {
   });
 }
 
-/*
-function sendExitRequest(remote, buf, reqiddata) {
+function sendExitRequest(remote, buf, reqid, info) {
   return new Promise(resolve => {
     remote.end(buf);
-  
+ 
+    var areqid = reqid;
+    var ainfo = info;
     remote.setEncoding('utf8');
     remote.on('data', function (data) {
       var buff = Buffer.from(data);
       log.warn("data returned from remote with length: ", buff.length);
       logDataStream(buff);
-      log.warn("SEND BACK NOW FOR REQUEST: "+this.reqiddata.toString('hex'));
+      log.warn("SEND BACK NOW FOR REQUEST: "+Buffer.from(areqid).toString('hex'));
+
+      log.warn("send to client at: "+app.lastPacketFrom);
+
+      sendToCjdns('FEDCLI', app.lastPacketFrom, areqid, ainfo, buff);
+      log.warn("IS RESOLVED");
       resolve('resolved');
     });
   });
 }
   
-async function genRemoteRequest(remote, buf, reqiddata) {
-  const result = await sendExitRequest(remote, buf);
-  log.warn("respose processed for: "+reqiddata.toString('hex'));
+async function genRemoteRequest(remote, buf, reqid, info) {
+  const result = await sendExitRequest(remote, buf, reqid, info);
+  log.warn("response processed for: "+Buffer.from(reqid).toString('hex'));
 }
-*/
 
 function issueRequestToExitNode(reqiddata, destaddress, destport, buf) {
   log.warn("in issueRequestToExitNode() !!");
 
-  app.socksv5exitNode = new socksv5({
+  let rqid = Buffer.from(reqiddata).toString('hex');
+  let info = {
+    dstAddr : '127.0.0.1',
+    dstPort : 20 // this port # does not matter, it will map back to request via the requestID
+  }
+
+  let socksv5exitNode = new socksv5({
     options: {
       listen: 1081,
       allowNoAuth: true,
     },
-    users: [{username: 'nodejs', password: 'rocks'}],
+    users: [{username: rqid, password: 'rocks'}]
   }).on('connection', (proxy) => {
       log.warn("socksv5 exit node server connected...");
 
-//    log.warn("Sending exit node request to remote server for reqID: "+reqiddata);
-//    log.warn("  destination IP: "+this.destaddress+" Port: "+this.destport);
-//    genRemoteRequest(proxy.remote, this.buf, this.reqiddata);
+    let rqid = socksv5exitNode.settings.users[0].username;
+    log.warn("searching for session: "+rqid);
+    let asession = app.socksv5Sessions.get(rqid);
+    if (asession == null || (typeof asession == 'undefined')) {
+      log.warn("session not found! : "+rqid);
+    } else {
+      log.warn("Sending exit node request to remote server for reqID: "+rqid);
+
+//    proxy.unref(); // to drop connection immediately
+//    proxy.setTimeout(timeout[, callback]) // drop after a time... 
+//    proxy.socket.setKeepAlive([enable][, initialDelay]) 
+       
+      genRemoteRequest(proxy.remote, asession.buf, reqiddata, info);
+    }
   });
+
+  log.warn("storing session: "+rqid);
+  // add session data to storage, and replace if old one is already there
+  if (app.socksv5Sessions == null) app.socksv5Sessions = new associativeArray();
+  let asess = app.socksv5Sessions.get(rqid);
+  if ((asess != null) && (typeof asess != "undefined"))
+    app.socksv5Sessions.remove(rqid);
+  app.socksv5Sessions.push(rqid,
+    {destaddress: destaddress, destport: destport, buf: buf});
 
   // this just launches an exit node for each socksv5 session
   var client = socksv5Client.connect({
@@ -564,9 +607,9 @@ function issueRequestToExitNode(reqiddata, destaddress, destport, buf) {
     auths: [ socksv5Client.auth.None() ]
   }, function(socket) {
     log.warn(">> Client Exit node Connection successful");
-    socket.write(this.buf);
 
-    socket.pipe(process.stdout);
+    // IS THIS RIGHT?
+    //socket.pipe(process.stdout);
   }); 
 
   log.warn("done with issueRequestToExitNode()...");
@@ -598,41 +641,53 @@ app.socks5ClientTransform._transform = function(data, encoding, callback) {
   log.warn("got data...");
   logDataStream(data);
 
-  let indata = [];
+  let pprefix = [];
+  let reqiddata = [];
+  let infodata = [];
   let payloaddata = [];
-  for (var idx = 0; idx < data.length; idx++) {
-    indata.push(data[idx]);
-    if (idx > 5) payloaddata.push(data[idx]);
+  for (let i1 =0; i1 < 6; i1++) {
+    pprefix.push(data[i1]);
+  }
+  for (let i2=0; i2 < 32; i2++) {
+    reqiddata.push(data[6+i2]);
+  }
+  for (let i3=0; i3 < 6; i3++) {
+    infodata.push(data[6+32+i3]);
+  }
+  for (let idx=0; idx < (data.length-6-32-6); idx++) {
+    payloaddata.push(data[6+32+6+idx]);
   }
 
-  let payloadpfx = Buffer.from(indata).toString().substring(0, 6);
-  log.warn("socks5ClientTransform got inData with payload prefix: "+payloadpfx);
+  let destaddressint = toIntFrom4Bytes(infodata[3],infodata[2],infodata[1],infodata[0]);
+  log.warn("infodata address integer: "+destaddressint);
+  let destaddress = ip2int.int2ip(destaddressint);
+  log.warn("dest addr: "+destaddress);
+  let destport = toIntFrom2Bytes(infodata[5],infodata[4]);
+  log.warn("infodata port: "+destport);
+
+  let payloadpfx = Buffer.from(pprefix);
+  log.warn("socks5ClientTransform got inData with payload prefix: "+payloadpfx.toString());
+  let rqid = Buffer.from(reqiddata).toString('hex');
+  log.warn("reqid: "+rqid);
+  logDataStream(reqiddata);
 
   let outar = new Uint8Array(payloaddata);
-  if (payloadpfx === "FEDCLI") {
+  if (payloadpfx.toString() === "FEDCLI") {
     let buf = Buffer.from(payloaddata);
-    log.warn("sending up to sshclient: "+buf.toString('hex'));
-    //this.push(buf);
-    app.sshClientConn.write(buf);
-  } else { // if (payloadpfx === 'SSH-2.') {
-    log.warn("ssh client sending data back to server at: "+app.exitNodeAddress);
-    let buf = Buffer.from(indata);
-    log.warn("sending out to sshserver: "+buf.toString('hex'));
+    log.warn("********^^^^^ staging buffer for socks5server origin with reqid: "+rqid);
 
-/* this is taken out for now... working on it
-    if (app.cjdnsTransform !== null) {
-      if (app.exitNodeAddress != null && app.exitNodeAddress.length > 0)
-        sendToCjdns('FEDSVR', app.exitNodeAddress, buf);
-    }
-*/
-   //else {
-   //  log.warn("send ACK to ssh client...");
-   //  let buf = Buffer.from([0,0,0,2,10,13], 0, 6);
-   //  this.push(buf);
-   //}
+    // add session data to storage, and replace if old one is already there
+    if (app.socksv5Sessions == null) app.socksv5Sessions = new associativeArray();
+    let asess = app.socksv5Sessions.get(rqid);
+    if ((asess != null) && (typeof asess != "undefined"))
+      app.socksv5Sessions.remove(rqid);
+    app.socksv5Sessions.push(rqid,
+      {destaddress: destaddress, destport: destport, buf: buf});
+  } else {
+    log.warn("UNHANDLED ... SHOULD NOT REACH THIS");
   }
 
-  log.warn("ssh client transform done");
+  log.warn("socks5 client transform done");
 
   callback();
 };
@@ -731,7 +786,7 @@ function sendToCjdns(payloadprefix, destAdCjdns, requestID, info, payload) {
 
   let info_sec = Buffer.concat([infodstAddr, infodstp]);
   let reqid_sec = Buffer.from(requestID, 0, 32);
-  log.warn("requestID: "+requestID.toString('hex'));
+  log.warn("requestID: "+Buffer.from(requestID).toString('hex'));
   logDataStream(reqid_sec);
 
   info_secsz = info_sec.length;
@@ -825,14 +880,11 @@ app.exitNodeTransform._transform = function(data, encoding, callback) {
     log.warn("payload before decoding... bytes: "+pload.length);
     logDataStream(pload);
 
+    log.warn("About to issueRequest... lastPacketFrom: "+app.lastPacketFrom);
     issueRequestToExitNode(reqiddata, destaddress, destport, pload);
   } else {
     if (app.lastPacketFrom != null && app.lastPacketFrom.length > 0) {
-      log.warn("ssh server sending data back to client at: "+app.lastPacketFrom);
-/*      let buf = Buffer.from(indata);
-   taken out for now... working on it
-      sendToCjdns('FEDCLI', app.lastPacketFrom, buf);
-*/
+      log.warn("SHOULD NOT REACH THIS POINT!!!!!!!!!!!");
     }
   }
 
@@ -1154,8 +1206,8 @@ function runSocks5Proxy() {
   app.privKey = pair.private;
 
   // pull the value from the selected node in the listbox here...
-  app.exitNodeAddress = 'fc82:c88e:1b59:d32b:cd52:4271:796d:55f1';
-        
+  app.exitNodeAddress = 'fc16:7539:232a:2838:dffb:9c6c:7a91:ecfa';
+   
   log.warn("runSocks5Proxy with app.cjdnsSocketPath: "+app.cjdnsSocketPath);
 
   if (!app.socksstarted) {
@@ -1165,7 +1217,7 @@ function runSocks5Proxy() {
 
       // it takes 2 seconds to run Hyperboria - so wait 3 at least...
       setTimeout(connectSocks5ServerToCjdnsSocket, 3000);
-      // now created as new requests come in... setTimeout(connectExitNodeToSocket, 3500);
+      // now created as new requests come in... setTimeout(connectExitNodeToSocket, 3500); no longer used 
     } catch(e) {
       app.socksstarted = false;
       log.warn("error connecting socks5 to cjdns socket: "+e.message);

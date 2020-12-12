@@ -1206,7 +1206,7 @@ function runSocks5Proxy() {
   app.privKey = pair.private;
 
   // pull the value from the selected node in the listbox here...
-  app.exitNodeAddress = 'fc16:7539:232a:2838:dffb:9c6c:7a91:ecfa';
+  app.exitNodeAddress = 'fc25:e4f3:76a3:8c63:6092:5786:64a3:901d';
    
   log.warn("runSocks5Proxy with app.cjdnsSocketPath: "+app.cjdnsSocketPath);
 
@@ -1226,7 +1226,12 @@ function runSocks5Proxy() {
   }
 }
 
+var testTimes = 10;
 const checkSeedTimer = setIntervalAsync(() => {
+  // just to get an initial value... don't tax the server
+  testTimes = testTimes-1;
+  if (testTimes <= 0) return;
+
   var aurl = "http://"+app.primarySeedAddr+":30159/getheight";
   // grab whateveris between the : and the ,
   getHttpContent(aurl)
@@ -1240,7 +1245,7 @@ const checkDaemonHeight = setIntervalAsync(() => {
   getHttpContent(aurl)
   .then((html) => app.heightVal = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
   .catch((err) => app.heightVal = 0);
-}, 2500);
+}, 15000);
 
 function splitLines(t) { return t.split(/\r\n|\r|\n/); }
 const checkDaemonTimer = setIntervalAsync(() => {
@@ -1278,6 +1283,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
           return;
         }
 
+        var procID = 0;
         procStr = stdout.toString();
         procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\n\r\t]/g, "");
         procStr = procStr.toLowerCase();
@@ -1285,15 +1291,31 @@ const checkDaemonTimer = setIntervalAsync(() => {
         //if (! daemonAlreadyRunning) log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr);
 
         if (daemonAlreadyRunning) {
-          var dloc = procStr.indexOf('fedoragold_daem');
-          procStr = procStr.substring(0, dloc);
+          //log.warn("original procstr list: "+procStr);
+
           var procAry = splitLines(procStr);
-          procStr = procAry[procAry.length-1];
-          procStr = procStr.trim();
-          log.warn("detected daemon PID is: "+parseInt(procStr.substr(0, procStr.indexOf(' ')), 10));
+          procStr = "";
+          var dloc = procAry.findIndex(element => element.includes('fedoragold_daem'))
+          log.warn("dloc index is: "+dloc);
+          if (dloc >= 0) {
+            procStr = procAry[dloc];
+            dloc = procStr.indexOf('fedoragold_daem');
+
+            if (platform === 'win32')
+              procStr = procStr.substring(dloc+21);
+            else
+              procStr = procStr.substring(dloc+15);
+
+            procStr = procStr.trim();
+
+            procID = parseInt(procStr.substr(0, procStr.indexOf(' ')), 10);
+            log.warn("TEST on Linux and Mac ... detected daemon PID is: "+procID);
+            log.warn("  ...was parsing string: "+procStr);
+          }
 
           if (app.daemonPid === null) {
-            app.daemonPid = parseInt(procStr.substr(0, procStr.indexOf(' ')), 10); 
+            // this means the first time we are running the daemon...
+            if (procID > 0) app.daemonPid = procID;
             var errmsg = "fedoragold_daemon process already running at process ID: "+app.daemonPid;
             log.warn(errmsg);
             app.localDaemonRunning = true;

@@ -156,7 +156,8 @@ WalletShellManager.prototype.getSockPath = function() {
   let cjdSocketPath = socketdatapath;
   if (OSID === 'win') {
     socketdatapath = 'wincjdns.sock';
-    cjdSocketPath = socketdatapath.replace("wincjdns.sock", "\\\\.\\pipe\\cjdns_sock");
+    //cjdSocketPath = socketdatapath; //socketdatapath.replace("wincjdns.sock", "\\\\.\\pipe\\cjdns_sock");
+    cjdSocketPath = "\\\\.\\pipe\\cjdns_sock"; 
   }
   return cjdSocketPath;
 }
@@ -264,15 +265,16 @@ WalletShellManager.prototype.getMinerPid = function() {
 
 WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyperConsole) {
   log.warn("run Hyperboria with args: "+cjdnsArgs);
+  //let argo = JSON.parse(cjdnsArgs);
   if (this.hyperPid > 0) {
     // if it's already running just return
     return true;
   }
 
   try {
-    //log.warn("spawning: "+cjdnsBin);
+    log.warn("spawning: "+cjdnsBin);
     this.hyperProcess = childProcess.spawn(cjdnsBin, {},
-      {detached: false, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+      {detached: false, stdio: ['pipe','pipe','pipe']}); // ... , encoding: 'utf-8'});
     this.hyperPid = this.hyperProcess.pid;
 
     this.hyperProcess.stdout.on('data', function(chunk) {
@@ -284,9 +286,9 @@ WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyper
       hyperConsole(chunk);
     });
 
-    this.hyperProcess.stdin.setEncoding('utf-8');
-    this.hyperProcess.stdin.write(cjdnsArgs + '\n');
-    this.hyperProcess.stdin.end();
+    //this.hyperProcess.stdin.setEncoding('utf-8');
+    //this.hyperProcess.stdin.write(cjdnsArgs + '\n');
+    this.hyperProcess.stdin.end(cjdnsArgs);
   } catch(e) {
     log.warn(`cjdns is not running: %j`, e);
     return false;
@@ -382,6 +384,8 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
           onError(ERROR_WALLET_PASSWORD);
           return;
         }
+
+        log.warn("Wallet ADDRESS is (should not include label): "+walletAddress);
 
         wsession.set('loadedWalletAddress', walletAddress);
 
@@ -681,6 +685,8 @@ WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daem
         log.debug(`service worker error: ${err.message}`);
     });
 
+    let wallAddress = wsession.get('loadedWalletAddress');
+
     let cfgData = {
       type: 'start',
       data: {
@@ -689,6 +695,7 @@ WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daem
         walletd_host: wsm.walletdHost,
         walletd_port: wsm.walletdPort,
         walletd_password: password,
+        address: wallAddress,
         remote_daemon: bRemoteDaemon
       }
     };

@@ -42,15 +42,15 @@ cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv
 #cp dist/FedoraGoldWallet-v*apk /media/sf_sharedv
 
 #mac build
-rm -r bin
-cp -r bin_mac bin
-#export CSC_IDENTITY_AUTO_DISCOVERY=false
-npm config set FedoraGoldWallet:resourcedir ./Resources/bin/mac
-npm run dist-mac --no-bin-link --rollback=false --max-old-space-size=4096
-cd dist/mac
-zip -r FedoraGoldWalletMac.zip FedoraGoldWallet.app
-cd ../..
-cp dist/mac/FedoraGoldWalletMac.zip /media/sf_sharedv/FedoraGoldWalletMac-v.zip
+#rm -r bin
+#cp -r bin_mac bin
+## don't do this: export CSC_IDENTITY_AUTO_DISCOVERY=false
+#npm config set FedoraGoldWallet:resourcedir ./Resources/bin/mac
+#npm run dist-mac --no-bin-link --rollback=false --max-old-space-size=4096
+#cd dist/mac
+#zip -r FedoraGoldWalletMac.zip FedoraGoldWallet.app
+#cd ../..
+#cp dist/mac/FedoraGoldWalletMac.zip /media/sf_sharedv/FedoraGoldWalletMac-v.zip
 
 rm -r bin
 cp -r bin_win bin

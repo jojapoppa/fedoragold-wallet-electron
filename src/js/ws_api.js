@@ -3,6 +3,7 @@ const config = require('./ws_config.js');
 const log = require('electron-log');
 const http = require('http');
 
+var curAddr = '';
 var request = require('request-promise-native');
 
 class WalletShellApi {
@@ -18,6 +19,7 @@ class WalletShellApi {
           (config.minimumFee*config.decimalDivisor);
         this.anonimity = config.defaultMixin;
         this.daemonCoreReady = args.daemonCoreReady || false;
+        curAddr = args.address || '';
     }
 
     setPassword(password) {
@@ -158,7 +160,7 @@ class WalletShellApi {
     getBalance(params) {
         return new Promise((resolve, reject) => {
             params = params || {};
-            params.address = params.address || '';
+            params.address = params.address || curAddr;
             let req_params = {
                 address: params.address
             };

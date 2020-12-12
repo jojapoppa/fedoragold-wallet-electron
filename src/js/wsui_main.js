@@ -530,7 +530,7 @@ function changeSection(sectionId, isSettingRedir) {
         finalTarget = 'section-overview';
     }else if(needSynced.indexOf(targetSection) >=0 && !isSynched){
         // just return early
-        showToast("Please wait until rescan process completed!");
+        showToast("Please wait until synch process completed!");
         return;
     }else{
         if(targetSection === 'section-overview-load'){
@@ -1016,7 +1016,10 @@ function generateCjdnsCfg() {
 
   // gen connectTo entries (from cjdns team on subscription)
   //   may want to house this with liquidity pool API later 
-  
+ 
+  //log.warn("socketFullPath json: "+JSON.stringify(cjdnsconf.router.interface.socketFullPath));
+  //log.warn("cjdnsconf.pipe json: "+JSON.stringify(cjdnsconf.pipe));
+
   // workaround for the requirement that cjdns has of input with \x5c on Windows
   let confstr = JSON.stringify(cjdnsconf);
   if (confstr.indexOf("wincjdns") > -1) {

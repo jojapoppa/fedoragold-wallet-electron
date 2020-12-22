@@ -335,7 +335,7 @@ function logDataStream(data) {
       print += '\n';
     }
   }
-  log.warn("sock: "+print);
+  //log.warn("sock: "+print);
 }
 
 /*
@@ -463,8 +463,8 @@ function toHexIPv6String(bytes) {
 } 
 
 function tunnelSocks5Request(info, sockssocket, requestID) {
-  log.warn("requestID: "+requestID.toString('hex'));
-  log.warn("info: destad:%j destpt:%j",info.dstAddr, info.dstPort);
+  //log.warn("requestID: "+requestID.toString('hex'));
+  //log.warn("info: destad:%j destpt:%j",info.dstAddr, info.dstPort);
 
   return new Promise(resolve => {
     sockssocket.setEncoding('utf8');
@@ -506,7 +506,7 @@ async function genSocks5Request(proxy) {
 
 function connectSocks5ServerToCjdnsSocket() {
 
-  log.warn("launching socks5 proxy with connection to socket");
+  //log.warn("launching socks5 proxy with connection to socket");
 
   app.socksv5server = new socksv5({
     options: {
@@ -894,7 +894,7 @@ app.exitNodeTransform._transform = function(data, encoding, callback) {
 
 app.cjdnsTransform = new transform({objectMode: false, decodeStrings: false});
 app.cjdnsTransform._transform = function(data, encoding, callback) {
-  log.warn("************ cjdns transform function: ");
+  //log.warn("************ cjdns transform function: ");
   logDataStream(data);
   let i = 0; 
 
@@ -963,19 +963,19 @@ app.cjdnsTransform._transform = function(data, encoding, callback) {
         break;
       }
       case 1: {
-        log.warn("TYPE_CONF_ADD_IPV6_ADDRESS");
+        //log.warn("TYPE_CONF_ADD_IPV6_ADDRESS");
         let iv6 = toHexIPv6String([data[i+1],data[i+2],data[i+3],data[i+4],data[i+5],data[i+6],
           data[i+7],data[i+8],data[i+9],data[i+10],data[i+11],data[i+12],data[i+13],data[i+14],
           data[i+15],data[i+16]]);
-        log.warn("my cjdns source ipv6 address:"+iv6);
+        //log.warn("my cjdns source ipv6 address:"+iv6);
         app.cjdnsNodeAddress = iv6;
         i += 17;
         break;
       }
       case 2: {
-        log.warn("TYPE_CONF_SET_MTU");
+        //log.warn("TYPE_CONF_SET_MTU");
         app.maxPacketSize = toIntFrom4Bytes(data[i+4],data[i+3],data[i+2],data[i+1]);
-        log.warn("cjdns MTU (max packet size): "+app.maxPacketSize);
+        //log.warn("cjdns MTU (max packet size): "+app.maxPacketSize);
         i += 5;
         break;
       }
@@ -1021,20 +1021,20 @@ app.cjdnsTransform._transform = function(data, encoding, callback) {
     log.warn("cjdns data leftover: need unshift logic");
   }
 
-  log.warn("cjdns transform done");
+  //log.warn("cjdns transform done");
   callback();
 };
 
 var connections = {};
 function createDomainSocketServerToCjdns(socketPath){
-  log.warn('Creating domain socket server: '+socketPath);
+  //log.warn('Creating domain socket server: '+socketPath);
 
   setTimeout(function() {
     if (win!==null) win.webContents.send('cjdnsstart', 'true');
   }, 1000);
 
   var server = net.createServer(function(stream) {
-    log.warn("configuring domain socket server...");
+    //log.warn("configuring domain socket server...");
 
     app.cjdnsStream = stream; 
     stream.pipe(app.cjdnsTransform).pipe(stream);
@@ -1069,7 +1069,7 @@ function createDomainSocketServerToCjdns(socketPath){
     });
   }).listen(socketPath).on('connection', function(socket){
     app.cjdnsTransform = socket;
-    log.warn('********* cjdns domain socket to cjdns connected ***************************************');
+    //log.warn('********* cjdns domain socket to cjdns connected ***************************************');
 
     //console.log(Object.keys(socket));
      
@@ -1181,7 +1181,7 @@ function createSocketPath() {
     app.cjdnsSocketPath = socketdatapath.replace("wincjdns.sock", "\\\\.\\pipe\\cjdns_sock");
   }
 
-  log.warn("createSocketPath: launching cjdns with socket path: "+app.cjdnsSocketPath);
+  //log.warn("createSocketPath: launching cjdns with socket path: "+app.cjdnsSocketPath);
 
   // Some systems complain if we try to connect to an old socket... so delete it.
   try {
@@ -1208,7 +1208,7 @@ function runSocks5Proxy() {
   // pull the value from the selected node in the listbox here...
   app.exitNodeAddress = 'fc25:e4f3:76a3:8c63:6092:5786:64a3:901d';
    
-  log.warn("runSocks5Proxy with app.cjdnsSocketPath: "+app.cjdnsSocketPath);
+  //log.warn("runSocks5Proxy with app.cjdnsSocketPath: "+app.cjdnsSocketPath);
 
   if (!app.socksstarted) {
     app.socksstarted = true;
@@ -1250,9 +1250,9 @@ const checkDaemonHeight = setIntervalAsync(() => {
 function splitLines(t) { return t.split(/\r\n|\r|\n/); }
 const checkDaemonTimer = setIntervalAsync(() => {
 
-    if (app.daemonPid > 0) pidusage(app.daemonPid, function(err, stats) {
-      log.warn("pidusage stats: "+util.inspect(stats, {depth: null}));
-    });
+//    if (app.daemonPid > 0) pidusage(app.daemonPid, function(err, stats) {
+//      log.warn("pidusage stats: "+util.inspect(stats, {depth: null}));
+//    });
 
     // reset doesn't work on mac osx, but seems stable there anyway, so just skip it...
     //if (app.localDaemonRunning && process.platform === 'darwin') {
@@ -1288,7 +1288,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
         procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\n\r\t]/g, "");
         procStr = procStr.toLowerCase();
         let daemonAlreadyRunning = procStr.includes('fedoragold_daem');
-        //if (! daemonAlreadyRunning) log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr);
+        if (! daemonAlreadyRunning) log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr+"\n\n\n\n\n\n\n\n");
 
         if (daemonAlreadyRunning) {
           //log.warn("original procstr list: "+procStr);
@@ -1299,18 +1299,20 @@ const checkDaemonTimer = setIntervalAsync(() => {
           log.warn("dloc index is: "+dloc);
           if (dloc >= 0) {
             procStr = procAry[dloc];
+            let procStr2 = '';
             dloc = procStr.indexOf('fedoragold_daem');
 
             if (platform === 'win32')
-              procStr = procStr.substring(dloc+21);
+              procStr2 = procStr.substring(dloc+21);
             else
-              procStr = procStr.substring(dloc+15);
+              procStr2 = procStr.substring(dloc+15);
 
-            procStr = procStr.trim();
+            procStr2 = procStr.trim();
 
-            procID = parseInt(procStr.substr(0, procStr.indexOf(' ')), 10);
+            procID = parseInt(procStr2.substr(0, procStr2.indexOf(' ')), 10);
             log.warn("TEST on Linux and Mac ... detected daemon PID is: "+procID);
-            log.warn("  ...was parsing string: "+procStr);
+            log.warn("  ...started with: "+procStr);
+            log.warn("  ...was parsing string: "+procStr2);
           }
 
           if (app.daemonPid === null) {
@@ -1563,13 +1565,18 @@ function runDaemon() {
         }
 
         app.daemonProcess.stdout.on('data', function(chnk) {
-          // limit to 1 msg every 1/4 second to avoid overwhelming message bus
-          app.chunkBuf += chnk;
-          newTimeStamp = Math.floor(Date.now());
-          if ((win !== null) && ((newTimeStamp-app.timeStamp) > 2500)) {
-            app.timeStamp = newTimeStamp;
-            win.webContents.send('console', app.chunkBuf);
-            app.chunkBuf = '';
+          try {
+            // limit msgs to avoid overwhelming message bus
+            app.chunkBuf += chnk.toString();
+            newTimeStamp = Math.floor(Date.now());
+
+            if ((win !== null) && ((newTimeStamp-app.timeStamp) > 2500)) {
+              app.timeStamp = newTimeStamp;
+              win.webContents.send('console', app.chunkBuf);
+              app.chunkBuf = '';
+            }
+          } catch (e) {
+            log.warn("error in webContents.send algo: "+e.message); 
           }
         });
         app.daemonProcess.stderr.on('data', function(chnk) {
@@ -1577,7 +1584,7 @@ function runDaemon() {
           if (win!==null) win.webContents.send('console',chnk);
         });
     } catch(e) {
-      log.error("runDaemon: "+e.message);
+      log.warn("runDaemon error: "+e.message);
     }
 }
 
@@ -1687,9 +1694,7 @@ app.on('ready', () => {
             storeNodeList(false); // from local cache
         }
     }
-log.warn("createWindow()");
     createWindow();
-log.warn("window bounds");
 
     var bounds = win.webContents.getOwnerBrowserWindow().getBounds();
     let tx = Math.ceil((bounds.width - DEFAULT_SIZE.width)/2);

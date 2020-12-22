@@ -795,7 +795,7 @@ async function callMkPasswds() {
   while (adminPassword === '' || defaultUserPassword === '')
     { await new Promise(r => setTimeout(r, 100)); }
 
-  log.warn("adminPassword: "+adminPassword);
+  //log.warn("adminPassword: "+adminPassword);
   remote.app.adminPassword = adminPassword;
   passwordsReady = true;
 }
@@ -840,7 +840,7 @@ async function callMakekeys() {
 
     //log.warn("privateKey: "+privateKey);
     //log.warn("publicKey: "+publicKey);
-    log.warn("app.thisNodeAddress: "+remote.app.thisNodeAddress);
+    //log.warn("app.thisNodeAddress: "+remote.app.thisNodeAddress);
     keysReady = true;
   });
 }
@@ -868,8 +868,8 @@ function generateCjdnsCfg() {
   var udpbindipv4 = "0.0.0.0:"+settings.get('cjdnsudp_port');
   var udpbindipv6 = "[::]:"+settings.get('cjdnsudp_port');
 
-  log.warn("my cjdns private key is: "+privateKey);
-  log.warn("my cjdns public key is: "+publicKey);
+  //log.warn("my cjdns private key is: "+privateKey);
+  //log.warn("my cjdns public key is: "+publicKey);
 
 //dns module has many vulnerabilities, find better npm module for this
 //  var options = {
@@ -1044,17 +1044,17 @@ function escapeHTML(s) {
 async function runCjdns() {
   while (!keysReady || !passwordsReady) { await new Promise(r => setTimeout(r, 150)); }
 
-  log.warn("runCjdns()...");
+  //log.warn("runCjdns()...");
 
   let mplat = wsmanager.getPlatform();
   let CJDNS_FILENAME =  (mplat === 'win32' ? `cjdroute.exe` : `cjdroute` );
   let CJDNS_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
   cjdnsBin = path.join(wsmanager.getResourcesPath(), 'bin', CJDNS_OSDIR, CJDNS_FILENAME);
 
-  log.warn("bin: "+cjdnsBin);
+  //log.warn("bin: "+cjdnsBin);
   cjdnsCfg = generateCjdnsCfg();
 
-  log.warn("hyperboria will run at: "+remote.app.thisNodeAddress); 
+  //log.warn("hyperboria will run at: "+remote.app.thisNodeAddress); 
   vpnTerminalLabel.innerHTML = "Hyperboria Console  (at IPv6  " + escapeHTML(remote.app.thisNodeAddress) + ")";
 }
 
@@ -2950,7 +2950,7 @@ ipcRenderer.on('daemoncoreready', (event, flag) => {
 });
 
 ipcRenderer.on('cjdnsstart', (event, sChunk) => {
-  log.warn("cjdnsstart msg received... starting cjdnds at: "+cjdnsBin);
+  //log.warn("cjdnsstart msg received... starting cjdnds at: "+cjdnsBin);
   setTimeout(wsmanager.runHyperboria, 1000, cjdnsBin, cjdnsCfg, updateHyperConsole);
 });
 

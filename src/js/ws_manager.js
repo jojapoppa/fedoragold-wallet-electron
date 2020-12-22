@@ -24,7 +24,7 @@ const SERVICE_LOG_LEVEL_DEFAULT = 0;
 const SERVICE_LOG_LEVEL_DEBUG = 4;
 const SERVICE_LOG_LEVEL = (SERVICE_LOG_DEBUG ? SERVICE_LOG_LEVEL_DEBUG : SERVICE_LOG_LEVEL_DEFAULT);
 const ERROR_WALLET_EXEC = `Failed to start ${config.walletServiceBinaryFilename}.`;
-const ERROR_WALLET_PASSWORD = 'Failed to load your wallet, failed password, or issue with daemon - see Settings Daemon Console...';
+const ERROR_WALLET_PASSWORD = 'Failed to load your wallet, failed password, or daemon synching - see Settings Daemon Console...';
 const ERROR_WALLET_IMPORT = 'Import failed, please check that you have entered all information correctly';
 const ERROR_WALLET_CREATE = 'Wallet can not be created, please check your input and try again';
 
@@ -149,7 +149,7 @@ const getHttpContent = function(host, path, cookie) {
 };
 
 WalletShellManager.prototype.getSockPath = function() {
-  log.warn("in getSockPath");
+  //log.warn("in getSockPath");
   let socketdatapath = path.join(remote.app.getPath('userData'), 'cjdns_sock');
   let mplat = this.getPlatform();
   let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
@@ -264,7 +264,7 @@ WalletShellManager.prototype.getMinerPid = function() {
 }
 
 WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyperConsole) {
-  log.warn("run Hyperboria with args: "+cjdnsArgs);
+  //log.warn("run Hyperboria with args: "+cjdnsArgs);
   //let argo = JSON.parse(cjdnsArgs);
   if (this.hyperPid > 0) {
     // if it's already running just return
@@ -272,7 +272,7 @@ WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyper
   }
 
   try {
-    log.warn("spawning: "+cjdnsBin);
+    //log.warn("spawning: "+cjdnsBin);
     this.hyperProcess = childProcess.spawn(cjdnsBin, {},
       {detached: false, stdio: ['pipe','pipe','pipe']}); // ... , encoding: 'utf-8'});
     this.hyperPid = this.hyperProcess.pid;
@@ -397,7 +397,7 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
 
         this._spawnService(walletFile, password, onError, onSuccess, onDelay);
       }
-    }, 750, walletFile, password, onError, onSuccess, onDelay);
+    }, 1750, walletFile, password, onError, onSuccess, onDelay);
 }
 
 WalletShellManager.prototype.startService = function(walletFile, password, onError, onSuccess, onDelay) {

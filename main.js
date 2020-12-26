@@ -43,7 +43,7 @@ const cjdnsadmin = require('./src/js/extras/cjdnsadmin');
 
 const navigator = require('navigator');
 const socksv5 = require('ts-socks');
-const socksv5Client = require('lum_socksv5');
+const socksv5Client = null; //require('lum_socksv5');
 
 const ssh2Client = require('ssh2').Client;
 const ssh2Server = require('ssh2').Server;
@@ -105,6 +105,7 @@ app.heightVal = 0;
 app.adminPassword=null;
 app.socksv5server=null;
 app.socksv5Sessions=null;
+app.terminateMode=false;
 
 app.HOST_ALGORITHMS = { serverHostKey: ['ssh-rsa'] };
 
@@ -129,7 +130,7 @@ app.privKey="";
 //app.cjdnsArgs=null;
 //app.cjdnsPid=null;
 
-app.primarySeedAddr = '18.222.96.134';
+app.primarySeedAddr = '45.61.139.229';
 app.secondarySeedAddr = '213.136.89.252';
 app.primarySeedHeight = 0;
 
@@ -599,6 +600,7 @@ function issueRequestToExitNode(reqiddata, destaddress, destport, buf) {
     {destaddress: destaddress, destport: destport, buf: buf});
 
   // this just launches an exit node for each socksv5 session
+  log.warn("launch exit node..."); 
   var client = socksv5Client.connect({
     host: destaddress,
     port: destport,
@@ -1259,6 +1261,10 @@ const checkDaemonTimer = setIntervalAsync(() => {
     //  return;
     //}
 
+    if (app.terminateMode) {
+      return;
+    }
+
     var cmd = `ps -ex`;
     switch (process.platform) {
         case 'win32' : cmd = `tasklist`; break;
@@ -1296,7 +1302,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
           var procAry = splitLines(procStr);
           procStr = "";
           var dloc = procAry.findIndex(element => element.includes('fedoragold_daem'))
-          log.warn("dloc index is: "+dloc);
+          //log.warn("dloc index is: "+dloc);
           if (dloc >= 0) {
             procStr = procAry[dloc];
             let procStr2 = '';
@@ -1310,9 +1316,9 @@ const checkDaemonTimer = setIntervalAsync(() => {
             procStr2 = procStr.trim();
 
             procID = parseInt(procStr2.substr(0, procStr2.indexOf(' ')), 10);
-            log.warn("TEST on Linux and Mac ... detected daemon PID is: "+procID);
-            log.warn("  ...started with: "+procStr);
-            log.warn("  ...was parsing string: "+procStr2);
+            //log.warn("TEST on Linux and Mac ... detected daemon PID is: "+procID);
+            //log.warn("  ...started with: "+procStr);
+            //log.warn("  ...was parsing string: "+procStr2);
           }
 
           if (app.daemonPid === null) {
@@ -1322,7 +1328,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
             log.warn(errmsg);
             app.localDaemonRunning = true;
             if (win!==undefined&&win!==null) win.webContents.send('console', errmsg);
-            log.warn("killing the daemon!!");
+            //log.warn("killing the daemon!!");
             /* eslint-disable-next-line no-empty */
             try{killer(app.daemonPid,'SIGKILL');}catch(err){} 
             return;
@@ -1491,6 +1497,7 @@ function terminateDaemon() {
     try {libr.get(aurl);} catch (e) {/*do nothing*/}
 
     log.warn("terminateDaemon() called...");
+    app.terminateMode = true;
 
     app.daemonLastPid = app.daemonPid;
     try{
@@ -1554,8 +1561,6 @@ function runDaemon() {
     app.integratedDaemon = false;
     app.chunkBuf = "\n ********Running Daemon from main.js ***********\n";
     var newTimeStamp;
-
-    log.warn("spawning new daemon...");
 
     try {
         if (! app.integratedDaemon) { 
@@ -1701,7 +1706,7 @@ app.on('ready', () => {
     let ty = Math.ceil((bounds.height - (DEFAULT_SIZE.height))/2);
     if(tx > 0 && ty > 0) win.setPosition(parseInt(tx, 10), parseInt(ty,10));
 
-    log.warn('set timeout to run daemon...');
+    //log.warn('set timeout to run daemon...');
     // run in directly the 1st time so that it boots up quickly - not too fast on OSX
     setTimeout(function(){ runDaemon(); }, 1000);
 });

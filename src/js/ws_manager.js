@@ -264,35 +264,40 @@ WalletShellManager.prototype.getMinerPid = function() {
 }
 
 WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyperConsole) {
-  //log.warn("run Hyperboria with args: "+cjdnsArgs);
-  //let argo = JSON.parse(cjdnsArgs);
-  if (this.hyperPid > 0) {
-    // if it's already running just return
-    return true;
-  }
 
-  try {
-    //log.warn("spawning: "+cjdnsBin);
-    this.hyperProcess = childProcess.spawn(cjdnsBin, {},
-      {detached: false, stdio: ['pipe','pipe','pipe']}); // ... , encoding: 'utf-8'});
-    this.hyperPid = this.hyperProcess.pid;
+  // just stub it out...
+  return true;
 
-    this.hyperProcess.stdout.on('data', function(chunk) {
-      this.hyperBuf += chunk;
-      hyperConsole(this.hyperBuf);
-      this.hyperBuf = '';
-    });
-    this.hyperProcess.stderr.on('data', function(chunk) {
-      hyperConsole(chunk);
-    });
 
-    //this.hyperProcess.stdin.setEncoding('utf-8');
-    //this.hyperProcess.stdin.write(cjdnsArgs + '\n');
-    this.hyperProcess.stdin.end(cjdnsArgs);
-  } catch(e) {
-    log.warn(`cjdns is not running: %j`, e);
-    return false;
-  }
+//  //log.warn("run Hyperboria with args: "+cjdnsArgs);
+//  //let argo = JSON.parse(cjdnsArgs);
+//  if (this.hyperPid > 0) {
+//    // if it's already running just return
+//    return true;
+//  }
+//
+//  try {
+//    //log.warn("spawning: "+cjdnsBin);
+//    this.hyperProcess = childProcess.spawn(cjdnsBin, {},
+//      {detached: false, stdio: ['pipe','pipe','pipe']}); // ... , encoding: 'utf-8'});
+//    this.hyperPid = this.hyperProcess.pid;
+//
+//    this.hyperProcess.stdout.on('data', function(chunk) {
+//      this.hyperBuf += chunk;
+//      hyperConsole(this.hyperBuf);
+//      this.hyperBuf = '';
+//    });
+//    this.hyperProcess.stderr.on('data', function(chunk) {
+//      hyperConsole(chunk);
+//    });
+//
+//    //this.hyperProcess.stdin.setEncoding('utf-8');
+//    //this.hyperProcess.stdin.write(cjdnsArgs + '\n');
+//    this.hyperProcess.stdin.end(cjdnsArgs);
+//  } catch(e) {
+//    log.warn(`cjdns is not running: %j`, e);
+//    return false;
+//  }
 }
 
 WalletShellManager.prototype.runMiner = function(minerBin, minerArgs, updateConsole) {
@@ -370,24 +375,34 @@ WalletShellManager.prototype._writeConfig = function(cfg){
     }
 };
 
+function cleanAddress(inAddr) {
+  inAddr = ""+inAddr.trim();
+  let walletAddress = inAddr;
+  if (inAddr.length > 0) {
+    let alocat = inAddr.indexOf("Address:");
+    if (alocat >= 0) {
+      log.warn("CLEAN ADDR: "+inAddr);
+      walletAddress = inAddr.substring(alocat+9);
+      log.warn("WALLET ADDRESS CLEANED: "+walletAddress);
+    }
+  }
+  return walletAddress;
+}
+
 WalletShellManager.prototype.callSpawn = function(walletFile, password, onError, onSuccess, onDelay) {
 
     setTimeout(() => {
-      let addressLabel = "Address: ";
-      if (this.stdBuf.length && this.stdBuf.indexOf(addressLabel) !== -1) {
-        let trimmed = this.stdBuf.trim();
-        let walletAddress = trimmed.substring(trimmed.indexOf(addressLabel)+
-          addressLabel.length, trimmed.length);
+      let walletAddress = cleanAddress(this.stdBuf);
 
-        if (walletAddress.length <= 0) {
-          log.warn("could not get walletAddress...");
-          onError(ERROR_WALLET_PASSWORD);
-          return;
-        }
+      if (walletAddress.length <= 0) {
+        log.warn("could not get walletAddress...");
+        onError("Getting address: "+ERROR_WALLET_PASSWORD);
+        return;
+      }
 
-        log.warn("Wallet ADDRESS is (should not include label): "+walletAddress);
+      log.warn("Wallet ADDRESS is (should not include label): "+walletAddress);
 
-        wsession.set('loadedWalletAddress', walletAddress);
+      wsession.set('loadedWalletAddress', walletAddress);
 
         // Possible future work on embedded status page...
         //= webBrowser1.Document.GetElementById("pool_yourStats push-up-20").OuterHtml;
@@ -395,9 +410,8 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
         //let body_content = getHttpContent("https://fed.cryptonote.club", "/#worker_stats", addr_cookie);
         //log.warn("cryptonote.club: "+body_content.length);
 
-        this._spawnService(walletFile, password, onError, onSuccess, onDelay);
-      }
-    }, 1750, walletFile, password, onError, onSuccess, onDelay);
+      this._spawnService(walletFile, password, onError, onSuccess, onDelay);
+    }, 2000, walletFile, password, onError, onSuccess, onDelay);
 }
 
 WalletShellManager.prototype.startService = function(walletFile, password, onError, onSuccess, onDelay) {
@@ -417,12 +431,12 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
     '" --log-level 0 --address';
 
   this.stdBuf = "";
-  let wsm = this;
+  var wsm = this;
 
-  this.walletProcess = childProcess.exec(runBin, { timeout: 10000, maxBuffer: 2000 * 1024, env: {x: 0} });
+  this.walletProcess = childProcess.exec(runBin, { timeout: 20000, maxBuffer: 2000 * 1024, env: {x: 0} });
   this.walletProcess.on('close', () => {
       if ((wsm.stdBuf.length == 0) || (wsm.stdBuf.search("password is wrong") >= 0)) {
-        onError(ERROR_WALLET_PASSWORD);
+        onError("Password: "+ERROR_WALLET_PASSWORD+": "+wsm.stdBuf);
       } else {
         this.init(password);
         this.callSpawn(walletFile, password, onError, onSuccess, onDelay);
@@ -432,7 +446,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
     wsm.stdBuf += chunky.toString();
   });
   this.walletProcess.on('error', (err) => {
-    onError(ERROR_WALLET_PASSWORD);
+    onError("Error: "+ERROR_WALLET_PASSWORD);
   });
 }
 
@@ -494,13 +508,13 @@ log.warn("_spawnService: "+walletFile);
       bRemoteDaemon = false;
     }
 
-    log.warn("heightVal: "+daemonHeight);
-    log.warn("current block: "+cblock);
-    log.warn("block height: "+tblock);
-    log.warn("priNode: "+priNode);
-    log.warn("secNode: "+secNode);
-    log.warn("daemon address: "+daemonAd);
-    log.warn("daemon port: "+daemonPt);
+    //log.warn("heightVal: "+daemonHeight);
+    //log.warn("current block: "+cblock);
+    //log.warn("block height: "+tblock);
+    //log.warn("priNode: "+priNode);
+    //log.warn("secNode: "+secNode);
+    //log.warn("daemon address: "+daemonAd);
+    //log.warn("daemon port: "+daemonPt);
 
     this.serviceApi.setPassword(password);
 

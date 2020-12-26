@@ -41,7 +41,7 @@ config.remoteNodeListUpdateUrl = null;
 
 // fallback remote node list, in case fetching update failed, fill this with known to works remote nodes
 config.remoteNodeListFallback = [
-    '18.222.96.134:30158',
+    '45.61.139.229:30158',
     '213.136.89.252:30158'
 ];
 
@@ -61,7 +61,7 @@ config.minimumFee = 0.1;
 // minimum amount for sending transaction
 config.mininumSend = 0.11;
 // default mixin/anonimity for transaction
-config.defaultMixin = 0; //jojapoppa, trying lower value as it's faster - add to UI for optional setting
+config.defaultMixin = 22;
 // to convert from atomic unit
 config.decimalDivisor = 100000000;
 // to represent human readable value

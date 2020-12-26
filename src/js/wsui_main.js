@@ -621,6 +621,7 @@ function initSettingVal(values){
         //settings.set('tray_minimize', values.tray_minimize);
         //settings.set('tray_close', values.tray_close);
 
+        /* jojapoppa
         if (!Number.isInteger(values.cjdnsadmin_port)) {
           values.cjdnsadmin_port = parseInt(config.defaultCjdnsAdminPort);
         }
@@ -638,6 +639,7 @@ function initSettingVal(values){
         settings.set('cjdnsudp_port', values.cjdnsudp_port);
         settings.set('cjdnsbeacon_port', values.cjdnsbeacon_port);
         settings.set('cjdnssocks5_port', values.cjdnssocks5_port);
+        */
     }
 
     //settingsInputServiceBin.value = settings.get('service_bin');
@@ -646,10 +648,12 @@ function initSettingVal(values){
     settingsInputWalletdPort.value = settings.get('walletd_port');
     //settingsInputMinToTray.checked = settings.get('tray_minimize');
     //settingsInputCloseToTray.checked = settings.get('tray_close');
-    settingsCjdnsAdminPort.value = settings.get('cjdnsadmin_port');
-    settingsCjdnsUDPPort.value = settings.get('cjdnsudp_port');
-    settingsCjdnsBeaconPort.value = settings.get('cjdnsbeacon_port');
-    settingsCjdnsSocks5Port.value = settings.get('cjdnssocks5_port');
+   
+    //jojapoppa
+    //settingsCjdnsAdminPort.value = settings.get('cjdnsadmin_port');
+    //settingsCjdnsUDPPort.value = settings.get('cjdnsudp_port');
+    //settingsCjdnsBeaconPort.value = settings.get('cjdnsbeacon_port');
+    //settingsCjdnsSocks5Port.value = settings.get('cjdnssocks5_port');
 
     // if custom node, save it
     let mynode = `${settings.get('daemon_host')}:${settings.get('daemon_port')}`;
@@ -1123,9 +1127,10 @@ function showInitialPage(){
      // other initiations here
      formMessageReset();
 
-     callMakekeys();
-     callMkPasswds();
-     runCjdns();
+     //jojapoppa
+     //callMakekeys();
+     //callMkPasswds();
+     //runCjdns();
 
      initSettingVal(null); // initial settings value
      initNodeCompletion(); // initial public node completion list
@@ -1133,10 +1138,13 @@ function showInitialPage(){
 
      let versionInfo = document.getElementById('walletShellVersion');
      if(versionInfo) versionInfo.innerHTML = WS_VERSION;
-     let tsVersionInfo = document.getElementById('fedServiceVersion');
-     if(tsVersionInfo) tsVersionInfo.innerHTML = config.walletServiceBinaryVersion;
+     //let tsVersionInfo = document.getElementById('fedServiceVersion');
+     //if(tsVersionInfo) tsVersionInfo.innerHTML = config.walletServiceBinaryVersion;
 
      if(!settings.has('firstRun') || settings.get('firstRun') !== 0) {
+
+       log.warn("  loading section-welcome");
+
        changeSection('section-welcome'); 
        settings.set('firstRun', 0);
      } else {
@@ -1155,10 +1163,12 @@ function triggerSave() {
 function handleSettings() {
   settingsInputDaemonPort.addEventListener('click', function() { triggerSave(); });
   settingsInputWalletdPort.addEventListener('click', function() { triggerSave(); });
-  settingsCjdnsAdminPort.addEventListener('click', function() { triggerSave(); });
-  settingsCjdnsUDPPort.addEventListener('click', function() { triggerSave(); });
-  settingsCjdnsBeaconPort.addEventListener('click', function() { triggerSave(); });
-  settingsCjdnsSocks5Port.addEventListener('click', function() { triggerSave(); });
+
+  //jojapoppa
+  //settingsCjdnsAdminPort.addEventListener('click', function() { triggerSave(); });
+  //settingsCjdnsUDPPort.addEventListener('click', function() { triggerSave(); });
+  //settingsCjdnsBeaconPort.addEventListener('click', function() { triggerSave(); });
+  //settingsCjdnsSocks5Port.addEventListener('click', function() { triggerSave(); });
 }
 
 function handleAddressBook(){
@@ -1405,11 +1415,16 @@ function handleWalletOpen(){
     }
 
     walletOpenButtonOpen.addEventListener('click', () => {
+
+        log.warn("open button clicked...");
+
         formMessageReset();
         if (isRescan) {
             showToast('Rescan is in progress, please wait.');
             return;
         }
+
+        log.warn("no rescan...");
 
         // node settings thingy
         let daemonHostValue = settingsInputDaemonAddress.value ? settingsInputDaemonAddress.value.trim() :'';
@@ -1425,6 +1440,9 @@ function handleWalletOpen(){
             return false;
         }
 
+        log.warn("host stuff done");
+
+        /* jojapoppa
         let cjdnsadminPortValue =
             settingsCjdnsAdminPort.value ? parseInt(settingsCjdnsAdminPort.value.trim(),10) :
               parseInt(config.defaultCjdnsAdminPort);
@@ -1451,6 +1469,12 @@ function handleWalletOpen(){
           cjdnsSocks5PortValue = parseInt(config.defaultCjdnsSocks5Port); 
         }
 
+        log.warn("cjdns stuff done");
+
+        */
+
+        log.warn("daemonHost...");
+
         let validHost = daemonHostValue === 'localhost' ? true : false;
         if(require('net').isIP(daemonHostValue)) validHost = true;
         if(!validHost){
@@ -1471,6 +1495,8 @@ function handleWalletOpen(){
             return false;
         }
 
+        log.warn("ports determined");
+
         let settingVals = {
             service_bin: settings.get('service_bin'),
             daemon_host: daemonHostValue,
@@ -1478,14 +1504,17 @@ function handleWalletOpen(){
             walletd_port: walletdPortValue,
             tray_minimize: settings.get('tray_minimize'),
             tray_close: settings.get('tray_close'),
-            top_block: settings.get('top_block'),
-            cjdnsadmin_port: cjdnsadminPortValue,
-            cjdnsudp_port: cjdnsUDPPortValue,
-            cjdnsbeacon_port: cjdnsBeaconPortValue,
-            cjdnssocks5_port: cjdnsSocks5PortValue
+            top_block: settings.get('top_block')
+            //jojapoppa
+            //cjdnsadmin_port: cjdnsadminPortValue,
+            //cjdnsudp_port: cjdnsUDPPortValue,
+            //cjdnsbeacon_port: cjdnsBeaconPortValue,
+            //cjdnssocks5_port: cjdnsSocks5PortValue
         };
         initSettingVal(settingVals);
         initNodeCompletion();
+
+        log.warn("node initialized");
 
         // actually open wallet
         if(!walletOpenInputPath.value){
@@ -1522,6 +1551,7 @@ function handleWalletOpen(){
         let walletPass = walletOpenInputPassword.value;
 
         //log.warn("walletPass: "+walletPass);
+        log.warn("file system access: "+walletFile); 
 
         fs.access(walletFile, fs.constants.R_OK, (err) => {
             if(err){
@@ -2636,7 +2666,7 @@ function initHandlers(){
     });
 
     overviewIntegratedAddressGen.addEventListener('click', showIntegratedAddressForm);
-    
+   
     wsutil.liveEvent('#doGenIntegratedAddr', 'click', () => {
         formMessageReset();
         let genInputAddress = document.getElementById('genInputAddress');
@@ -2663,6 +2693,8 @@ function initHandlers(){
             formMessageSet('gia','error', 'Invalid Payment ID');
             return;
         }
+
+        log.warn("gen integrated address...");
 
         wsmanager.genIntegratedAddress(pid, addr).then((res) => {
             formMessageReset();

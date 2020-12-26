@@ -301,14 +301,14 @@ class WalletShellApi {
               req_params = {
                 transfers: [{ address: params.address, amount: params.amount }],
                 paymentId: params.paymentId,
-                anonymity: 0, 
+                anonymity: 22, 
                 unlockTime: 0,
                 fee: params.fee
               };
             } else {
               req_params = {
                 transfers: [{ address: params.address, amount: params.amount }],
-                anonymity: 0,
+                anonymity: 22,
                 unlockTime: 0,
                 fee: params.fee
               };

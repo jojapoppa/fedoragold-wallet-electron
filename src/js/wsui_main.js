@@ -1416,15 +1416,13 @@ function handleWalletOpen(){
 
     walletOpenButtonOpen.addEventListener('click', () => {
 
-        log.warn("open button clicked...");
+        //log.warn("open button clicked...");
 
         formMessageReset();
         if (isRescan) {
             showToast('Rescan is in progress, please wait.');
             return;
         }
-
-        log.warn("no rescan...");
 
         // node settings thingy
         let daemonHostValue = settingsInputDaemonAddress.value ? settingsInputDaemonAddress.value.trim() :'';
@@ -1439,8 +1437,6 @@ function handleWalletOpen(){
             formMessageSet('load','error',`Please input a valid walletd port`);
             return false;
         }
-
-        log.warn("host stuff done");
 
         /* jojapoppa
         let cjdnsadminPortValue =
@@ -1473,8 +1469,6 @@ function handleWalletOpen(){
 
         */
 
-        log.warn("daemonHost...");
-
         let validHost = daemonHostValue === 'localhost' ? true : false;
         if(require('net').isIP(daemonHostValue)) validHost = true;
         if(!validHost){
@@ -1495,8 +1489,6 @@ function handleWalletOpen(){
             return false;
         }
 
-        log.warn("ports determined");
-
         let settingVals = {
             service_bin: settings.get('service_bin'),
             daemon_host: daemonHostValue,
@@ -1513,8 +1505,6 @@ function handleWalletOpen(){
         };
         initSettingVal(settingVals);
         initNodeCompletion();
-
-        log.warn("node initialized");
 
         // actually open wallet
         if(!walletOpenInputPath.value){
@@ -1551,7 +1541,7 @@ function handleWalletOpen(){
         let walletPass = walletOpenInputPassword.value;
 
         //log.warn("walletPass: "+walletPass);
-        log.warn("file system access: "+walletFile); 
+        //log.warn("file system access: "+walletFile); 
 
         fs.access(walletFile, fs.constants.R_OK, (err) => {
             if(err){

@@ -8,7 +8,7 @@
   "main": "main.js",
   "nodejs": true,
   "scripts": {
-    "start": "electron .",
+    "start": "electron . ",
     "debug": "electron . debug",
     "dev": "electron . dev",
     "dist-win": "./node_modules/.bin/electron-builder --x64 --win",

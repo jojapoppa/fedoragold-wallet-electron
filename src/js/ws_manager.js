@@ -188,7 +188,7 @@ WalletShellManager.prototype.init = function(password){
     });
   }
 
-  log.warn("daemonHeight initialized to: "+daemonHeight);
+  //log.warn("daemonHeight initialized to: "+daemonHeight);
 };
 
 WalletShellManager.prototype._getSettings = function(){
@@ -381,9 +381,9 @@ function cleanAddress(inAddr) {
   if (inAddr.length > 0) {
     let alocat = inAddr.indexOf("Address:");
     if (alocat >= 0) {
-      log.warn("CLEAN ADDR: "+inAddr);
+      //log.warn("CLEAN ADDR: "+inAddr);
       walletAddress = inAddr.substring(alocat+9);
-      log.warn("WALLET ADDRESS CLEANED: "+walletAddress);
+      //log.warn("WALLET ADDRESS CLEANED: "+walletAddress);
     }
   }
   return walletAddress;
@@ -400,8 +400,7 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
         return;
       }
 
-      log.warn("Wallet ADDRESS is (should not include label): "+walletAddress);
-
+      //log.warn("Wallet ADDRESS is (should not include label): "+walletAddress);
       wsession.set('loadedWalletAddress', walletAddress);
 
         // Possible future work on embedded status page...
@@ -466,8 +465,6 @@ function logFile(walletFile) {
 }
 
 WalletShellManager.prototype._spawnService = function(walletFile, password, onError, onSuccess, onDelay) {
-
-log.warn("_spawnService: "+walletFile);
 
     if (this.serviceProcess != null) {
       // don't allow it to be spawned twice...
@@ -557,7 +554,7 @@ log.warn("_spawnService: "+walletFile);
 
     let wsm = this;
     //log.warn("serviceArgs: "+serviceArgs);
-    log.warn("wallet.serviceBin path: "+wsm.serviceBin);
+    //log.warn("wallet.serviceBin path: "+wsm.serviceBin);
     //confirm("args: "+serviceArgs);
 
     try{
@@ -670,7 +667,7 @@ WalletShellManager.prototype.terminateService = function(force) {
 WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daemonPt) {
 
     if (this.syncWorker !== null) {
-      log.warn("syncWorker is already running... restarting it.");
+      //log.warn("syncWorker is already running... restarting it.");
       try{this.syncWorker.kill('SIGKILL');}catch(e){}
       this.syncWorker = null;
     }

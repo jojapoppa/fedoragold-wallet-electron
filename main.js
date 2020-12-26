@@ -301,6 +301,9 @@ function createWindow() {
 }
 
 const getHttpContent = function(url) {
+
+  if (app.terminateMode) return;
+
   // return new pending promise
   return new Promise((resolve, reject) => {
     // select http or https module, depending on reqested url
@@ -482,6 +485,8 @@ function tunnelSocks5Request(info, sockssocket, requestID) {
 
 async function genSocks5Request(proxy) {
 
+  if (app.terminateMode) return;
+
   let requestID = crypto.randomBytes(32);
   let info = {
     dstAddr : proxy.remote.remoteAddress,
@@ -489,6 +494,8 @@ async function genSocks5Request(proxy) {
   }
 
   const result = await tunnelSocks5Request(info, proxy.origin, requestID);
+
+  log.warn("check Socks5 interval..");
 
   var myInterval = setInterval(function(reqid, origin){
     if (app.socksv5Sessions != null) {
@@ -1175,7 +1182,7 @@ function createSocketPath() {
   // '/tmp/app.cjdns_sock'
   let socketdatapath = path.join(app.getPath('userData'), 'cjdns_sock');
   let mplat = process.platform;
-  log.warn("createSocketPath on platform: "+mplat);
+  //log.warn("createSocketPath on platform: "+mplat);
   let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
   app.cjdnsSocketPath = socketdatapath;
   if (OSID === 'win') {
@@ -1230,6 +1237,9 @@ function runSocks5Proxy() {
 
 var testTimes = 10;
 const checkSeedTimer = setIntervalAsync(() => {
+
+  if (app.terminateMode) return;
+
   // just to get an initial value... don't tax the server
   testTimes = testTimes-1;
   if (testTimes <= 0) return;
@@ -1243,6 +1253,9 @@ const checkSeedTimer = setIntervalAsync(() => {
 
 const checkDaemonHeight = setIntervalAsync(() => {
   var aurl = `http://127.0.0.1:${settings.get('daemon_port')}/getheight`;
+
+  if (app.terminateMode) return;
+
   // grab whateveris between the : and the ,
   getHttpContent(aurl)
   .then((html) => app.heightVal = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
@@ -1347,6 +1360,9 @@ const checkDaemonTimer = setIntervalAsync(() => {
 }, 15000);
 
 const checkSyncTimer = setIntervalAsync(() => {
+
+    if (app.terminateMode) return;
+
     if (app.localDaemonRunning && (app.daemonPid !== null)) {
         var myAgent = new http.Agent({
             keepAlive: true,

@@ -2230,7 +2230,7 @@ function handleSendTransfer(){
           return;
         }
 
-        if(!confirm('You are about to perform wallet optimization. This process may take several hours to complete, are you sure?')) return;
+        if(!confirm('You are about to perform wallet optimization. This process consolidates all of the loose change in your wallet into larger denominations.  It can take a while to complete, are you sure?')) return;
         showToast('Optimization started, your balance may appear incorrect during the process...', 3000);
         FUSION_IN_PROGRESS = true;
         wsmanager.optimizeWallet().then( () => {
@@ -3016,7 +3016,13 @@ ipcRenderer.on('promptexit', () => {
       return;
     }
 
-    remote.app.emit('exit');
+    let aurl = `http://127.0.0.1:${settings.get('daemon_port')}/stop_daemon`;
+    let libr = aurl.startsWith('https') ? require('https') : require('http');
+    try {libr.get(aurl);} catch (e) {/*do nothing*/}
+
+    setInterval(function() {
+      remote.app.emit('exit');
+    }, 15000);
 
     if (win != null) {
       if(!win.isVisible()) win.show();
@@ -3026,7 +3032,7 @@ ipcRenderer.on('promptexit', () => {
 
     var dialog = document.getElementById('main-dialog');
     let htmlText = 'Terminating WalletShell...';
-    if(wsession.get('loadedWalletAddress') !== ''){
+    if (wsession.get('loadedWalletAddress') !== '') {
         htmlText = 'Saving &amp; closing your wallet...';
     }
 
@@ -3036,11 +3042,11 @@ ipcRenderer.on('promptexit', () => {
 
     wsmanager.stopSyncWorker();
     wsmanager.stopService().then(() => {
-        setTimeout(function(){
+        setTimeout(function() {
             dialog.innerHTML = 'Good bye!';
             wsmanager.terminateService(true);
             if (win != null) win.close();
-        }, 1200);
+        }, 8200);
     }).catch((err) => {
         wsmanager.terminateService(true);
         console.log(err);

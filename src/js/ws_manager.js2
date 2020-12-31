@@ -24,17 +24,17 @@ const SERVICE_LOG_LEVEL_DEFAULT = 0;
 const SERVICE_LOG_LEVEL_DEBUG = 4;
 const SERVICE_LOG_LEVEL = (SERVICE_LOG_DEBUG ? SERVICE_LOG_LEVEL_DEBUG : SERVICE_LOG_LEVEL_DEFAULT);
 const ERROR_WALLET_EXEC = `Failed to start ${config.walletServiceBinaryFilename}.`;
-const ERROR_WALLET_PASSWORD = 'Failed to load your wallet, failed password, or daemon synching - see Settings Daemon Console...';
+const ERROR_WALLET_PASSWORD = 'Failed to load your wallet, failed password, or issue with daemon - see Settings Daemon Console...';
 const ERROR_WALLET_IMPORT = 'Import failed, please check that you have entered all information correctly';
 const ERROR_WALLET_CREATE = 'Wallet can not be created, please check your input and try again';
 
 const INFO_FUSION_DONE = 'Wallet optimization completed, your balance may appear incorrect for a while.';
-const INFO_FUSION_SKIPPED = 'Wallet optimized. No further optimization is needed.';
+const INFO_FUSION_SKIPPED = 'Wallet already optimized. No further optimization is needed.';
 const ERROR_FUSION_FAILED = 'Unable to optimize your wallet, please try again in a few seconds';
 
 var bRemoteDaemon = true;
 this.stdBuf = '';
-this.chunkBufr = '';
+this.chunkBuf = '';
 this.hyperBuf = '';
 this.hyperPid = 0;
 this.minerPid = 0;
@@ -149,7 +149,7 @@ const getHttpContent = function(host, path, cookie) {
 };
 
 WalletShellManager.prototype.getSockPath = function() {
-  //log.warn("in getSockPath");
+  log.warn("in getSockPath");
   let socketdatapath = path.join(remote.app.getPath('userData'), 'cjdns_sock');
   let mplat = this.getPlatform();
   let OSID = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
@@ -188,7 +188,7 @@ WalletShellManager.prototype.init = function(password){
     });
   }
 
-  //log.warn("daemonHeight initialized to: "+daemonHeight);
+  log.warn("daemonHeight initialized to: "+daemonHeight);
 };
 
 WalletShellManager.prototype._getSettings = function(){
@@ -264,40 +264,35 @@ WalletShellManager.prototype.getMinerPid = function() {
 }
 
 WalletShellManager.prototype.runHyperboria = function(cjdnsBin, cjdnsArgs, hyperConsole) {
+  log.warn("run Hyperboria with args: "+cjdnsArgs);
+  //let argo = JSON.parse(cjdnsArgs);
+  if (this.hyperPid > 0) {
+    // if it's already running just return
+    return true;
+  }
 
-  // just stub it out...
-  return true;
+  try {
+    log.warn("spawning: "+cjdnsBin);
+    this.hyperProcess = childProcess.spawn(cjdnsBin, {},
+      {detached: false, stdio: ['pipe','pipe','pipe']}); // ... , encoding: 'utf-8'});
+    this.hyperPid = this.hyperProcess.pid;
 
+    this.hyperProcess.stdout.on('data', function(chunk) {
+      this.hyperBuf += chunk;
+      hyperConsole(this.hyperBuf);
+      this.hyperBuf = '';
+    });
+    this.hyperProcess.stderr.on('data', function(chunk) {
+      hyperConsole(chunk);
+    });
 
-//  //log.warn("run Hyperboria with args: "+cjdnsArgs);
-//  //let argo = JSON.parse(cjdnsArgs);
-//  if (this.hyperPid > 0) {
-//    // if it's already running just return
-//    return true;
-//  }
-//
-//  try {
-//    //log.warn("spawning: "+cjdnsBin);
-//    this.hyperProcess = childProcess.spawn(cjdnsBin, {},
-//      {detached: false, stdio: ['pipe','pipe','pipe']}); // ... , encoding: 'utf-8'});
-//    this.hyperPid = this.hyperProcess.pid;
-//
-//    this.hyperProcess.stdout.on('data', function(chunk) {
-//      this.hyperBuf += chunk;
-//      hyperConsole(this.hyperBuf);
-//      this.hyperBuf = '';
-//    });
-//    this.hyperProcess.stderr.on('data', function(chunk) {
-//      hyperConsole(chunk);
-//    });
-//
-//    //this.hyperProcess.stdin.setEncoding('utf-8');
-//    //this.hyperProcess.stdin.write(cjdnsArgs + '\n');
-//    this.hyperProcess.stdin.end(cjdnsArgs);
-//  } catch(e) {
-//    log.warn(`cjdns is not running: %j`, e);
-//    return false;
-//  }
+    //this.hyperProcess.stdin.setEncoding('utf-8');
+    //this.hyperProcess.stdin.write(cjdnsArgs + '\n');
+    this.hyperProcess.stdin.end(cjdnsArgs);
+  } catch(e) {
+    log.warn(`cjdns is not running: %j`, e);
+    return false;
+  }
 }
 
 WalletShellManager.prototype.runMiner = function(minerBin, minerArgs, updateConsole) {
@@ -308,18 +303,10 @@ WalletShellManager.prototype.runMiner = function(minerBin, minerArgs, updateCons
   //Kill any existing miner process if it is re-run
   if (this.minerPid > 0) {
     this.killMiner(this.minerPid);
-    this.minerProcess = null;
-    this.minerPid = 0;
-    return;
   }
   else {
     let mpid = this.getMinerPID(); 
-    if (mpid > 0) {
-      this.killMiner(mpid);
-      this.minerProcess = null;
-      this.minerPid = 0;
-      return;
-    }
+    if (mpid > 0) this.killMiner(mpid);
   }
 
   try{
@@ -328,22 +315,26 @@ WalletShellManager.prototype.runMiner = function(minerBin, minerArgs, updateCons
     this.minerPid = this.minerProcess.pid;
 
     this.minerProcess.stdout.on('data', function(chunk) {
-      this.chunkBufr += chunk.toString();
-      updateConsole(this.chunkBufr);
-      this.chunkBufr = '';
+      this.chunkBuf += chunk;
+      updateConsole(this.chunkBuf);
+      this.chunkBuf = '';
     });
     this.minerProcess.stderr.on('data', function(chunk) {
-      updateConsole(chunk.toString());
+      updateConsole(chunk);
     });
   } catch(e) {
-    log.warn("xmr-stak error");
+    log.warn(`xmr-stak is not running`);
     return false;
   }
 
+  this.minerProcess.on('close', () => {
+    this.killMiner(this.minerPid);
+    log.warn(`xmr-stak closed`);
+    this.minerProcess = null;
+    });
+
   this.minerProcess.on('error', (err) => {
     this.killMiner(this.minerPid);
-    this.minerProcess = 0;
-    this.minerPid = 0;
     log.warn(`xmr-stak error: ${err.message}`);
   });
 }
@@ -379,33 +370,24 @@ WalletShellManager.prototype._writeConfig = function(cfg){
     }
 };
 
-function cleanAddress(inAddr) {
-  inAddr = ""+inAddr.trim();
-  let walletAddress = inAddr;
-  if (inAddr.length > 0) {
-    let alocat = inAddr.indexOf("Address:");
-    if (alocat >= 0) {
-      //log.warn("CLEAN ADDR: "+inAddr);
-      walletAddress = inAddr.substring(alocat+9);
-      //log.warn("WALLET ADDRESS CLEANED: "+walletAddress);
-    }
-  }
-  return walletAddress;
-}
-
 WalletShellManager.prototype.callSpawn = function(walletFile, password, onError, onSuccess, onDelay) {
 
     setTimeout(() => {
-      let walletAddress = cleanAddress(this.stdBuf);
+      let addressLabel = "Address: ";
+      if (this.stdBuf.length && this.stdBuf.indexOf(addressLabel) !== -1) {
+        let trimmed = this.stdBuf.trim();
+        let walletAddress = trimmed.substring(trimmed.indexOf(addressLabel)+
+          addressLabel.length, trimmed.length);
 
-      if (walletAddress.length <= 0) {
-        log.warn("could not get walletAddress...");
-        onError("Getting address: "+ERROR_WALLET_PASSWORD);
-        return;
-      }
+        if (walletAddress.length <= 0) {
+          log.warn("could not get walletAddress...");
+          onError(ERROR_WALLET_PASSWORD);
+          return;
+        }
 
-      //log.warn("Wallet ADDRESS is (should not include label): "+walletAddress);
-      wsession.set('loadedWalletAddress', walletAddress);
+        log.warn("Wallet ADDRESS is (should not include label): "+walletAddress);
+
+        wsession.set('loadedWalletAddress', walletAddress);
 
         // Possible future work on embedded status page...
         //= webBrowser1.Document.GetElementById("pool_yourStats push-up-20").OuterHtml;
@@ -413,8 +395,9 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
         //let body_content = getHttpContent("https://fed.cryptonote.club", "/#worker_stats", addr_cookie);
         //log.warn("cryptonote.club: "+body_content.length);
 
-      this._spawnService(walletFile, password, onError, onSuccess, onDelay);
-    }, 2000, walletFile, password, onError, onSuccess, onDelay);
+        this._spawnService(walletFile, password, onError, onSuccess, onDelay);
+      }
+    }, 750, walletFile, password, onError, onSuccess, onDelay);
 }
 
 WalletShellManager.prototype.startService = function(walletFile, password, onError, onSuccess, onDelay) {
@@ -434,12 +417,12 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
     '" --log-level 0 --address';
 
   this.stdBuf = "";
-  var wsm = this;
+  let wsm = this;
 
-  this.walletProcess = childProcess.exec(runBin, { timeout: 20000, maxBuffer: 2000 * 1024, env: {x: 0} });
+  this.walletProcess = childProcess.exec(runBin, { timeout: 10000, maxBuffer: 2000 * 1024, env: {x: 0} });
   this.walletProcess.on('close', () => {
       if ((wsm.stdBuf.length == 0) || (wsm.stdBuf.search("password is wrong") >= 0)) {
-        onError("Password: "+ERROR_WALLET_PASSWORD+": "+wsm.stdBuf);
+        onError(ERROR_WALLET_PASSWORD);
       } else {
         this.init(password);
         this.callSpawn(walletFile, password, onError, onSuccess, onDelay);
@@ -449,7 +432,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
     wsm.stdBuf += chunky.toString();
   });
   this.walletProcess.on('error', (err) => {
-    onError("Error: "+ERROR_WALLET_PASSWORD);
+    onError(ERROR_WALLET_PASSWORD);
   });
 }
 
@@ -469,6 +452,8 @@ function logFile(walletFile) {
 }
 
 WalletShellManager.prototype._spawnService = function(walletFile, password, onError, onSuccess, onDelay) {
+
+log.warn("_spawnService: "+walletFile);
 
     if (this.serviceProcess != null) {
       // don't allow it to be spawned twice...
@@ -509,13 +494,13 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
       bRemoteDaemon = false;
     }
 
-    //log.warn("heightVal: "+daemonHeight);
-    //log.warn("current block: "+cblock);
-    //log.warn("block height: "+tblock);
-    //log.warn("priNode: "+priNode);
-    //log.warn("secNode: "+secNode);
-    //log.warn("daemon address: "+daemonAd);
-    //log.warn("daemon port: "+daemonPt);
+    log.warn("heightVal: "+daemonHeight);
+    log.warn("current block: "+cblock);
+    log.warn("block height: "+tblock);
+    log.warn("priNode: "+priNode);
+    log.warn("secNode: "+secNode);
+    log.warn("daemon address: "+daemonAd);
+    log.warn("daemon port: "+daemonPt);
 
     this.serviceApi.setPassword(password);
 
@@ -558,7 +543,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
 
     let wsm = this;
     //log.warn("serviceArgs: "+serviceArgs);
-    //log.warn("wallet.serviceBin path: "+wsm.serviceBin);
+    log.warn("wallet.serviceBin path: "+wsm.serviceBin);
     //confirm("args: "+serviceArgs);
 
     try{
@@ -671,7 +656,7 @@ WalletShellManager.prototype.terminateService = function(force) {
 WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daemonPt) {
 
     if (this.syncWorker !== null) {
-      //log.warn("syncWorker is already running... restarting it.");
+      log.warn("syncWorker is already running... restarting it.");
       try{this.syncWorker.kill('SIGKILL');}catch(e){}
       this.syncWorker = null;
     }
@@ -923,7 +908,6 @@ WalletShellManager.prototype._fusionGetMinThreshold = function(threshold, minThr
         counter = counter || 0;
         let unlockedbal = wsession.get('walletUnlockedBalance');
         log.warn("unlocked balance: "+unlockedbal);
-
         threshold = threshold || (parseInt(unlockedbal,10)*100000000)+1;
         minThreshold = minThreshold || threshold;
         maxFusionReadyCount = maxFusionReadyCount || 0;
@@ -985,13 +969,12 @@ WalletShellManager.prototype._fusionSendTx = function(threshold, counter){
         //  log.warn("Some balance locked, will stop fusion now.");
         //  return resolve(lockedBalance);
         //}
-
-        log.warn("wtime...");
-
+ 
         wtime(4000).then(() => {
 
           // keep sending fusion tx till it hit IOOR or reaching max iter
           let fusionStat = "send fusion tx, iteration: "+(counter+1);
+          //log.warn(`send fusion tx, iteration: ${counter}`);
           log.warn(fusionStat);
           wsm.notifyUpdate({
             type: 'fusionStatus',
@@ -999,10 +982,7 @@ WalletShellManager.prototype._fusionSendTx = function(threshold, counter){
           });
 
           let walletAddress = wsession.get('loadedWalletAddress');
-          log.warn("walletAddress: "+walletAddress);
-          log.warn("threshold: "+threshold);
           wsm.serviceApi.sendFusionTransaction({threshold: threshold, anonymity: 0, addresses: [walletAddress], destinationAddress: walletAddress}).then((resp)=> {
-            log.warn("back from fusion send");
             log.warn("fusion hash: "+resp.transactionHash);
             wsm.fusionTxHash.push(resp.transactionHash);
             counter +=1;
@@ -1010,7 +990,7 @@ WalletShellManager.prototype._fusionSendTx = function(threshold, counter){
                 return resp;
             }));
           }).catch((err)=>{
-            //log.warn("exception from sendFusionTransaction...");
+            log.warn(err.message);
             return reject(new Error(err));
           });
         });
@@ -1021,28 +1001,14 @@ WalletShellManager.prototype.optimizeWallet = function(){
     let wsm = this;
     return new Promise( (resolve, reject) => {
         wsm.fusionTxHash = [];
-
-//        let minT = 100;
-//        log.warn("starting out with min threshold: "+minT);
-//        wsm._fusionGetMinThreshold(minT).then((res)=>{
-//
-//            if (res<=0) res = minT;
-//            //if(res <= 0 ){
-//            //    wsm.notifyUpdate({
-//            //        type: 'fusionTxCompleted',
-//            //        data: INFO_FUSION_SKIPPED
-//            //    });
-//            //    return resolve(INFO_FUSION_SKIPPED);
-//            //}
-
-         wsm._fusionGetMinThreshold().then((res)=>{
-             if(res <= 0 ){
-                 wsm.notifyUpdate({
-                     type: 'fusionTxCompleted',
-                     data: INFO_FUSION_SKIPPED
-                 });
-                 return resolve(INFO_FUSION_SKIPPED);
-             }
+        wsm._fusionGetMinThreshold().then((res)=>{
+            if(res <= 0 ){
+                wsm.notifyUpdate({
+                    type: 'fusionTxCompleted',
+                    data: INFO_FUSION_SKIPPED
+                });
+                return resolve(INFO_FUSION_SKIPPED);
+            }
 
             log.warn(`performing fusion tx, threshold: ${res}`);
             return resolve(

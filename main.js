@@ -1307,7 +1307,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
         procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\n\r\t]/g, "");
         procStr = procStr.toLowerCase();
         let daemonAlreadyRunning = procStr.includes('fedoragold_daem');
-        if (! daemonAlreadyRunning) log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr+"\n\n\n\n\n\n\n\n");
+        //if (! daemonAlreadyRunning) log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr+"\n\n\n\n\n\n\n\n");
 
         if (daemonAlreadyRunning) {
           //log.warn("original procstr list: "+procStr);
@@ -1512,14 +1512,14 @@ function terminateDaemon() {
     let libr = aurl.startsWith('https') ? require('https') : require('http');
     try {libr.get(aurl);} catch (e) {/*do nothing*/}
 
-    log.warn("terminateDaemon() called...");
+    //log.warn("terminateDaemon() called...");
     app.terminateMode = true;
 
     app.daemonLastPid = app.daemonPid;
     try{
       if (app.daemonProcess !== null) {
         // this offers clean exit on all platforms
-        log.warn("exit command sent to fedoragold_daemon"); 
+        //log.warn("exit command sent to fedoragold_daemon"); 
         app.daemonProcess.stdin.write("exit\n");
         app.daemonProcess.stdin.end();
       }
@@ -1534,8 +1534,11 @@ app.on('before-quit', () => {
   case 'win32':
     exec('taskkill /F /IM ' + '"FedoraGoldWallet Helper (Renderer)'+ '.exe" /T');
     break;
-  default: //Linux + Darwin
+  case 'darwin':
     exec('pkill ' + 'FedoraGoldWallet\\ Helper');
+    break;
+  default: //Linux+android
+    exec('killall -9 ' + 'fedoragoldwallet.bin');
     break;
   }
 });
@@ -1758,13 +1761,13 @@ process.on('beforeExit', (code) => {
 });
 
 process.on('exit', (code) => {
-    log.warn("exit called");
+    //log.warn("exit called");
     terminateDaemon();
 
     setTimeout((function() {
       //return process.exit(0);
       app.quit; 
-    }), 8000);
+    }), 4000);
 });
 
 //    // needs it twice for some reason on an application exit... unreliable otherwise...

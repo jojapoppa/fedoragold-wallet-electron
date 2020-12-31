@@ -30,7 +30,7 @@ class WalletShellApi {
         return new Promise((resolve, reject) => {
             if (method.length === 0) return reject(new Error('Invalid Method'));
             var params = paramsIn || {};
-            var timeout = timeoutIn || 25000;
+            var timeout = timeoutIn || 45000;
             var authoriz = "Basic " + Buffer.from("fedadmin:"+this.walletd_password).toString('base64');
             //log.warn("authoriz: "+authoriz);
             let data = {
@@ -44,7 +44,7 @@ class WalletShellApi {
             // needed to support certain systems that have very poor network latency
             var myAgent = new http.Agent({
                 keepAlive: true,
-                keepAliveMsecs: 25000
+                keepAliveMsecs: 45000
             });
 
             let headers = {
@@ -84,7 +84,7 @@ class WalletShellApi {
                 timeout: timeout,
                 time: true
             }).on('socket', function(socket){
-                socket.setTimeout(24000);
+                socket.setTimeout(45000);
             }).on('error', function(e) {
                 // just eat the error, don't throw or stop
                 // log.warn('error on socket: ', e);
@@ -137,6 +137,16 @@ class WalletShellApi {
             });
         });
     }
+    stopDaemon() {
+        return new Promise((resolve, reject) => {
+            this._sendRequest('stop_daemon', true, {}, 20000, false).then((result) => {
+                return resolve(result);
+            }).catch((err) => {
+                return reject(err);
+            });
+        });
+    }
+
     // only get a single address, no multi address support for this wallet, yet
     getAddress() {
         return new Promise((resolve, reject) => {
@@ -314,9 +324,9 @@ class WalletShellApi {
               };
             }
 
-            log.warn("sendTransaction: "+JSON.stringify(req_params));
+            //log.warn("sendTransaction: "+JSON.stringify(req_params));
             // give extra long timeout
-            this._sendRequest('sendTransaction', false, req_params, 25000, true).then((result) => {
+            this._sendRequest('sendTransaction', false, req_params, 45000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 log.warn("sendTransaction has FAILED: "+err);
@@ -357,9 +367,10 @@ class WalletShellApi {
             log.warn(`estimateFusion params: ${JSON.stringify(params)}`);
 
             if (!params.threshold) return reject(new Error('Missing threshold parameter'));
-            this._sendRequest('estimateFusion', false, params, 10000, true).then((result) => {
+            this._sendRequest('estimateFusion', false, params, 30000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
+                //log.warn("estimate fusion has FAILED: "+err); 
                 return reject(err);
             });
         });
@@ -368,10 +379,11 @@ class WalletShellApi {
         return new Promise((resolve, reject) => {
             params = params || {};
             if (!params.threshold) return reject(new Error('Missing threshold parameter'));
-            if (!params.anonimity) params.anonimity = this.anonimity;
+            if (!params.anonimity) params.anonimity = 0;
             this._sendRequest('sendFusionTransaction', false, params, 10000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
+                //log.warn("send fusion has FAILED: "+err);
                 return reject(err);
             });
         });

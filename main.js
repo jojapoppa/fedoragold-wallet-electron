@@ -130,7 +130,7 @@ app.privKey="";
 //app.cjdnsArgs=null;
 //app.cjdnsPid=null;
 
-app.primarySeedAddr = '192.248.151.29';
+app.primarySeedAddr = '95.179.224.170';
 app.secondarySeedAddr = '213.136.89.252';
 app.primarySeedHeight = 0;
 

@@ -1,8 +1,8 @@
 "use strict";
 const electron = require('electron');
 const app = require('electron').app;
-const log = require('electron-log');
 
+const log = require('electron-log');
 const dialog = require('electron').dialog;
 const Tray = require('electron').Tray;
 const Menu = require('electron').Menu;

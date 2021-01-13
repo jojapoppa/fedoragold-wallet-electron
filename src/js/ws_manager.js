@@ -385,9 +385,9 @@ function cleanAddress(inAddr) {
   if (inAddr.length > 0) {
     let alocat = inAddr.indexOf("Address:");
     if (alocat >= 0) {
-      //log.warn("CLEAN ADDR: "+inAddr);
+      log.warn("CLEAN ADDR: "+inAddr);
       walletAddress = inAddr.substring(alocat+9);
-      //log.warn("WALLET ADDRESS CLEANED: "+walletAddress);
+      log.warn("WALLET ADDRESS CLEANED: "+walletAddress);
     }
   }
   return walletAddress;
@@ -395,18 +395,10 @@ function cleanAddress(inAddr) {
 
 WalletShellManager.prototype.callSpawn = function(walletFile, password, onError, onSuccess, onDelay) {
 
+    // This is not so much about timing actually.  It's purpose is to make sure that the walletd
+    // does not run within the process space of the original spawn call used to verify
+    // the password and wallet address
     setTimeout(() => {
-      let walletAddress = cleanAddress(this.stdBuf);
-
-      if (walletAddress.length <= 0) {
-        log.warn("could not get walletAddress...");
-        onError("Getting address: "+ERROR_WALLET_PASSWORD);
-        return;
-      }
-
-      //log.warn("Wallet ADDRESS is (should not include label): "+walletAddress);
-      wsession.set('loadedWalletAddress', walletAddress);
-
         // Possible future work on embedded status page...
         //= webBrowser1.Document.GetElementById("pool_yourStats push-up-20").OuterHtml;
         //let addr_cookie = "address="+walletAddress;
@@ -442,7 +434,17 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
         onError("Password: "+ERROR_WALLET_PASSWORD+": "+wsm.stdBuf);
       } else {
         this.init(password);
-        this.callSpawn(walletFile, password, onError, onSuccess, onDelay);
+        log.warn("raw address: "+wsm.stdBuf);
+        let walletAddress = cleanAddress(wsm.stdBuf);
+        if (walletAddress.length <= 0) {
+          log.warn("could not get walletAddress...");
+          onError("Getting address: "+ERROR_WALLET_PASSWORD);
+          return;
+        } else {
+          //log.warn("Wallet ADDRESS is (should not include label): "+walletAddress);
+          wsession.set('loadedWalletAddress', walletAddress);
+          this.callSpawn(walletFile, password, onError, onSuccess, onDelay);
+        }
       }
   });
   this.walletProcess.stdout.on('data', function(chunky) {
@@ -585,7 +587,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     });
 
     this.serviceProcess.stdout.on('data', function(chunky) {
-        log.warn(""+chunky);
+        //log.warn(chunky.toString());
     });
 
     if(!this.serviceStatus()){

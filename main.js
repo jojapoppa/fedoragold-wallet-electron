@@ -224,6 +224,7 @@ function createWindow() {
         log.warn('Error on update (NAME_NOT_RESOLVED is old yml on github): ',err);
       });
 
+      // NOTE: Look at Electron Forge & Squirel, for autoupdate support from git (this is not working any more)
       autoUpdater.on('update-downloaded', (versionInfo) => {
         var dialogOptions = {
           type: 'question',
@@ -1566,7 +1567,7 @@ function runDaemon() {
     let daemonArgs = [
       '--rpc-bind-ip', '0.0.0.0',
       '--rpc-bind-port', settings.get('daemon_port'),
-      '--add-priority-node', '18.222.96.134:30158', 
+      '--add-priority-node', '95.179.224.170:30158', 
       '--add-priority-node', '213.136.89.252:30158'
       //'--log-file', 'fedoragolddaemon.log' // may want to add an optional switch for this later...
     ];

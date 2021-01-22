@@ -132,14 +132,15 @@ const getHttpContent = function(host, path, cookie) {
 
     const body = [];
     response.on('data', (chunk) => {
-      body.push(chunk);
+      let schunk = chunk.toString();
+      body.push(schunk);
       // we are done, resolve promise with those joined chunks
-      log.warn("chunk: "+chunk);
+      log.warn("chunk: "+schunk);
     });
 
     response.on('end', () => {
       var pagetext = body.join('');
-      log.warn("cryptonote club responded..."+pagetext);
+      log.warn("server responded..."+pagetext);
     });
   });
 
@@ -575,9 +576,8 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     }
     
     this.serviceProcess.on('close', () => {
-        wsm.terminateService(true);
+        wsm.terminateService(false);
         log.debug(`${config.walletServiceBinaryFilename} closed`);
-        wsm.serviceProcess = null;
     });
 
     this.serviceProcess.on('error', (err) => {
@@ -586,9 +586,9 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         log.warn(`${config.walletServiceBinaryFilename} error: ${err.message}`);
     });
 
-    this.serviceProcess.stdout.on('data', function(chunky) {
+    //this.serviceProcess.stdout.on('data', function(chunky) {
         //log.warn(chunky.toString());
-    });
+    //});
 
     if(!this.serviceStatus()){
         if(onError) onError(ERROR_WALLET_EXEC);
@@ -622,7 +622,7 @@ WalletShellManager.prototype.stopService = function(){
             wsm.stopSyncWorker();
             wsm.serviceApi.save().then(() =>{
                 try{
-                    wsm.terminateService(true);
+                    wsm.terminateService(false);
                     wsm._reinitSession();
                     resolve(true);
                 }catch(err){

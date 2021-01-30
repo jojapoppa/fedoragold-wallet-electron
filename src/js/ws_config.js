@@ -40,8 +40,9 @@ config.remoteNodeListUpdateUrl = null;
 //'https://raw.githubusercontent.com/mycoin/mycoin-nodes-json/master/mycoin-nodes.json';
 
 // fallback remote node list, in case fetching update failed, fill this with known to works remote nodes
+// 95.179.224.170:30158
 config.remoteNodeListFallback = [
-    '95.179.224.170:30158',
+    '192.248.151.29:30158',
     '213.136.89.252:30158'
 ];
 

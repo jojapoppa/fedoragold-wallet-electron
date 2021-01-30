@@ -334,6 +334,15 @@ class WalletShellApi {
             });
         });
     }
+    stop() {
+        return new Promise((resolve, reject) => {
+           this._sendRequest('stop', false, {}, 10000, true).then((result) => {
+               return resolve(result);
+           }).catch((err) => {
+               return reject(err);
+           });
+        });                     
+    }   
     reset(params) {
         return new Promise((resolve, reject) => {
             params = params || {};

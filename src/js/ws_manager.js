@@ -386,9 +386,9 @@ function cleanAddress(inAddr) {
   if (inAddr.length > 0) {
     let alocat = inAddr.indexOf("Address:");
     if (alocat >= 0) {
-      log.warn("CLEAN ADDR: "+inAddr);
+      //log.warn("CLEAN ADDR: "+inAddr);
       walletAddress = inAddr.substring(alocat+9);
-      log.warn("WALLET ADDRESS CLEANED: "+walletAddress);
+      //log.warn("WALLET ADDRESS CLEANED: "+walletAddress);
     }
   }
   return walletAddress;
@@ -435,7 +435,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
         onError("Password: "+ERROR_WALLET_PASSWORD+": "+wsm.stdBuf);
       } else {
         this.init(password);
-        log.warn("raw address: "+wsm.stdBuf);
+        //log.warn("raw address: "+wsm.stdBuf);
         let walletAddress = cleanAddress(wsm.stdBuf);
         if (walletAddress.length <= 0) {
           log.warn("could not get walletAddress...");
@@ -501,7 +501,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     var secNode = secondary+":30158";
 
     // Determines if the local daemon is almost current (about 3 days'ish current)
-    if ((cblock > 0) && (tblock > 0) && ((6000+cblock) > tblock)) {
+    if ((cblock > 0) && (tblock > 0) && ((9000+cblock) > tblock)) {
 
       // NO LONGER REQUIRE THIS AS YOU CANNOT OPEN WALLET DURING A RESCAN NOW...
       // This detects if the local daemon was forced into a full resync or rescan also...
@@ -534,10 +534,10 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--bind-port', this.walletdPort,
         '--rpc-user', 'fedadmin',
         '--rpc-password', password,
+        '--log-level', 0,
         '--add-priority-node', priNode,
         '--add-priority-node', secNode,
-        '--log-level', 0,
-        '--local',
+        '--local'
       ];
 
 //      log.warn("integrated daemon mode");
@@ -551,10 +551,10 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--bind-port', this.walletdPort,
         '--rpc-user', 'fedadmin',
         '--rpc-password', password,
+        '--log-level', 0,
         '--add-priority-node', priNode,
         '--add-priority-node', secNode,
-        '--log-level', 0,
-        '--daemon-address', daemonAd, 
+        '--daemon-address', daemonAd,
         '--daemon-port', daemonPt
       ];
     }
@@ -576,7 +576,12 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     }
     
     this.serviceProcess.on('close', () => {
-        wsm.terminateService(false);
+
+        wsm.serviceApi.stop();
+        setTimeout(() => {
+          wsm.terminateService(true);
+        }, 3000);
+
         log.debug(`${config.walletServiceBinaryFilename} closed`);
     });
 
@@ -587,7 +592,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     });
 
     //this.serviceProcess.stdout.on('data', function(chunky) {
-        //log.warn(chunky.toString());
+    //    log.warn(chunky.toString());
     //});
 
     if(!this.serviceStatus()){
@@ -622,7 +627,10 @@ WalletShellManager.prototype.stopService = function(){
             wsm.stopSyncWorker();
             wsm.serviceApi.save().then(() =>{
                 try{
-                    wsm.terminateService(false);
+                    wsm.serviceApi.stop();
+                    setTimeout(() => {
+                      wsm.terminateService(true);
+                    }, 1000);
                     wsm._reinitSession();
                     resolve(true);
                 }catch(err){

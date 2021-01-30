@@ -2180,6 +2180,10 @@ function handleSendTransfer(){
             wsmanager.sendTransaction(tx).then((result) => {
                 formMessageReset();
                 let href = config.blockExplorerUrl.replace('[[TX_HASH]]', result.transactionHash);
+
+                log.warn("sent transaction with proof: ", result.proof);
+                log.warn("... for address: ", tx.address);
+
                 let txhashUrl = `<a class="external" id="explorer-link" title="view in block explorer" href="${href}">${result.transactionHash}</a>`;
                 let okMsg = `Transaction sent!<br>Tx. hash: ${txhashUrl}.<br>Your balance may appear incorrect while transaction not fully confirmed.`;
                 formMessageSet('send', 'success', okMsg);

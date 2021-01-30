@@ -501,7 +501,9 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     var secNode = secondary+":30158";
 
     // Determines if the local daemon is almost current (about 3 days'ish current)
-    if ((cblock > 0) && (tblock > 0) && ((9000+cblock) > tblock)) {
+// JUST RUN LOCAL FOR NOW ... REMOTE IS UNRELIABLE DUE TO NETWORK
+// - PERHAPS WORKS ON CJDNS
+//    if ((cblock > 0) && (tblock > 0) && ((9000+cblock) > tblock)) {
 
       // NO LONGER REQUIRE THIS AS YOU CANNOT OPEN WALLET DURING A RESCAN NOW...
       // This detects if the local daemon was forced into a full resync or rescan also...
@@ -510,7 +512,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
       daemonAd = '127.0.0.1';
       daemonPt = settings.get('daemon_port');
       bRemoteDaemon = false;
-    }
+//    }
 
     //log.warn("heightVal: "+daemonHeight);
     //log.warn("current block: "+cblock);

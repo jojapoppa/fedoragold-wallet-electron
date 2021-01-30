@@ -178,10 +178,11 @@ function updateSyncProgress(data){
         // note: don't call setProgressBar, or it really kills performance
         let percent = ((blockCount / knownBlockCount)*100)
         if (percent > 100) percent = 100.00;
+
         percent = percent.toFixed(2);
 
         if (bLocalDaemonMode) syMsg = "SYNCING* "; else syMsg = "SYNCING ";
-        if (percent > 99) {
+        if ((knownBlockCount - blockCount) < 10) {
           if (bLocalDaemonMode) syMsg = "SYNCED* "; else syMsg = "SYNCED ";
           syncDiv.className = 'synced';
           iconSync.setAttribute('data-icon', 'check');

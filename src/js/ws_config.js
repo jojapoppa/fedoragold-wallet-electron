@@ -42,7 +42,7 @@ config.remoteNodeListUpdateUrl = null;
 // fallback remote node list, in case fetching update failed, fill this with known to works remote nodes
 // 95.179.224.170:30158
 config.remoteNodeListFallback = [
-    '192.248.151.29:30158',
+    '202.182.106.252:30158',
     '213.136.89.252:30158'
 ];
 

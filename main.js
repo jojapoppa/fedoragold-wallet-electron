@@ -130,7 +130,7 @@ app.privKey="";
 //app.cjdnsArgs=null;
 //app.cjdnsPid=null;
 
-app.primarySeedAddr = '192.248.151.29'; //95.179.224.170';
+app.primarySeedAddr = '202.182.106.252'; //95.179.224.170';
 app.secondarySeedAddr = '213.136.89.252';
 app.primarySeedHeight = 0;
 
@@ -1567,7 +1567,7 @@ function runDaemon() {
     let daemonArgs = [
       '--rpc-bind-ip', '0.0.0.0',
       '--rpc-bind-port', settings.get('daemon_port'),
-      '--add-priority-node', '192.248.151.29:30158', //'95.179.224.170:30158', 
+      '--add-priority-node', '202.182.106.252:30158', //'95.179.224.170:30158', 
       '--add-priority-node', '213.136.89.252:30158'
       //'--log-file', 'fedoragolddaemon.log' // may want to add an optional switch for this later...
     ];

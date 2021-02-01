@@ -554,8 +554,6 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--rpc-user', 'fedadmin',
         '--rpc-password', password,
         '--log-level', 0,
-//        '--add-priority-node', priNode,
-//        '--add-priority-node', secNode,
         '--daemon-address', daemonAd,
         '--daemon-port', daemonPt
       ];

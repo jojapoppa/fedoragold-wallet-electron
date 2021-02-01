@@ -2184,7 +2184,8 @@ function handleSendTransfer(){
                 log.warn("sent transaction with proof: ", result.proof);
                 log.warn("... for address: ", tx.address);
 
-                let txhashUrl = `<a class="external" id="explorer-link" title="view in block explorer" href="${href}">${result.transactionHash}</a>`;
+                let txhashUrl = `<a class="external" id="explorer-link" title="view in block explorer" href="https://explorer.fedoragold.com/?proofTx=${result.transactionHash}&proofPayment=${result.proof}&proofAddress=${tx.address}#check_payment">${result.transactionHash}</a>`;
+
                 let okMsg = `Transaction sent!<br>Tx. hash: ${txhashUrl}.<br>Your balance may appear incorrect while transaction not fully confirmed.`;
                 formMessageSet('send', 'success', okMsg);
                 // check if it's new address, if so save it
@@ -2276,7 +2277,8 @@ function handleTransactions(){
     function showTransaction(el){
         let tx = (el.name === "tr" ? el : el.closest('tr'));
         let txdate = new Date(tx.dataset.timestamp*1000).toUTCString();
-        let href = config.blockExplorerUrl.replace('[[TX_HASH]]', tx.dataset.rawhash);
+        //let href = config.blockExplorerUrl.replace('[[TX_HASH]]', tx.dataset.rawhash);
+        let href = "https://explorer.fedoragold.com/?hash="+tx.dataset.rawhash+"#transaction";
         let txhashUrl = `<a class="external" id="explorer-link" title="view in block explorer" href="${href}">View in block explorer</a>`;
 
         let dialogTpl = `

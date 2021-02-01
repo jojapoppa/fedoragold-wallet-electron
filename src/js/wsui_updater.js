@@ -45,17 +45,22 @@ function triggerTxRefresh(){
 }
 
 function showRescan(data, bDbg) {
-  let uiMessage = data.uiMessage;
-  let statusText = '';
+  let statusText = data.uiMessage.toString();
 
-  if (!bDbg && wsession.get('serviceReady')) return;
-  statusText = '' + uiMessage;
+  if (wsession.get('synchronized', false)) {
+    return;
+  }
 
   // sync info bar class
   syncDiv.className = '';
-  const iconSync = document.getElementById('navbar-icon-sync');
-  iconSync.setAttribute('data-icon', 'check');
-  syncInfoBar.textContent = statusText;
+
+  if (!bDbg && wsession.get('serviceReady')) {
+    connInfoDiv.innerHTML = statusText;
+  } else {
+    const iconSync = document.getElementById('navbar-icon-sync');
+    iconSync.setAttribute('data-icon', 'check');
+    syncInfoBar.textContent = statusText;
+  }
 
   if(WFCLEAR_TICK === 0 || WFCLEAR_TICK === WFCLEAR_INTERVAL){
     webFrame.clearCache();
@@ -70,7 +75,7 @@ function updateSyncProgress(data){
     let daemonHeight = data.displayDaemonHeight;
     let knownBlockCount = data.displayKnownBlockCount+1;
     let blockSyncPercent = data.syncPercent;
-    let uiMessage = data.uiMessage;
+    let uiMessage = data.uiMessage.toString();
     let statusText = '';
     let syMsg = '';
 
@@ -217,7 +222,10 @@ function updateSyncProgress(data){
         if (connNodeFee > 0 ) {
             connStatusText += ` | Node fee: <strong>${connNodeFee.toFixed(config.decimalPlaces)} ${config.assetTicker}</strong>`;
         }
-        connInfoDiv.innerHTML = connStatusText;
+
+        if (wsession.get('synchronized', false)) {
+          connInfoDiv.innerHTML = connStatusText;
+        }
         connInfoDiv.classList.remove('conn-warning');
         connInfoDiv.classList.remove('empty');
     }

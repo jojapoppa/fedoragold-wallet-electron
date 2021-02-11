@@ -54,10 +54,10 @@ function checkBlockUpdate(){
 
         // jojapoppa, later show a "signal" like what you see on a cell phone with the bars...
         let peerCount = parseInt(blockStatus.peerCount, 10);
-        if ((peerCount < 2) || (kbcReturn < 100)) {
+        if ((peerCount < 1) || (kbcReturn < 100)) {
 
           // Activates the "pause" symbol in the UI - show that network is disconnected
-          var peerMsg = " Peers: "+peerCount+" (2 minimum required)";
+          var peerMsg = " Peers: "+peerCount+" (1 minimum required)";
           let fakeStatus = {
             blockCount: -50,
             displayBlockCount: -50,

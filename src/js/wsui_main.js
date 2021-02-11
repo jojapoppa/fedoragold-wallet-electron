@@ -2186,7 +2186,7 @@ function handleSendTransfer(){
 
                 let txhashUrl = `<a class="external" id="explorer-link" title="view in block explorer" href="https://explorer.fedoragold.com/?proofTx=${result.transactionHash}&proofPayment=${result.proof}&proofAddress=${tx.address}#check_payment">${result.transactionHash}</a>`;
 
-                let okMsg = `Transaction sent!<br>Tx. hash: ${txhashUrl}.<br>Your balance may appear incorrect while transaction not fully confirmed.`;
+                let okMsg = `<blink>THIS IS YOUR PAYMENT PROOF.   KEEP THIS LINK IF NEEDED!</blink><br>Sent with Tx. hash: ${txhashUrl}.<br>Your balance may appear incorrect while transaction not fully confirmed.`;
                 formMessageSet('send', 'success', okMsg);
                 // check if it's new address, if so save it
                 let newId = wsutil.b2sSum(recipientAddress + paymentId);
@@ -2593,6 +2593,7 @@ function initHandlers(){
     let darkStart = settings.get('darkmode', false);
     setDarkMode(darkStart);
     handleNetworkChange();
+    var bindable = this;
 
     //external link handler
     wsutil.liveEvent('a.external', 'click', (event) => {
@@ -2777,21 +2778,24 @@ function initHandlers(){
 
     var enterHandler;
     function handleFormEnter(el){
-        if(enterHandler) clearTimeout(enterHandler);
+        if (enterHandler) clearTimeout(enterHandler);
 
-        let key = this.event.key;
-        enterHandler = setTimeout(()=>{
+        // capture the ENTER key input ...
+        if (this != undefined) {
+          let key = this.event.key;
+          enterHandler = setTimeout(()=>{
             if(key === 'Enter'){
                 let section = el.closest('.section');
                 let target = section.querySelector('button:not(.notabindex)');
                 if(target) target.dispatchEvent(new Event('click'));
             }
-        },400);
+          }, 400);
+        }
     }
 
-    for(var oi=0;oi<genericEnterableInputs.length;oi++){
+    for(var oi=0;oi<genericEnterableInputs.length;oi++) {
         let el = genericEnterableInputs[oi];
-        el.addEventListener('keyup', handleFormEnter.bind(this, el));
+        el.addEventListener('keyup', handleFormEnter.bind(bindable, el));
     }
 
     let tp = document.querySelectorAll('.togpass');

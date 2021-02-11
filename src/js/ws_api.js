@@ -339,7 +339,7 @@ class WalletShellApi {
            this._sendRequest('stop', false, {}, 10000, true).then((result) => {
                return resolve(result);
            }).catch((err) => {
-               return reject(err);
+               resolve("stopped"); // not fatal... the process may have just ended anyway
            });
         });                     
     }   

@@ -380,8 +380,8 @@ WalletShellManager.prototype._writeConfig = function(cfg){
     }
 };
 
-function cleanAddress(inAddr) {
-  inAddr = ""+inAddr.trim();
+function cleanAddress(aAddr) {
+  let inAddr = aAddr.trim();
   let walletAddress = inAddr;
   if (inAddr.length > 0) {
     let alocat = inAddr.indexOf("Address:");
@@ -391,6 +391,9 @@ function cleanAddress(inAddr) {
       //log.warn("WALLET ADDRESS CLEANED: "+walletAddress);
     }
   }
+
+log.warn("The walletAddress: "+walletAddress);
+
   return walletAddress;
 }
 
@@ -429,7 +432,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
   this.stdBuf = "";
   var wsm = this;
 
-  this.walletProcess = childProcess.exec(runBin, { timeout: 20000, maxBuffer: 2000 * 1024, env: {x: 0} });
+  this.walletProcess = childProcess.exec(runBin, { timeout: 20000, maxBuffer: 4000 * 1024, env: {x: 0} }); // maxBuffer: 2000 * 1024
   this.walletProcess.on('close', () => {
       if ((wsm.stdBuf.length == 0) || (wsm.stdBuf.search("password is wrong") >= 0)) {
         onError("Password: "+ERROR_WALLET_PASSWORD+": "+wsm.stdBuf);
@@ -565,10 +568,9 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     //confirm("args: "+serviceArgs);
 
     try{
-        this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs,
-          {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
+        this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs);
+          //{detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
         this.servicePid = this.serviceProcess.pid;
-
     } catch(e) {
         if (onError) onError(ERROR_WALLET_EXEC);
         log.error(`${config.walletServiceBinaryFilename} is not running`);
@@ -590,10 +592,6 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         wsm.syncWorker.stopSyncWorker();
         log.warn(`${config.walletServiceBinaryFilename} error: ${err.message}`);
     });
-
-    //this.serviceProcess.stdout.on('data', function(chunky) {
-    //    log.warn(chunky.toString());
-    //});
 
     if(!this.serviceStatus()){
         if(onError) onError(ERROR_WALLET_EXEC);
@@ -734,9 +732,12 @@ WalletShellManager.prototype.stopSyncWorker = function(){
 
     try{
         this.syncWorker.send({type: 'stop', data: {}});
-        setTimeout(function (){
-          this.syncWorker.kill('SIGTERM');
-          this.syncWorker  = null;
+
+        setTimeout(function () {
+            if (this.syncWorker != undefined) {
+              this.syncWorker.kill('SIGTERM');
+              this.syncWorker  = null;
+            }
         }, 500);
     }catch(e){
         log.debug(`syncworker already stopped`);

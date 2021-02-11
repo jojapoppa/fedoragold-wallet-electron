@@ -13,6 +13,9 @@ const v8 = require('v8');
 const ip2int = require('ip2int');
 const associativeArray = require('associative-array');
 
+const minMemory = 2.5; // GB
+const minStorage = 20; // GB
+
 const path = require('path');
 const vm = require('vm');
 const fs = require('fs');
@@ -309,20 +312,25 @@ const getHttpContent = function(url) {
   return new Promise((resolve, reject) => {
     // select http or https module, depending on reqested url
     const lib = url.startsWith('https') ? require('https') : require('http');
-    const request = lib.get(url, (response) => {
-      // handle http errors
-      if (response.statusCode < 200 || response.statusCode > 299) {
-         reject(new Error('Failed to load page, status code: ' + response.statusCode));
-       }
-      // temporary data holder
-      const body = [];
-      // on every content chunk, push it to the data array
-      response.on('data', (chnk) => body.push(chnk));
-      // we are done, resolve promise with those joined chunks
-      response.on('end', () => resolve(body.join('')));
-    });
-    // handle connection errors of the request
-    request.on('error', (err) => reject(err));
+    try {
+
+      const request = lib.get(url, (response) => {
+        // handle http errors
+        if (response.statusCode < 200 || response.statusCode > 299) {
+           reject(new Error('Failed to load page, status code: ' + response.statusCode));
+         }
+        // temporary data holder
+        const body = [];
+        // on every content chunk, push it to the data array
+        response.on('data', (chnk) => body.push(chnk));
+        // we are done, resolve promise with those joined chunks
+        response.on('end', () => resolve(body.join('')));
+      });
+
+      // handle connection errors of the request
+      request.on('error', (err) => reject(err));
+
+    } catch (e) {/*do nothing*/ }
   });
 };
 
@@ -1645,10 +1653,11 @@ const checkFallback = setIntervalAsync(() => {
 }, 30000);
 */
 
-function sendConsoleThinMsg() {
+function sendConsoleThinMsg(mem, stor) {
   if (win!==null) {
-    let text = "thin mode...\nInsufficient memory or storage to run a local daemon.\n";
-    text = text+"Wallet will therefore run with remote daemons.\n...\n";
+    let text = "Insufficient memory or storage to run a local daemon...\n";
+    text = text+"memory: "+mem+"GB, diskspace: "+stor+"GB\n";
+    text = text+"(need at lease: "+minMemory+"GB RAM, and: "+minStorage+"GB disk space)\n\n";
     //log.warn(text);
     win.webContents.send('console', text);
   }
@@ -1664,8 +1673,8 @@ function checkMemoryAndStorage() {
   //log.warn("checkMemoryAndStorage()");
 
   let gbMemoryAvailable = (opsys.totalmem() / (1024 * 1024 * 1024)).toFixed(1);
-  if ((gbMemoryAvailable < 2.5) || (gbStorageAvailable < 25)) {
-    sendConsoleThinMsg();
+  if ((gbMemoryAvailable < minMemory) || (gbStorageAvailable < minStorage)) {
+    sendConsoleThinMsg(gbMemoryAvailable, gbStorageAvailable);
     return false;
   }
 

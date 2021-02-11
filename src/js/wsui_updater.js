@@ -51,12 +51,11 @@ function showRescan(data, bDbg) {
     return;
   }
 
-  // sync info bar class
-  syncDiv.className = '';
-
   if (!bDbg && wsession.get('serviceReady')) {
+    //syncDiv.className = 'syncing';
     connInfoDiv.innerHTML = statusText;
   } else {
+    syncDiv.className = '';
     const iconSync = document.getElementById('navbar-icon-sync');
     iconSync.setAttribute('data-icon', 'check');
     syncInfoBar.textContent = statusText;

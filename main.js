@@ -1575,15 +1575,16 @@ function runDaemon() {
     let daemonArgs = [
       '--rpc-bind-ip', '0.0.0.0',
       '--rpc-bind-port', settings.get('daemon_port'),
-      '--add-priority-node', '202.182.106.252:30158', //'95.179.224.170:30158', 
-      '--add-priority-node', '213.136.89.252:30158'
-      //'--log-file', 'fedoragolddaemon.log' // may want to add an optional switch for this later...
     ];
 
+      //'--add-priority-node', '202.182.106.252:30158', //'95.179.224.170:30158', 
+      //'--add-priority-node', '213.136.89.252:30158'
+      //'--log-file', 'fedoragolddaemon.log' // may want to add an optional switch for this later...
+
     //log.warn(v8.getHeapStatistics());
-    //let totalHeapSize = v8.getHeapStatistics().total_available_size;
-    //let totalHeapSizeGB = (totalHeapSize / 1024 / 1024 / 1024).toFixed(2);
-    //log.warn("Total heap: "+totalHeapSizeGB+"GB");
+    let totalHeapSize = v8.getHeapStatistics().total_available_size;
+    let totalHeapSizeGB = (totalHeapSize / 1024 / 1024 / 1024).toFixed(2);
+    log.warn("Running daemon with total heap: "+totalHeapSizeGB+"GB");
 
     // unable to get this mode working yet, but seems to work for Meroex!
     app.integratedDaemon = false;

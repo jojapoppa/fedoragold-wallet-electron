@@ -29,7 +29,8 @@ config.defaultCjdnsBeaconPort = 64512;
 config.defaultCjdnsSocks5Port = 1080;
 
 // block explorer url, the [[TX_HASH] will be substituted w/ actual transaction hash
-config.blockExplorerUrl = 'http://explorer.fedoragold.com/gettransaction.php?hash=[[TX_HASH]]';
+//config.blockExplorerUrl = 'http://explorer.fedoragold.com/gettransaction.php?hash=[[TX_HASH]]';
+config.blockExplorerUrl = 'https://explorer.fedoragold.com/?hash=[[TX_HASH]]#transaction';
 
 // default remote node to connect to, set this to a known reliable node for 'just works' user experience
 config.remoteNodeDefaultHost = '127.0.0.1'; // then fallback to seed1 etc...

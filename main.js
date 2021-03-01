@@ -1523,6 +1523,9 @@ electron.dialog.showErrorBox = (title, content) => {
 
 process.on('unhandledRejection', function(err) {});
 function terminateDaemon() {
+
+log.warn("terminateDaemon...");
+
     // hit the stop_daemon rest interface...
     let aurl = `http://127.0.0.1:${settings.get('daemon_port')}/stop_daemon`;
     let libr = aurl.startsWith('https') ? require('https') : require('http');
@@ -1540,11 +1543,15 @@ function terminateDaemon() {
         app.daemonProcess.stdin.end();
       }
     } catch(e) {/*eat any errors, no reporting nor recovery needed...*/}
+
+log.warn("terminate done...");
 }
 
 app.on('window-all-closed', app.quit);
 app.on('before-quit', () => {
   terminateDaemon();
+
+log.warn("task kill...");
 
   switch(process.platform) {
   case 'win32':
@@ -1557,6 +1564,9 @@ app.on('before-quit', () => {
     exec('killall -9 ' + 'fedoragoldwallet.bin');
     break;
   }
+
+log.warn("task kill done...");
+
 });
 
 function runDaemon() {
@@ -1573,6 +1583,9 @@ function runDaemon() {
     else {
       daemonPath = settings.get('daemon_bin');
     }
+
+    //daemonPath = "/usr/local/bin/gdb --batch -x /Users/jojapoppa/empty.txt --args "+daemonPath;
+    //log.warn("daemonPath: "+daemonPath);
 
     // Don't allow binding on port 0 
     if (settings.get('daemon_port') === 0) {

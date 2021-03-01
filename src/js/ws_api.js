@@ -27,6 +27,10 @@ class WalletShellApi {
     }
 
     _sendRequest(method, todaemon, paramsIn, timeoutIn, needsAuth) {
+
+    //if (todaemon) log.warn("todaemon"); else log.warn("not to daemon");
+    //log.warn("_sendRequest: "+method);
+
         return new Promise((resolve, reject) => {
             if (method.length === 0) return reject(new Error('Invalid Method'));
             var params = paramsIn || {};

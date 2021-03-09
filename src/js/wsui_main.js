@@ -1064,6 +1064,7 @@ async function runCjdns() {
 
 var savePending=false;
 function saveSettings() {
+
         formMessageReset();
    
         let daemonPortValue = settingsInputDaemonPort.value ? parseInt(settingsInputDaemonPort.value.trim(),10) : '';
@@ -1077,6 +1078,7 @@ function saveSettings() {
             return false;
         }
 
+        /*
         let cjdnsadminPortValue =
           settingsCjdnsAdminPort.value ? parseInt(settingsCjdnsAdminPort.value.trim(),10) :
             parseInt(config.defaultCjdnsAdminPort);
@@ -1090,18 +1092,21 @@ function saveSettings() {
           settingsCjdnsSocks5Port.value ? parseInt(settingsCjdnsSocks5Port.value.trim(),10) :
             parseInt(config.defaultCjdnsSocks5Port);
 
-        if(!Number.isInteger(cjdnsadminPortValue)){
-          cjdnsadminPortValue = parseInt(config.defaultCjdnsAdminPort);
-        }
-        if(!Number.isInteger(cjdnsUDPPortValue)){
-          cjdnsUDPPortValue = parseInt(config.defaultCjdnsUDPPort);
-        }
-        if(!Number.isInteger(cjdnsBeaconPortValue)){
-          cjdnsBeaconPortValue = parseInt(parseInt(config.defaultCjdnsBeaconPort));
-        }
-        if(!Number.isInteger(cjdnsSocks5PortValue)){
-          cjdnsSocks5PortValue = parseInt(parseInt(config.defaultCjdnsSocks5Port));
-        }
+        log.warn("got cjdns vals");
+        */
+
+        //if(!Number.isInteger(cjdnsadminPortValue)){
+          let cjdnsadminPortValue = parseInt(config.defaultCjdnsAdminPort);
+        //}
+        //if(!Number.isInteger(cjdnsUDPPortValue)){
+          let cjdnsUDPPortValue = parseInt(config.defaultCjdnsUDPPort);
+        //}
+        //if(!Number.isInteger(cjdnsBeaconPortValue)){
+          let cjdnsBeaconPortValue = parseInt(parseInt(config.defaultCjdnsBeaconPort));
+        //}
+        //if(!Number.isInteger(cjdnsSocks5PortValue)){
+          let cjdnsSocks5PortValue = parseInt(parseInt(config.defaultCjdnsSocks5Port));
+        //}
 
 //jojapoppa service_bin: serviceBinValue,
 //jojapoppa settings.get('daemon_port'),
@@ -1161,14 +1166,20 @@ function triggerSave() {
 }
 
 function handleSettings() {
-  settingsInputDaemonPort.addEventListener('click', function() { triggerSave(); });
-  settingsInputWalletdPort.addEventListener('click', function() { triggerSave(); });
 
-  //jojapoppa
+  settingsInputDaemonPort.addEventListener('click', function() { triggerSave(); });
+  settingsInputDaemonPort.addEventListener('input', function() { triggerSave(); });
+  settingsInputWalletdPort.addEventListener('click', function() { triggerSave(); });
+  settingsInputWalletdPort.addEventListener('input', function() { triggerSave(); });
+
   //settingsCjdnsAdminPort.addEventListener('click', function() { triggerSave(); });
+  //settingsCjdnsAdminPort.addEventListener('input', function() { triggerSave(); });
   //settingsCjdnsUDPPort.addEventListener('click', function() { triggerSave(); });
+  //settingsCjdnsUDPPort.addEventListener('input', function() { triggerSave(); });
   //settingsCjdnsBeaconPort.addEventListener('click', function() { triggerSave(); });
+  //settingsCjdnsBeaconPort.addEventListener('input', function() { triggerSave(); });
   //settingsCjdnsSocks5Port.addEventListener('click', function() { triggerSave(); });
+  //settingsCjdnsSocks5Port.addEventListener('input', function() { triggerSave(); });
 }
 
 function handleAddressBook(){
@@ -1416,8 +1427,6 @@ function handleWalletOpen(){
 
     walletOpenButtonOpen.addEventListener('click', () => {
 
-        //log.warn("open button clicked...");
-
         formMessageReset();
         if (isRescan) {
             showToast('Rescan is in progress, please wait.');
@@ -1503,6 +1512,7 @@ function handleWalletOpen(){
             //cjdnsbeacon_port: cjdnsBeaconPortValue,
             //cjdnssocks5_port: cjdnsSocks5PortValue
         };
+
         initSettingVal(settingVals);
         initNodeCompletion();
 

@@ -41,8 +41,23 @@
                             />
                             <span id="sendFormHelpMin" class="form-help">Min. fee is 0.10 FED</span>
                     </div>
+
+                    <!-- This is a workaround for a rather distressing bug in the mac osx layout manager. -->
+                    <!-- div class="class="div-send-fee inline-block-div half-width half-width-end" -->
+                    <div class='inline-block-div'> <!-- style='display:flex;border:1px solid gray;' -->
+                      <div>
+                        <input tabindex="0" type="checkbox" 
+                          style="transform:scale(2);vertical-align:middle;"
+                          id="checkbox-usemixin" value="1" checked/>
+                      </div>
+                      <label for="checkbox-usemixin" class="checkbox-label" style="white-space:nowrap;">
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        Use mixin for anonymous transactions
+                      </label>
+                    </div>
+
                 </div>
-                                
+
                 <div class="input-wrap">
                     <span class="form-ew form-msg text-spaced-error" id="text-send-error"></span>
                     <span class="form-ew form-msg text-spaced-warning" id="text-send-warning"></span>

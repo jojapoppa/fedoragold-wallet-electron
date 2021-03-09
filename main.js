@@ -308,6 +308,8 @@ const getHttpContent = function(url) {
 
   if (app.terminateMode) return;
 
+log.warn("calling getHttpContent: "+url);
+
   // return new pending promise
   return new Promise((resolve, reject) => {
     // select http or https module, depending on reqested url
@@ -1249,6 +1251,8 @@ const checkSeedTimer = setIntervalAsync(() => {
 
   if (app.terminateMode) return;
 
+  log.warn("checkSeedTimer...");
+
   // just to get an initial value... don't tax the server
   testTimes = testTimes-1;
   if (testTimes <= 0) return;
@@ -1265,6 +1269,8 @@ const checkDaemonHeight = setIntervalAsync(() => {
 
   if (app.terminateMode) return;
 
+  log.warn("checkDaemonHeight...");
+
   // grab whateveris between the : and the ,
   getHttpContent(aurl)
   .then((html) => app.heightVal = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
@@ -1274,23 +1280,15 @@ const checkDaemonHeight = setIntervalAsync(() => {
 function splitLines(t) { return t.split(/\r\n|\r|\n/); }
 const checkDaemonTimer = setIntervalAsync(() => {
 
-
-let totalHeapSize = v8.getHeapStatistics().total_available_size;
-let totalHeapSizeGB = (totalHeapSize / 1024 / 1024 / 1024).toFixed(2);
-
-
-//    if (app.daemonPid > 0) pidusage(app.daemonPid, function(err, stats) {
-//      log.warn("pidusage stats: "+util.inspect(stats, {depth: null}));
-//    });
-
-    // reset doesn't work on mac osx, but seems stable there anyway, so just skip it...
-    //if (app.localDaemonRunning && process.platform === 'darwin') {
-    //  return;
-    //}
-
     if (app.terminateMode) {
       return;
     }
+
+    //let totalHeapSize = v8.getHeapStatistics().total_available_size;
+    //let totalHeapSizeGB = (totalHeapSize / 1024 / 1024 / 1024).toFixed(2);
+    //    if (app.daemonPid > 0) pidusage(app.daemonPid, function(err, stats) {
+    //      log.warn("pidusage stats: "+util.inspect(stats, {depth: null}));
+    //    });
 
     var cmd = `ps -ex`;
     switch (process.platform) {
@@ -1366,8 +1364,9 @@ let totalHeapSizeGB = (totalHeapSize / 1024 / 1024 / 1024).toFixed(2);
           app.localDaemonRunning = false;
           app.daemonProcess = null;
           app.daemonPid = null;
+
           //log.warn(procStr);
-          //log.warn("runDaemon()...");
+          log.warn("daemon process no longer detected: runDaemon()...");
           runDaemon();
         }
     });
@@ -1584,18 +1583,10 @@ function runDaemon() {
       daemonPath = settings.get('daemon_bin');
     }
 
-    //daemonPath = "/usr/local/bin/gdb --batch -x /Users/jojapoppa/empty.txt --args "+daemonPath;
-    //log.warn("daemonPath: "+daemonPath);
-
     // Don't allow binding on port 0 
     if (settings.get('daemon_port') === 0) {
         return;
     }
-
-    let daemonArgs = [
-      '--rpc-bind-ip', '0.0.0.0',
-      '--rpc-bind-port', settings.get('daemon_port'),
-    ];
 
       //'--add-priority-node', '202.182.106.252:30158', //'95.179.224.170:30158', 
       //'--add-priority-node', '213.136.89.252:30158'
@@ -1604,7 +1595,7 @@ function runDaemon() {
     //log.warn(v8.getHeapStatistics());
     let totalHeapSize = v8.getHeapStatistics().total_available_size;
     let totalHeapSizeGB = (totalHeapSize / 1024 / 1024 / 1024).toFixed(2);
-    //log.warn("Running daemon with total heap: "+totalHeapSizeGB+"GB");
+    log.warn("Running daemon with total heap: "+totalHeapSizeGB+"GB");
 
     // unable to get this mode working yet, but seems to work for Meroex!
     app.integratedDaemon = false;
@@ -1613,8 +1604,21 @@ function runDaemon() {
 
     try {
         if (! app.integratedDaemon) { 
-          app.daemonProcess = spawn(daemonPath, daemonArgs, 
-            {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+          if (platform == 'darwin') {
+            //daemonPath = "/bin/cat /tmp/empty.txt | /usr/local/bin/gdb "+daemonPath;
+            //log.warn("mac daemonPath: "+daemonPath);
+            app.daemonProcess = exec(daemonPath
+              +' --rpc-bind-ip 0.0.0.0 --rpc-bind-port '+settings.get('daemon_port')
+              ,{detached: true, stdio: ['ignore','pipe',process.stderr], encoding: 'utf-8'});
+              //,{detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+          } else {
+            let daemonArgs = [
+              '--rpc-bind-ip', '0.0.0.0',
+              '--rpc-bind-port', settings.get('daemon_port'),
+            ];
+            app.daemonProcess = spawn(daemonPath, daemonArgs,
+              {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+          }
           app.daemonPid = app.daemonProcess.pid;
         }
 

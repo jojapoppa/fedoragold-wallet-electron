@@ -315,14 +315,14 @@ class WalletShellApi {
               req_params = {
                 transfers: [{ address: params.address, amount: params.amount }],
                 paymentId: params.paymentId,
-                anonymity: 22, 
+                anonymity: 0, //22,  creating new flag for this in UI
                 unlockTime: 0,
                 fee: params.fee
               };
             } else {
               req_params = {
                 transfers: [{ address: params.address, amount: params.amount }],
-                anonymity: 22,
+                anonymity: 0, //22, creating new flag for this in UI
                 unlockTime: 0,
                 fee: params.fee
               };

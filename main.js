@@ -308,8 +308,6 @@ const getHttpContent = function(url) {
 
   if (app.terminateMode) return;
 
-log.warn("calling getHttpContent: "+url);
-
   // return new pending promise
   return new Promise((resolve, reject) => {
     // select http or https module, depending on reqested url
@@ -1251,8 +1249,6 @@ const checkSeedTimer = setIntervalAsync(() => {
 
   if (app.terminateMode) return;
 
-  log.warn("checkSeedTimer...");
-
   // just to get an initial value... don't tax the server
   testTimes = testTimes-1;
   if (testTimes <= 0) return;
@@ -1268,8 +1264,6 @@ const checkDaemonHeight = setIntervalAsync(() => {
   var aurl = `http://127.0.0.1:${settings.get('daemon_port')}/getheight`;
 
   if (app.terminateMode) return;
-
-  log.warn("checkDaemonHeight...");
 
   // grab whateveris between the : and the ,
   getHttpContent(aurl)
@@ -1353,11 +1347,14 @@ const checkDaemonTimer = setIntervalAsync(() => {
             log.warn(errmsg);
             app.localDaemonRunning = true;
             if (win!==undefined&&win!==null) win.webContents.send('console', errmsg);
-            //log.warn("killing the daemon!!");
+
+            log.warn("killing the daemon!!");
+
             /* eslint-disable-next-line no-empty */
             try{killer(app.daemonPid,'SIGKILL');}catch(err){} 
             return;
           } else {
+            //log.warn("local daemon is running fine...");
             app.localDaemonRunning = true;
           }
         } else {
@@ -1367,7 +1364,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
 
           //log.warn(procStr);
           log.warn("daemon process no longer detected: runDaemon()...");
-          runDaemon();
+          //runDaemon();
         }
     });
 }, 15000);

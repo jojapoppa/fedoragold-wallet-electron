@@ -909,10 +909,10 @@ WalletShellManager.prototype.getSecretKeys = function(address){
     });
 };
 
-WalletShellManager.prototype.sendTransaction = function(params){
+WalletShellManager.prototype.sendTransaction = function(useMixin, params){
     let wsm = this;
     return new Promise((resolve, reject) => {
-        wsm.serviceApi.sendTransaction(params).then((result) => {
+        wsm.serviceApi.sendTransaction(useMixin, params).then((result) => {
             return resolve(result);
         }).catch((err) => {
             //log.warn("walletshellmgr: "+err);

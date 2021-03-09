@@ -2186,8 +2186,13 @@ function handleSendTransfer(){
         sendBtn.addEventListener('click', (event) => {
             let md = document.querySelector(event.target.dataset.target);
             md.close();
+
+            let mix = document.getElementById('checkbox-usemixin');
+            let useMixin = mix.checked;
+            //log.warn("useMixin: "+useMixin);
+
             formMessageSet('send', 'warning', 'Sending transaction, please wait...<br><progress></progress>');
-            wsmanager.sendTransaction(tx).then((result) => {
+            wsmanager.sendTransaction(useMixin, tx).then((result) => {
                 formMessageReset();
                 let href = config.blockExplorerUrl.replace('[[TX_HASH]]', result.transactionHash);
 

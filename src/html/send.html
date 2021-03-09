@@ -23,7 +23,7 @@
                 </div>
                 
                 <div class="input-wrap">
-                    <div class="div-send-amount  inline-block-div half-width">
+                    <div class="div-send-amount inline-block-div half-width">
                         <h4 class="text-spaced input-required">Amount</h4>
                         <input tabindex="0" title="Required, amount of FED you want to send..." 
                             required="required" max="1.00" type="number" step="0.10" 
@@ -42,17 +42,13 @@
                             <span id="sendFormHelpMin" class="form-help">Min. fee is 0.10 FED</span>
                     </div>
 
+                    <p/>
                     <!-- This is a workaround for a rather distressing bug in the mac osx layout manager. -->
-                    <!-- div class="class="div-send-fee inline-block-div half-width half-width-end" -->
-                    <div class='inline-block-div'> <!-- style='display:flex;border:1px solid gray;' -->
-                      <div>
-                        <input tabindex="0" type="checkbox" 
-                          style="transform:scale(2);vertical-align:middle;"
-                          id="checkbox-usemixin" value="1" checked/>
-                      </div>
-                      <label for="checkbox-usemixin" class="checkbox-label" style="white-space:nowrap;">
-                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                        Use mixin for anonymous transactions
+                    <!-- style="white-space:nowrap;" -->
+                    <div class='div-send-amount inline-block-div half-width'>
+                      <label for="checkbox-usemixin" class="checkbox-label"
+                        style="white-space:nowrap;display:flex;align-items:left;">
+                        Use mixin for anonymous transactions: <input tabindex="0" type="checkbox" id="checkbox-usemixin" value="1" checked/>
                       </label>
                     </div>
 

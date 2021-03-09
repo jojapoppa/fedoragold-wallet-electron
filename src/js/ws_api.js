@@ -297,7 +297,14 @@ class WalletShellApi {
         });
     }
     // send single transaction
-    sendTransaction(params) {
+    sendTransaction(useMixin, params) {
+
+        //log.warn("api sendTransaction, useMixin: "+useMixin);
+        let anonLevel = 22;
+        if (!useMixin) {
+          anonLevel = 0;
+        }
+
         return new Promise((resolve, reject) => {
             params = params || {};
             params.amount = params.amount || false;
@@ -315,14 +322,14 @@ class WalletShellApi {
               req_params = {
                 transfers: [{ address: params.address, amount: params.amount }],
                 paymentId: params.paymentId,
-                anonymity: 0, //22,  creating new flag for this in UI
+                anonymity: anonLevel,
                 unlockTime: 0,
                 fee: params.fee
               };
             } else {
               req_params = {
                 transfers: [{ address: params.address, amount: params.amount }],
-                anonymity: 0, //22, creating new flag for this in UI
+                anonymity: anonLevel,
                 unlockTime: 0,
                 fee: params.fee
               };

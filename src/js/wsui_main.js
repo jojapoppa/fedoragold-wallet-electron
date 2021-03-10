@@ -208,7 +208,6 @@ function populateElementVars(){
 
     // show/export keys page
     overviewShowKeyButton = document.getElementById('button-show-reveal');
-    showkeyButtonExportKey = document.getElementById('button-show-export');
     showkeyInputViewKey = document.getElementById('key-show-view');
     showkeyInputSpendKey = document.getElementById('key-show-spend');
     //showkeyInputSeed = document.getElementById('seed-show');
@@ -1843,7 +1842,7 @@ function handleWalletExport(){
         });
     });
 
-    showkeyButtonExportKey.addEventListener('click', () => {
+    /*showkeyButtonExportKey.addEventListener('click', () => {
         formMessageReset();
         let filename = remote.dialog.showSaveDialog({
             title: "Export keys to file...",
@@ -1867,7 +1866,7 @@ function handleWalletExport(){
                 formMessageSet('secret','error', "Failed to get keys, please try again in a few seconds");
             });
         }
-    });
+    });*/
 }
 
 function consoleUI(el, sChunk, bDaemon, rigID) {
@@ -2425,7 +2424,7 @@ function handleTransactions(){
         mode = mode || 'all';
         let recentDir = settings.get('recentWalletDir', remote.app.getPath('home'));
         let filename = remote.dialog.showSaveDialog({
-            title: "Export transactions as scv...",
+            title: "Export transactions as csv...",
             defaultPath: recentDir,
             filters: [
                 { name: 'CSV files', extensions: ['csv'] }

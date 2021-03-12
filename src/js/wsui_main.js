@@ -57,7 +57,7 @@ let cjdnsBin = null;
 let cjdnsCfg = null;
 
 // settings page
-let settingsInputDaemonAddress;
+//let settingsInputDaemonAddress;
 let settingsInputDaemonPort;
 let settingsInputWalletdPort;
 let settingsInputServiceBin;
@@ -159,8 +159,9 @@ function populateElementVars(){
     sectionButtons = document.querySelectorAll('[data-section]');
 
     // settings input & elements
-    settingsInputDaemonAddress = document.getElementById('input-settings-daemon-address');
+    //settingsInputDaemonAddress = document.getElementById('input-settings-daemon-address');
     settingsInputDaemonPort = document.getElementById('input-settings-daemon-port');
+     
     settingsInputWalletdPort = document.getElementById('input-settings-walletd-port');
     settingsInputServiceBin = document.getElementById('input-settings-path');
     //settingsInputMinToTray = document.getElementById('checkbox-tray-minimize');
@@ -600,9 +601,9 @@ function initNodeCompletion(){
             suggest(matches);
         },
         onSelect: function(e, term){
-            settingsInputDaemonAddress.value = term.split(':')[0];
+            //settingsInputDaemonAddress.value = term.split(':')[0];
             settingsInputDaemonPort.value = term.split(':')[1];
-            settingsInputDaemonAddress.dispatchEvent(new Event('blur'));
+            //settingsInputDaemonAddress.dispatchEvent(new Event('blur'));
             return settingsButtonSave.dispatchEvent(new Event('focus'));
         }
     });
@@ -614,7 +615,7 @@ function initSettingVal(values){
     if(values){
         // save new settings
         //settings.set('service_bin', values.service_bin);
-        settings.set('daemon_host', values.daemon_host);
+        //settings.set('daemon_host', values.daemon_host);
         settings.set('daemon_port', values.daemon_port);
         settings.set('walletd_port', values.walletd_port);
         //settings.set('tray_minimize', values.tray_minimize);
@@ -642,7 +643,7 @@ function initSettingVal(values){
     }
 
     //settingsInputServiceBin.value = settings.get('service_bin');
-    settingsInputDaemonAddress.value = settings.get('daemon_host');
+    //settingsInputDaemonAddress.value = settings.get('daemon_host');
     settingsInputDaemonPort.value = settings.get('daemon_port');
     settingsInputWalletdPort.value = settings.get('walletd_port');
     //settingsInputMinToTray.checked = settings.get('tray_minimize');
@@ -1410,6 +1411,7 @@ function handleAddressBook(){
 }
 
 function handleWalletOpen(){
+
     if(settings.has('recentWallet')){
         walletOpenInputPath.value = settings.get('recentWallet');
         //log.warn("walletOpenInputPath: "+walletOpenInputPath.value);
@@ -1433,11 +1435,12 @@ function handleWalletOpen(){
         }
 
         // node settings thingy
-        let daemonHostValue = settingsInputDaemonAddress.value ? settingsInputDaemonAddress.value.trim() :'';
+        //let daemonHostValue = settingsInputDaemonAddress.value ? settingsInputDaemonAddress.value.trim() :'';
         let daemonPortValue = settingsInputDaemonPort.value ? parseInt(settingsInputDaemonPort.value.trim(),10) : '';
         let walletdPortValue = settingsInputWalletdPort.value ? parseInt(settingsInputWalletdPort.value.trim(),10) : '';
 
-        if(!daemonHostValue.length || !Number.isInteger(daemonPortValue)){
+        //if(!daemonHostValue.length || !Number.isInteger(daemonPortValue)){
+        if(!Number.isInteger(daemonPortValue)){
             formMessageSet('load','error',`Please input a valid daemon port`);
             return false;
         }
@@ -1477,6 +1480,7 @@ function handleWalletOpen(){
 
         */
 
+        /*
         let validHost = daemonHostValue === 'localhost' ? true : false;
         if(require('net').isIP(daemonHostValue)) validHost = true;
         if(!validHost){
@@ -1487,6 +1491,7 @@ function handleWalletOpen(){
             formMessageSet('load','error',`Invalid daemon/node address!`);
             return false;
         }
+        */
 
         if(daemonPortValue <=0){
             formMessageSet('load','error',`Invalid daemon/node port number!`);
@@ -1499,7 +1504,7 @@ function handleWalletOpen(){
 
         let settingVals = {
             service_bin: settings.get('service_bin'),
-            daemon_host: daemonHostValue,
+            daemon_host: settings.get('daemon_host'), 
             daemon_port: daemonPortValue,
             walletd_port: walletdPortValue,
             tray_minimize: settings.get('tray_minimize'),
@@ -1519,7 +1524,7 @@ function handleWalletOpen(){
         if(!walletOpenInputPath.value){
             formMessageSet('load','error', "Invalid wallet file path");
             WALLET_OPEN_IN_PROGRESS = false;
-            setOpenButtonsState(0);
+            setOpenButtonsState(false);
             return;
         }
 
@@ -1527,7 +1532,7 @@ function handleWalletOpen(){
             formMessageReset();
             formMessageSet('load','error', err);
             WALLET_OPEN_IN_PROGRESS = false;
-            setOpenButtonsState(0);
+            setOpenButtonsState(false);
             return false;
         }
 
@@ -1538,7 +1543,7 @@ function handleWalletOpen(){
             WALLET_OPEN_IN_PROGRESS = false;
             changeSection('section-overview');
             setTimeout(()=>{
-                setOpenButtonsState(0);
+                setOpenButtonsState(false);
             },300);
         }
 
@@ -1555,12 +1560,12 @@ function handleWalletOpen(){
         fs.access(walletFile, fs.constants.R_OK, (err) => {
             if(err){
                 formMessageSet('load','error', "Invalid wallet file path");
-                setOpenButtonsState(0);
+                setOpenButtonsState(false);
                 WALLET_OPEN_IN_PROGRESS = false;
                 return false;
             }
 
-            setOpenButtonsState(1);
+            setOpenButtonsState(true);
             WALLET_OPEN_IN_PROGRESS = true;
             settings.set('recentWallet', walletFile);
             settings.set('recentWalletDir', path.dirname(walletFile));
@@ -1576,7 +1581,7 @@ function handleWalletOpen(){
                 console.log(err);
                 formMessageSet('load','error', "Unable to start service");
                 WALLET_OPEN_IN_PROGRESS = false;
-                setOpenButtonsState(0);
+                setOpenButtonsState(false);
                 return false;
             });
         });
@@ -1597,7 +1602,7 @@ function handleWalletClose(){
         // save + SIGTERMed wallet daemon
         wsmanager.stopService().then(() => {
             setTimeout(function(){
-                // cleare form err msg
+                // clear form err msg
                 formMessageReset();
                 changeSection('section-overview');
                 // update/clear tx

@@ -1364,7 +1364,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
 
           //log.warn(procStr);
           log.warn("daemon process no longer detected: runDaemon()...");
-          //runDaemon();
+          runDaemon();
         }
     });
 }, 15000);

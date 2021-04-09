@@ -6,6 +6,15 @@ const http = require('http');
 var curAddr = '';
 var request = require('request-promise-native');
 
+<<<<<<< HEAD
+const webTimeout = 90000; //45000;
+function logDebug(msg){
+    //if(!DEBUG) return;
+    console.log(`[api] ${msg}`);
+}
+
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 class WalletShellApi {
     constructor(args) {
         args = args || {};
@@ -27,10 +36,18 @@ class WalletShellApi {
     }
 
     _sendRequest(method, todaemon, paramsIn, timeoutIn, needsAuth) {
+
+    //if (todaemon) log.warn("todaemon"); else log.warn("not to daemon");
+    //log.warn("_sendRequest: "+method);
+
         return new Promise((resolve, reject) => {
             if (method.length === 0) return reject(new Error('Invalid Method'));
             var params = paramsIn || {};
+<<<<<<< HEAD
+            var timeout = timeoutIn || webTimeout;
+=======
             var timeout = timeoutIn || 45000;
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
             var authoriz = "Basic " + Buffer.from("fedadmin:"+this.walletd_password).toString('base64');
             //log.warn("authoriz: "+authoriz);
             let data = {
@@ -44,7 +61,11 @@ class WalletShellApi {
             // needed to support certain systems that have very poor network latency
             var myAgent = new http.Agent({
                 keepAlive: true,
+<<<<<<< HEAD
+                keepAliveMsecs: webTimeout 
+=======
                 keepAliveMsecs: 45000
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
             });
 
             let headers = {
@@ -74,12 +95,38 @@ class WalletShellApi {
                 };
             }
 
+<<<<<<< HEAD
+            logDebug('sending request: '+method);
+
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
             request({
                 uri: s_uri,
                 method: s_type,
                 headers: headers,
                 body: data,
                 json: true,
+<<<<<<< HEAD
+                pool: {maxSockets: 2400}, //1280},
+                timeout: timeout,
+                time: true
+            }).on('socket', function(socket){
+                socket.setTimeout(webTimeout);
+            }).on('error', function(e) {
+                // just eat the error, don't throw or stop
+                logDebug('error on socket: '+e);
+            }).then((res) => {
+                //note, this log makes a LOT of chatter when turned on...
+                logDebug(`request: ${JSON.stringify(data)} result: ${JSON.stringify(res)}`);
+
+                if (!res) return resolve(true);
+                if (!res.error) {
+                    if (res.result) {
+                      logDebug('resolve 1');
+                      return resolve(res.result);
+                    }
+                    logDebug('resolve 2');
+=======
                 pool: {maxSockets: 1280},
                 timeout: timeout,
                 time: true
@@ -95,14 +142,23 @@ class WalletShellApi {
                 if (!res) return resolve(true);
                 if (!res.error) {
                     if (res.result) return resolve(res.result);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
                     return resolve(res);
                 } else {
                     // this is not actually an error...
                     if (res.error.message == "Empty object list") {
+<<<<<<< HEAD
+                      logDebug('empty object list...');
+                      return resolve(res);
+                    }
+
+                    logDebug("err msg is: "+res.error.message);
+=======
                       return resolve(res);
                     }
 
                     //log.warn("err msg is: "+res.error.message);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
                     return reject(res.error.message);
                 }
             }).catch((err) => {
@@ -131,6 +187,10 @@ class WalletShellApi {
     getHeight() {
         return new Promise((resolve, reject) => {
             this._sendRequest('getheight', true, {}, 20000, false).then((result) => {
+<<<<<<< HEAD
+                logDebug("getHeight() got a result");
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
                 return resolve(result);
             }).catch((err) => {
                 return reject(err);
@@ -151,7 +211,11 @@ class WalletShellApi {
     getAddress() {
         return new Promise((resolve, reject) => {
             this._sendRequest('getAddresses', false, {}, 15000, true).then((result) => {
+<<<<<<< HEAD
+                //log.warn("addresses: "+result);
+=======
                 log.warn("addresses: "+result);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
                 return resolve(result.addresses[0]);
             }).catch((err) => {
                 return reject(err);
@@ -185,8 +249,15 @@ class WalletShellApi {
         return new Promise((resolve, reject) => {
             let req_params = {};
             this._sendRequest('getStatus', false, req_params, 15000, true).then((result) => {
+<<<<<<< HEAD
+                logDebug("getStatus() got a result");
                 return resolve(result);
             }).catch((err) => {
+                //log.warn("getStatus() got an error!");
+=======
+                return resolve(result);
+            }).catch((err) => {
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
                 return reject(err);
             });
         });
@@ -293,7 +364,14 @@ class WalletShellApi {
         });
     }
     // send single transaction
-    sendTransaction(params) {
+    sendTransaction(useMixin, params) {
+
+        //log.warn("api sendTransaction, useMixin: "+useMixin);
+        let anonLevel = 22;
+        if (!useMixin) {
+          anonLevel = 0;
+        }
+
         return new Promise((resolve, reject) => {
             params = params || {};
             params.amount = params.amount || false;
@@ -311,14 +389,14 @@ class WalletShellApi {
               req_params = {
                 transfers: [{ address: params.address, amount: params.amount }],
                 paymentId: params.paymentId,
-                anonymity: 22, 
+                anonymity: anonLevel,
                 unlockTime: 0,
                 fee: params.fee
               };
             } else {
               req_params = {
                 transfers: [{ address: params.address, amount: params.amount }],
-                anonymity: 22,
+                anonymity: anonLevel,
                 unlockTime: 0,
                 fee: params.fee
               };
@@ -326,10 +404,17 @@ class WalletShellApi {
 
             //log.warn("sendTransaction: "+JSON.stringify(req_params));
             // give extra long timeout
+<<<<<<< HEAD
+            this._sendRequest('sendTransaction', false, req_params, webTimeout, true).then((result) => {
+                return resolve(result);
+            }).catch((err) => {
+                //log.warn("sendTransaction has FAILED: "+err);
+=======
             this._sendRequest('sendTransaction', false, req_params, 45000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
                 log.warn("sendTransaction has FAILED: "+err);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
                 return reject(err);
             });
         });
@@ -356,6 +441,15 @@ class WalletShellApi {
 
             params.viewSecretKey = params.viewSecretKey || false;
             if (params.viewSecretKey) {
+<<<<<<< HEAD
+              //log.warn("reset: secret key supplied... creating new wallet from secret key");
+              req_params.viewSecretKey = params.viewSecretKey;
+            }
+
+            //log.warn("sending reset to walletd api.");
+            this._sendRequest('reset', false, req_params, 10000, true).then(() => {
+              //log.warn("sent api reset to walletd...");
+=======
               log.warn("reset: secret key supplied... creating new wallet from secret key");
               req_params.viewSecretKey = params.viewSecretKey;
             }
@@ -363,6 +457,7 @@ class WalletShellApi {
             log.warn("sending reset to walletd api.");
             this._sendRequest('reset', false, req_params, 10000, true).then(() => {
               log.warn("sent api reset to walletd...");
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
               return resolve(true);
             }).catch((err) => {
               return reject(err);
@@ -373,7 +468,11 @@ class WalletShellApi {
         return new Promise((resolve, reject) => {
             params = params || {};
 
+<<<<<<< HEAD
+            //log.warn(`estimateFusion params: ${JSON.stringify(params)}`);
+=======
             log.warn(`estimateFusion params: ${JSON.stringify(params)}`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 
             if (!params.threshold) return reject(new Error('Missing threshold parameter'));
             this._sendRequest('estimateFusion', false, params, 30000, true).then((result) => {

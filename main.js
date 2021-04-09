@@ -253,9 +253,9 @@ function createWindow() {
         });
       });
 
-      if (!app.socksstarted) {
-        runSocks5Proxy();
-      } 
+      //if (!app.socksstarted) {
+      //  runSocks5Proxy();
+      //} 
     });
 
     win.on('hide', () => {});
@@ -1274,19 +1274,19 @@ const checkDaemonHeight = setIntervalAsync(() => {
 function splitLines(t) { return t.split(/\r\n|\r|\n/); }
 const checkDaemonTimer = setIntervalAsync(() => {
 
-//    if (app.daemonPid > 0) pidusage(app.daemonPid, function(err, stats) {
-//      log.warn("pidusage stats: "+util.inspect(stats, {depth: null}));
-//    });
-
-    // reset doesn't work on mac osx, but seems stable there anyway, so just skip it...
-    //if (app.localDaemonRunning && process.platform === 'darwin') {
-    //  return;
-    //}
-
     if (app.terminateMode) {
       return;
     }
 
+<<<<<<< HEAD
+=======
+    //let totalHeapSize = v8.getHeapStatistics().total_available_size;
+    //let totalHeapSizeGB = (totalHeapSize / 1024 / 1024 / 1024).toFixed(2);
+    //    if (app.daemonPid > 0) pidusage(app.daemonPid, function(err, stats) {
+    //      log.warn("pidusage stats: "+util.inspect(stats, {depth: null}));
+    //    });
+
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
     var cmd = `ps -ex`;
     switch (process.platform) {
         case 'win32' : cmd = `tasklist`; break;
@@ -1302,7 +1302,10 @@ const checkDaemonTimer = setIntervalAsync(() => {
         maxBuffer: 2000 * 1024,
         env: {x: 0}
     }, function(error, stdout, stderr) {
+<<<<<<< HEAD
+=======
 
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
         if (error) {
           log.warn("error testing for daemon: "+error.message.toString());
           return;
@@ -1315,6 +1318,31 @@ const checkDaemonTimer = setIntervalAsync(() => {
         procStr = stdout.toString();
         procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\n\r\t]/g, "");
         procStr = procStr.toLowerCase();
+<<<<<<< HEAD
+        var procAry = splitLines(procStr);
+        procStr = "";
+        var dloc = procAry.findIndex(element => element.includes('fedoragold_daem'))
+        //log.warn("dloc index is: "+dloc);
+        if (dloc >= 0) {
+          procStr = procAry[dloc];
+          let procStr2 = '';
+          dloc = procStr.indexOf('fedoragold_daem');
+
+          if (platform === 'win32')
+            procStr2 = procStr.substring(dloc+21);
+          else
+            procStr2 = procStr.substring(dloc+15);
+
+          procStr2 = procStr.trim();
+          procID = parseInt(procStr2.substr(0, procStr2.indexOf(' ')), 10);
+            //log.warn("TEST on Linux and Mac ... detected daemon PID is: "+procID);
+            //log.warn("  ...started with: "+procStr);
+            //log.warn("  ...was parsing string: "+procStr2);
+        }
+         
+        if (procID > 0) { 
+          app.localDaemonRunning = true;
+=======
         let daemonAlreadyRunning = procStr.includes('fedoragold_daem');
         //if (! daemonAlreadyRunning) log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr+"\n\n\n\n\n\n\n\n");
 
@@ -1350,19 +1378,24 @@ const checkDaemonTimer = setIntervalAsync(() => {
             log.warn(errmsg);
             app.localDaemonRunning = true;
             if (win!==undefined&&win!==null) win.webContents.send('console', errmsg);
-            //log.warn("killing the daemon!!");
+
+            log.warn("killing the daemon!!");
+
             /* eslint-disable-next-line no-empty */
             try{killer(app.daemonPid,'SIGKILL');}catch(err){} 
             return;
           } else {
+            //log.warn("local daemon is running fine...");
             app.localDaemonRunning = true;
           }
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
         } else {
           app.localDaemonRunning = false;
           app.daemonProcess = null;
           app.daemonPid = null;
+
           //log.warn(procStr);
-          //log.warn("runDaemon()...");
+          log.warn("daemon process no longer detected: runDaemon()...");
           runDaemon();
         }
     });
@@ -1402,13 +1435,14 @@ const checkSyncTimer = setIntervalAsync(() => {
           return;
         }
 
-        request(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`, {
+        try {
+          request(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`, {
             method: 'GET',
             headers: headers,
             body: {jsonrpc: '2.0'},
             json: true,
             timeout: 10000
-        }, (error, response, body) => {
+          }, (error, response, body) => {
             if (!error && response.statusCode == 200) {
               if (body.iscoreready) {
                 if (win!==null) win.webContents.send('daemoncoreready', 'true');
@@ -1416,7 +1450,8 @@ const checkSyncTimer = setIntervalAsync(() => {
               }
             }
             if (win!==null) win.webContents.send('daemoncoreready', 'false');
-        }).catch(function(e){}); // Just eat the error as race condition expected anyway...
+          }).catch(function(e){}); // Just eat the error as race condition expected anyway...
+        } catch(e) { /* do nothing */ }
     }
 }, 4000);
 
@@ -1516,6 +1551,9 @@ electron.dialog.showErrorBox = (title, content) => {
 
 process.on('unhandledRejection', function(err) {});
 function terminateDaemon() {
+
+log.warn("terminateDaemon...");
+
     // hit the stop_daemon rest interface...
     let aurl = `http://127.0.0.1:${settings.get('daemon_port')}/stop_daemon`;
     let libr = aurl.startsWith('https') ? require('https') : require('http');
@@ -1533,11 +1571,15 @@ function terminateDaemon() {
         app.daemonProcess.stdin.end();
       }
     } catch(e) {/*eat any errors, no reporting nor recovery needed...*/}
+
+log.warn("terminate done...");
 }
 
 app.on('window-all-closed', app.quit);
 app.on('before-quit', () => {
   terminateDaemon();
+
+log.warn("task kill...");
 
   switch(process.platform) {
   case 'win32':
@@ -1550,8 +1592,29 @@ app.on('before-quit', () => {
     exec('killall -9 ' + 'fedoragoldwallet.bin');
     break;
   }
+
+log.warn("task kill done...");
+
 });
 
+<<<<<<< HEAD
+function htmlEscape(str) {
+    let strout = String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+  //strout.replace(new RegExp('\r?\n','g'), '<br />');
+  strout.replace(/\r\n/g, "<br />");
+  strout.replace(/\r/g, "<br />");
+  strout.replace(/\n/g, "<br />");
+  return strout;
+}
+
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 function runDaemon() {
     // if there are insufficient resources, just run the daemon in thin mode 
     if (! checkMemoryAndStorage()) {
@@ -1572,11 +1635,6 @@ function runDaemon() {
         return;
     }
 
-    let daemonArgs = [
-      '--rpc-bind-ip', '0.0.0.0',
-      '--rpc-bind-port', settings.get('daemon_port'),
-    ];
-
       //'--add-priority-node', '202.182.106.252:30158', //'95.179.224.170:30158', 
       //'--add-priority-node', '213.136.89.252:30158'
       //'--log-file', 'fedoragolddaemon.log' // may want to add an optional switch for this later...
@@ -1591,10 +1649,41 @@ function runDaemon() {
     app.chunkBuf = "\n ********Running Daemon from main.js ***********\n";
     var newTimeStamp;
 
+<<<<<<< HEAD
+    //log.warn("daemonPath is: "+daemonPath);
+
     try {
         if (! app.integratedDaemon) { 
-          app.daemonProcess = spawn(daemonPath, daemonArgs, 
-            {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+          if (platform == 'darwin') {
+            // on mac remember, appleR (recovery) on reboot, then terminal and then...
+            //   csrutil disable followed by csrutil enable --without dtrace
+            //daemonPath = "echo la4386lamar | sudo -S /usr/bin/dtruss -b 100m -s " + daemonPath; 
+            //log.warn("mac daemonPath: "+daemonPath);
+            app.daemonProcess = exec(daemonPath
+              +' --rpc-bind-ip 0.0.0.0 --rpc-bind-port '+settings.get('daemon_port')
+              //for dtruss
+              //,{detached: true, stdio: ['ignore','pipe',process.stderr], encoding: 'utf-8'});
+              
+              ,{detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});  
+=======
+    try {
+        if (! app.integratedDaemon) { 
+          if (platform == 'darwin') {
+            //daemonPath = "/bin/cat /tmp/empty.txt | /usr/local/bin/gdb "+daemonPath;
+            //log.warn("mac daemonPath: "+daemonPath);
+            app.daemonProcess = exec(daemonPath
+              +' --rpc-bind-ip 0.0.0.0 --rpc-bind-port '+settings.get('daemon_port')
+              ,{detached: true, stdio: ['ignore','pipe',process.stderr], encoding: 'utf-8'});
+              //,{detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
+          } else {
+            let daemonArgs = [
+              '--rpc-bind-ip', '0.0.0.0',
+              '--rpc-bind-port', settings.get('daemon_port'),
+            ];
+            app.daemonProcess = spawn(daemonPath, daemonArgs,
+              {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+          }
           app.daemonPid = app.daemonProcess.pid;
         }
 
@@ -1606,7 +1695,15 @@ function runDaemon() {
 
             if ((win !== null) && ((newTimeStamp-app.timeStamp) > 2500)) {
               app.timeStamp = newTimeStamp;
+<<<<<<< HEAD
+
+              let outt = htmlEscape(app.chunkBuf);
+              win.webContents.send('console', outt);
+              //log.warn(outt); 
+               
+=======
               win.webContents.send('console', app.chunkBuf);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
               app.chunkBuf = '';
             }
           } catch (e) {
@@ -1614,7 +1711,11 @@ function runDaemon() {
           }
         });
         app.daemonProcess.stderr.on('data', function(chnk) {
+<<<<<<< HEAD
+          log.warn("fedoragold_daemon output: "+chnk);
+=======
           log.warn("fedoragold_daemon error: "+chnk);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
           if (win!==null) win.webContents.send('console',chnk);
         });
     } catch(e) {
@@ -1768,7 +1869,11 @@ process.on('uncaughtException', function (e) {
 });
 
 process.on('beforeExit', (code) => {
+<<<<<<< HEAD
+    //log.debug(`beforeExit code: ${code}`);
+=======
     log.debug(`beforeExit code: ${code}`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 });
 
 process.on('exit', (code) => {

@@ -1,6 +1,11 @@
 /* eslint no-empty: 0 */
 "use strict";
 
+<<<<<<< HEAD
+let DEBUG=true;
+
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -180,6 +185,11 @@ WalletShellManager.prototype.init = function(password){
   this.serviceApi.setPassword(password);
   daemonHeight = remote.app.heightVal;
 
+<<<<<<< HEAD
+  log.warn("in WalletShellManager.init: getHeight");
+
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
   if (remote.app.heightVal <=0) {
     this.serviceApi.getHeight().then((result) => {
       daemonHeight = parseInt(result.height, 10);
@@ -432,7 +442,11 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
   this.stdBuf = "";
   var wsm = this;
 
+<<<<<<< HEAD
+  this.walletProcess = childProcess.exec(runBin, { timeout: 20000, maxBuffer: 2000 * 1024, env: {x: 0} }); // maxBuffer: 2000 * 1024
+=======
   this.walletProcess = childProcess.exec(runBin, { timeout: 20000, maxBuffer: 4000 * 1024, env: {x: 0} }); // maxBuffer: 2000 * 1024
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
   this.walletProcess.on('close', () => {
       if ((wsm.stdBuf.length == 0) || (wsm.stdBuf.search("password is wrong") >= 0)) {
         onError("Password: "+ERROR_WALLET_PASSWORD+": "+wsm.stdBuf);
@@ -524,6 +538,10 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     //log.warn("secNode: "+secNode);
     //log.warn("daemon address: "+daemonAd);
     //log.warn("daemon port: "+daemonPt);
+<<<<<<< HEAD
+    //log.warn("walletFile: "+walletFile);
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 
     this.serviceApi.setPassword(password);
 
@@ -545,6 +563,48 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--local'
       ];
 
+<<<<<<< HEAD
+      //log.warn("integrated daemon mode");
+    }
+    else {
+      if (DEBUG) {
+        serviceArgs = [
+          '--data-dir', remote.app.getPath('userData'),
+          '--container-file', walletFile,
+          '--container-password', password,
+          '--bind-address', '127.0.0.1',
+          '--bind-port', this.walletdPort,
+          '--rpc-user', 'fedadmin',
+          '--rpc-password', password,
+          '--daemon-address', daemonAd,
+          '--daemon-port', daemonPt,
+          '--log-level', 4, //0,
+          '--log-file', '/home/jojapoppa/Desktop/debug.log'
+        ];
+      } else {
+        serviceArgs = [
+          '--data-dir', remote.app.getPath('userData'),
+          '--container-file', walletFile,
+          '--container-password', password,
+          '--bind-address', '127.0.0.1',
+          '--bind-port', this.walletdPort,
+          '--rpc-user', 'fedadmin',
+          '--rpc-password', password,
+          '--daemon-address', daemonAd,
+          '--daemon-port', daemonPt,
+          '--log-level', 0
+        ];
+      }
+    }
+
+    let wsm = this;
+    log.warn("wallet.serviceBin path: "+wsm.serviceBin);
+    log.warn("serviceArgs: "+serviceArgs);
+
+    try{
+        this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs,
+          {detached: false, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+=======
 //      log.warn("integrated daemon mode");
     }
     else {
@@ -569,6 +629,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
 
     try{
         this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
           //{detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
         this.servicePid = this.serviceProcess.pid;
     } catch(e) {
@@ -576,7 +637,11 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         log.error(`${config.walletServiceBinaryFilename} is not running`);
         return false;
     }
+<<<<<<< HEAD
+ 
+=======
     
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
     this.serviceProcess.on('close', () => {
 
         wsm.serviceApi.stop();
@@ -601,6 +666,11 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
 
     wsession.set('connectedNode', `${settings.get('daemon_host')}:${settings.get('daemon_port')}`);
     this.serviceActiveArgs = serviceArgs;
+<<<<<<< HEAD
+
+    log.warn("calling startSyncWorker...");
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
     this.startSyncWorker(password, daemonAd, daemonPt);
     let addr = wsession.get('loadedWalletAddress');
 
@@ -611,6 +681,10 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
       });
     }, 125, wsm, addr);
 
+<<<<<<< HEAD
+    log.warn("calling onSuccess()...");
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
     onSuccess();
 };
 
@@ -685,7 +759,11 @@ WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daem
     }
 
     let wsm = this;
+<<<<<<< HEAD
+    wsm.syncWorker = childProcess.fork(path.join(__dirname,'ws_syncworker.js'));
+=======
     wsm.syncWorker = childProcess.fork(path.join(__dirname,'./ws_syncworker.js'));
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 
     wsm.syncWorker.on('message', function(msg) {
       wsm.notifyUpdate(msg);
@@ -723,6 +801,10 @@ WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daem
       }
     };
     wsm.syncWorker.send(cfgData);
+<<<<<<< HEAD
+
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
     wsession.set('serviceReady', true);
     wsession.set('syncStarted', true);
 };
@@ -909,10 +991,10 @@ WalletShellManager.prototype.getSecretKeys = function(address){
     });
 };
 
-WalletShellManager.prototype.sendTransaction = function(params){
+WalletShellManager.prototype.sendTransaction = function(useMixin, params){
     let wsm = this;
     return new Promise((resolve, reject) => {
-        wsm.serviceApi.sendTransaction(params).then((result) => {
+        wsm.serviceApi.sendTransaction(useMixin, params).then((result) => {
             return resolve(result);
         }).catch((err) => {
             //log.warn("walletshellmgr: "+err);

@@ -6,9 +6,15 @@ const WalletShellApi = require('./ws_api');
 const { setIntervalAsync } = require('set-interval-async/fixed');
 
 let DEBUG=false;
+<<<<<<< HEAD
+//log.transports.file.maxSize = 5 * 1024 * 1024;
+//log.transports.console.level = 'debug';
+//log.transports.file.level = 'debug';
+=======
 log.transports.file.maxSize = 5 * 1024 * 1024;
 log.transports.console.level = 'debug';
 log.transports.file.level = 'debug';
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 
 const CHECK_INTERVAL = 900; // how often we get info from fedoragold_walletd
 var bSynchedMode = false;
@@ -35,6 +41,32 @@ var blockTaskWorker = null;
 var transactionTaskWorker = null;
 
 function logDebug(msg){
+<<<<<<< HEAD
+    //if(!DEBUG) return;
+    console.log(`[syncworker] ${msg}`);
+}
+
+logDebug("define checkBlockUpdate()");
+function checkBlockUpdate(){
+    var retVal = true;
+    if (STATE_SAVING || wsapi === null || STATE_PAUSED) {
+      logDebug("checkBlockUpdate(): invalid state ... skipped");
+      if (STATE_SAVING) logDebug(" ... reason: STATE_SAVING");
+      if (wsapi === null) logDebug(" ... reason: wsapi === null");
+      if (STATE_PAUSED) logDebug(" ... reason: STATE_PAUSED");
+      return false;
+    }
+
+    logDebug("checkBlockUpdate() ... waiting for blockstatus");
+    STATE_CONNECTED = true;
+    wsapi.getStatus().then((blockStatus) => {
+
+        logDebug("getStatus() returned...");
+
+        let kbcReturn = parseInt(blockStatus.knownBlockCount, 10) - 1;
+
+        logDebug(`blockstatus: ${JSON.stringify(blockStatus)}`);
+=======
     if(!DEBUG) return;
     log.warn(`[syncworker] ${msg}`);
 }
@@ -51,6 +83,7 @@ function checkBlockUpdate(){
         let kbcReturn = parseInt(blockStatus.knownBlockCount, 10) - 1;
 
         //log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 
         // jojapoppa, later show a "signal" like what you see on a cell phone with the bars...
         let peerCount = parseInt(blockStatus.peerCount, 10);
@@ -74,18 +107,31 @@ function checkBlockUpdate(){
           STATE_CONNECTED = false;
           retVal = false;
         } else {
+<<<<<<< HEAD
+          //logDebug(`blockstatus: ${JSON.stringify(blockStatus)}`);
+=======
           //log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
           knownBlockCount = kbcReturn;
         }
 
         if (retVal) {
+<<<<<<< HEAD
+          //logDebug("good network connection...");
+=======
           //log.warn("good network connection...");
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 
           // we have good connection
           let blockCount = parseInt(blockStatus.blockCount, 10)-1;
 
+<<<<<<< HEAD
+          //logDebug("blockCount reported: "+blockCount);
+          //logDebug("knownBlockCount reported: "+knownBlockCount);
+=======
           //log.warn("blockCount reported: "+blockCount);
           //log.warn("knownBlockCount reported: "+knownBlockCount);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
           LAST_HEIGHTVAL = heightVal;
           LAST_BLOCK_COUNT = blockCount;
 
@@ -117,7 +163,11 @@ function checkBlockUpdate(){
           blockStatus.uiMessage = '';
           blockStatus.syncPercent = syncPercent;
 
+<<<<<<< HEAD
+          //logDebug(`sending blockstatus: ${JSON.stringify(blockStatus)}`);
+=======
           //log.warn(`sending blockstatus: ${JSON.stringify(blockStatus)}`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
           process.send({
             type: 'blockUpdated',
             data: blockStatus
@@ -125,7 +175,11 @@ function checkBlockUpdate(){
         }
     }).catch((err) => {
         // just eat this as the connection with Daemon can be intermittent
+<<<<<<< HEAD
+        //logDebug(`checkBlockUpdate: FAILED, ${err.message}`);
+=======
         //log.warn(`checkBlockUpdate: FAILED, ${err.message}`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
         retVal = false;
     });
 
@@ -155,7 +209,11 @@ function sendTransactionsRequest(s_trx_args) {
   let syncPercent = (LAST_BLOCK_COUNT / knownBlockCount) * 100;
   if (syncPercent <=0 || syncPercent >= 99.995)
     syncPercent = 100;
+<<<<<<< HEAD
+  //logDebug("syncPercent: "+syncPercent);
+=======
   //log.warn("syncPercent: "+syncPercent);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
   if (syncPercent < 98) {
     if (!queue.includes(s_trx_args)) queue.push(s_trx_args);
     return true;
@@ -176,7 +234,11 @@ function sendTransactionsRequest(s_trx_args) {
       if (s_trx_args.blockCount-blockItemsLength > 2*blockMargin) queue.push(s_trx_args);
     } 
 
+<<<<<<< HEAD
+    //logDebug(`getTransactions: args=${JSON.stringify(s_trx_args)} returned: ${blockItemsLength} queue: ${queue.length}`);
+=======
     //log.warn(`getTransactions: args=${JSON.stringify(s_trx_args)} returned: ${blockItemsLength} queue: ${queue.length}`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 
     var bitems = { type: 'transactionUpdated', data: trx.items };
     var statTxt = JSON.stringify(s_trx_args) + " ret: " + blockItemsLength + " queue: " + queue.length;
@@ -186,13 +248,21 @@ function sendTransactionsRequest(s_trx_args) {
     Array.from(bitems.data).forEach((bitem) => {
       bitem.transactions.map((bitemtx) => {
         if (bitemtx.amount !== 0) {
+<<<<<<< HEAD
+          //logDebug("pushing bitem amount: "+bitemtx.amount);
+=======
           //log.warn("pushing bitem amount: "+bitemtx.amount);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
           bitemskept.data.push(bitem);
         }
       });
     });
 
+<<<<<<< HEAD
+    //logDebug(`bitems: ${JSON.stringify(bitemskept)}`);
+=======
     //log.warn(`bitems: ${JSON.stringify(bitemskept)}`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 
     var prom = new Promise(function(resolve, reject) {
       process.send(bitemskept);
@@ -222,18 +292,27 @@ function checkBalanceUpdate() {
     return false;
   }
 
+<<<<<<< HEAD
+  wsapi.getBalance().then((balance) => {
+    //process.send({type: 'debug', data: {uiMessage: JSON.stringify(balance)} });
+=======
   //process.send({type: 'debug', data: {uiMessage: 'checkBalanceUpdate()'} });
 
   wsapi.getBalance().then((balance)=> {
     var bal = "Balance: " + parseFloat(balance.availableBalance);
     //process.send({type: 'debug', data: {uiMessage: bal} });
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
     process.send({
       type: 'balanceUpdated',
       data: balance
     });
   }).catch((err) => {
     // just eat the message, there will be timeouts and that's normal
+<<<<<<< HEAD
+    //logDebug(`checkTransactionsUpdate: getBalance FAILED, ${err.message}`);
+=======
     //log.warn(`checkTransactionsUpdate: getBalance FAILED, ${err.message}`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
     //process.send({type: 'debug', data: {uiMessage: err.message} });
   });
 }
@@ -302,7 +381,11 @@ function checkTransactionsUpdate(){
       return false;
     }
 
+<<<<<<< HEAD
+    //logDebug("checkTransactionsUpdate()");
+=======
     //log.warn("checkTransactionsUpdate()");
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 
     if (LAST_BLOCK_COUNT > 1) {
       logDebug('checkTransactionsUpdate: checking tx update');
@@ -367,8 +450,13 @@ function checkTransactionsUpdate(){
       } else { 
         TX_LAST_COUNT = TX_LAST_INDEX + requestNumBlocks;
         TX_LAST_INDEX += requestNumBlocks;
+<<<<<<< HEAD
+        //logDebug("TX_LAST_INDEX: "+TX_LAST_INDEX);
+        //logDebug("TX_LAST_COUNT: "+TX_LAST_COUNT);
+=======
         //log.warn("TX_LAST_INDEX: "+TX_LAST_INDEX);
         //log.warn("TX_LAST_COUNT: "+TX_LAST_COUNT);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
       }
     }
 
@@ -378,17 +466,30 @@ function checkTransactionsUpdate(){
 function delayReleaseSaveState(){
     setTimeout(() => {
         STATE_SAVING = false;
+<<<<<<< HEAD
+        //logDebug("saveWallet: reset");
+=======
         //log.warn("saveWallet: reset");
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
     }, 3000);
 }
 
 function checkHeight() {
+<<<<<<< HEAD
+      logDebug("ws_syncworker: checkHeight()");
+
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
       if(STATE_PAUSED || wsapi === null || !STATE_CONNECTED) return;
       wsapi.getHeight().then((result) => {
         heightVal = parseInt(result.height, 10);
       }).catch((err) => {
         //just eat this... sometimes daemon takes a while to start...
+<<<<<<< HEAD
+        logDebug(`getHeight from Daemon: FAILED, ${err.message}`);
+=======
         //log.warn(`getHeight from Daemon: FAILED, ${err.message}`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
       });
 }
 
@@ -400,45 +501,81 @@ function saveWallet(){
         return false;
     }
     STATE_SAVING = true;
+<<<<<<< HEAD
+    //logDebug(`saveWallet: trying to save wallet`);
+=======
     //log.warn(`saveWallet: trying to save wallet`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 
     var retVal = true;
     delayReleaseSaveState();
 
     wsapi.save().then(()=> {
+<<<<<<< HEAD
+      //logDebug(`saveWallet: OK`);
+=======
       //log.warn(`saveWallet: OK`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
       STATE_SAVING = false;
       retVal = true;
     }).catch((err)=>{
       STATE_SAVING = false;
       //just eat the message, they won't all succeed... expected behavior
+<<<<<<< HEAD
+      //logDebug(`saveWallet: FAILED, ${err.message}`);
+=======
       //log.warn(`saveWallet: FAILED, ${err.message}`);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
       retVal = false;
     });
 
     return retVal;
 }
 
+<<<<<<< HEAD
+logDebug("define heightTaskWorker");
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 heightTaskWorker = setIntervalAsync(()=>{
   checkHeight();
 }, 900*2);
 
+<<<<<<< HEAD
+logDebug("define balanceTaskWorker");
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 balanceTaskWorker = setIntervalAsync(()=>{
   checkBalanceUpdate();
 }, 900);
 
+<<<<<<< HEAD
+logDebug("define transactionTaskWorker");
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 transactionTaskWorker = setIntervalAsync(()=>{
   checkTransactionsUpdate();
 }, 900*3.5);
 
+<<<<<<< HEAD
+logDebug("define blockTaskWorker");
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 blockTaskWorker = setIntervalAsync(()=>{
   checkBlockUpdate();
 }, 900*2);
 
+<<<<<<< HEAD
+logDebug("define saveTaskWorker");
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 saveTaskWorker = setIntervalAsync(()=>{
   saveWallet();
 }, 900*100);
 
+<<<<<<< HEAD
+logDebug("define process message system..");
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 // {type: 'blah', msg: 'any'}
 process.on('message', (msg) => {
     let cmd = msg || '';
@@ -450,7 +587,11 @@ process.on('message', (msg) => {
             STATE_PAUSED = false;
             SERVICE_CFG = cmd.data;
             wsapi = new WalletShellApi(SERVICE_CFG);
+<<<<<<< HEAD
+            logDebug("got a start command: starting with localDaemonMode: "+!SERVICE_CFG.remote_daemon);
+=======
             //log.warn("starting with localDaemonMode: "+!SERVICE_CFG.remote_daemon);
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
             var prm = new Promise(function(resolve, reject) {
               process.send({
                 type: 'daemonMode',
@@ -553,3 +694,9 @@ process.on('disconnect', () => function(){
     logDebug(`worker disconnected`);
     process.exit(1);
 });
+<<<<<<< HEAD
+
+logDebug("all synchworker process messagment defined...");
+
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e

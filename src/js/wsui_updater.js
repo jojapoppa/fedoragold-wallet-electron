@@ -237,6 +237,12 @@ function updateSyncProgress(data){
 }
 
 function updateBalance(data){
+<<<<<<< HEAD
+
+    log.warn("in balance update");
+
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
     const balanceAvailableField = document.querySelector('#balance-available > span');
     const balanceLockedField = document.querySelector('#balance-locked > span');
     const maxSendFormHelp = document.getElementById('sendFormHelp');
@@ -245,7 +251,13 @@ function updateBalance(data){
 
     if(!data) return;
     let availableBalance = parseFloat(data.availableBalance) || 0;
+<<<<<<< HEAD
+    log.warn("Balance info is: "+JSON.stringify(data));
+
+    if (availableBalance <= 0) {
+=======
     if(availableBalance <= 0){
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
         inputSendAmountField.value = 0;
         inputSendAmountField.setAttribute('max','0.00');
         inputSendAmountField.setAttribute('disabled','disabled');
@@ -255,7 +267,11 @@ function updateBalance(data){
         sendMaxAmount.classList.add('hidden');
         wsession.set('walletUnlockedBalance', 0);
         wsession.set('walletLockedBalance', 0);
+<<<<<<< HEAD
+        return;
+=======
         if(availableBalance < 0) return;
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
     }
 
     let bUnlocked = wsutil.amountForMortal(availableBalance);
@@ -277,6 +293,11 @@ function updateBalance(data){
         sendMaxAmount.dataset.maxsend = maxSend;
         sendMaxAmount.classList.remove('hidden');
     }
+<<<<<<< HEAD
+
+    log.warn("balanceUpdate done");
+=======
+>>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 }
 
 let txlistExisting = [];

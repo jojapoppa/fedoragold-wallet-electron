@@ -245,7 +245,9 @@ function updateBalance(data){
 
     if(!data) return;
     let availableBalance = parseFloat(data.availableBalance) || 0;
-    if(availableBalance <= 0){
+    log.warn("Balance info is: "+JSON.stringify(data));
+
+    if (availableBalance <= 0) {
         inputSendAmountField.value = 0;
         inputSendAmountField.setAttribute('max','0.00');
         inputSendAmountField.setAttribute('disabled','disabled');
@@ -255,7 +257,7 @@ function updateBalance(data){
         sendMaxAmount.classList.add('hidden');
         wsession.set('walletUnlockedBalance', 0);
         wsession.set('walletLockedBalance', 0);
-        if(availableBalance < 0) return;
+        return;
     }
 
     let bUnlocked = wsutil.amountForMortal(availableBalance);
@@ -277,6 +279,8 @@ function updateBalance(data){
         sendMaxAmount.dataset.maxsend = maxSend;
         sendMaxAmount.classList.remove('hidden');
     }
+
+    log.warn("balanceUpdate done");
 }
 
 let txlistExisting = [];

@@ -6,9 +6,9 @@ const WalletShellApi = require('./ws_api');
 const { setIntervalAsync } = require('set-interval-async/fixed');
 
 let DEBUG=false;
-log.transports.file.maxSize = 5 * 1024 * 1024;
-log.transports.console.level = 'debug';
-log.transports.file.level = 'debug';
+//log.transports.file.maxSize = 5 * 1024 * 1024;
+//log.transports.console.level = 'debug';
+//log.transports.file.level = 'debug';
 
 const CHECK_INTERVAL = 900; // how often we get info from fedoragold_walletd
 var bSynchedMode = false;
@@ -35,22 +35,30 @@ var blockTaskWorker = null;
 var transactionTaskWorker = null;
 
 function logDebug(msg){
-    if(!DEBUG) return;
-    log.warn(`[syncworker] ${msg}`);
+    //if(!DEBUG) return;
+    console.log(`[syncworker] ${msg}`);
 }
 
+logDebug("define checkBlockUpdate()");
 function checkBlockUpdate(){
     var retVal = true;
     if (STATE_SAVING || wsapi === null || STATE_PAUSED) {
-      //log.warn("checkBlockUpdate(): invalid state ... skipped");
+      logDebug("checkBlockUpdate(): invalid state ... skipped");
+      if (STATE_SAVING) logDebug(" ... reason: STATE_SAVING");
+      if (wsapi === null) logDebug(" ... reason: wsapi === null");
+      if (STATE_PAUSED) logDebug(" ... reason: STATE_PAUSED");
       return false;
     }
 
+    logDebug("checkBlockUpdate() ... waiting for blockstatus");
     STATE_CONNECTED = true;
     wsapi.getStatus().then((blockStatus) => {
+
+        logDebug("getStatus() returned...");
+
         let kbcReturn = parseInt(blockStatus.knownBlockCount, 10) - 1;
 
-        //log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
+        logDebug(`synchworker: blockstatus: ${JSON.stringify(blockStatus)}`);
 
         // jojapoppa, later show a "signal" like what you see on a cell phone with the bars...
         let peerCount = parseInt(blockStatus.peerCount, 10);
@@ -65,27 +73,15 @@ function checkBlockUpdate(){
             syncPercent: -50,
             knownBlockCount: -50,
             uiMessage: peerMsg
-          };
-          process.send({
-            type: 'blockUpdated',
-            data: fakeStatus
-          });
-
-          STATE_CONNECTED = false;
-          retVal = false;
-        } else {
-          //log.warn(`blockstatus: ${JSON.stringify(blockStatus)}`);
+          }; process.send({ type: 'blockUpdated', data: fakeStatus }); STATE_CONNECTED = false; retVal = false; } else { 
+          //logDebug(`blockstatus: ${JSON.stringify(blockStatus)}`);
           knownBlockCount = kbcReturn;
-        }
-
-        if (retVal) {
-          //log.warn("good network connection...");
-
-          // we have good connection
+      } if (retVal) {
+          //logDebug("good network connection..."); // we have good connection
           let blockCount = parseInt(blockStatus.blockCount, 10)-1;
 
-          //log.warn("blockCount reported: "+blockCount);
-          //log.warn("knownBlockCount reported: "+knownBlockCount);
+          //logDebug("blockCount reported: "+blockCount);
+          //logDebug("knownBlockCount reported: "+knownBlockCount);
           LAST_HEIGHTVAL = heightVal;
           LAST_BLOCK_COUNT = blockCount;
 
@@ -117,7 +113,7 @@ function checkBlockUpdate(){
           blockStatus.uiMessage = '';
           blockStatus.syncPercent = syncPercent;
 
-          //log.warn(`sending blockstatus: ${JSON.stringify(blockStatus)}`);
+          //logDebug(`sending blockstatus: ${JSON.stringify(blockStatus)}`);
           process.send({
             type: 'blockUpdated',
             data: blockStatus
@@ -125,7 +121,7 @@ function checkBlockUpdate(){
         }
     }).catch((err) => {
         // just eat this as the connection with Daemon can be intermittent
-        //log.warn(`checkBlockUpdate: FAILED, ${err.message}`);
+        //logDebug(`checkBlockUpdate: FAILED, ${err.message}`);
         retVal = false;
     });
 
@@ -155,7 +151,7 @@ function sendTransactionsRequest(s_trx_args) {
   let syncPercent = (LAST_BLOCK_COUNT / knownBlockCount) * 100;
   if (syncPercent <=0 || syncPercent >= 99.995)
     syncPercent = 100;
-  //log.warn("syncPercent: "+syncPercent);
+  //logDebug("syncPercent: "+syncPercent);
   if (syncPercent < 98) {
     if (!queue.includes(s_trx_args)) queue.push(s_trx_args);
     return true;
@@ -176,7 +172,7 @@ function sendTransactionsRequest(s_trx_args) {
       if (s_trx_args.blockCount-blockItemsLength > 2*blockMargin) queue.push(s_trx_args);
     } 
 
-    //log.warn(`getTransactions: args=${JSON.stringify(s_trx_args)} returned: ${blockItemsLength} queue: ${queue.length}`);
+    //logDebug(`getTransactions: args=${JSON.stringify(s_trx_args)} returned: ${blockItemsLength} queue: ${queue.length}`);
 
     var bitems = { type: 'transactionUpdated', data: trx.items };
     var statTxt = JSON.stringify(s_trx_args) + " ret: " + blockItemsLength + " queue: " + queue.length;
@@ -186,13 +182,13 @@ function sendTransactionsRequest(s_trx_args) {
     Array.from(bitems.data).forEach((bitem) => {
       bitem.transactions.map((bitemtx) => {
         if (bitemtx.amount !== 0) {
-          //log.warn("pushing bitem amount: "+bitemtx.amount);
+          //logDebug("pushing bitem amount: "+bitemtx.amount);
           bitemskept.data.push(bitem);
         }
       });
     });
 
-    //log.warn(`bitems: ${JSON.stringify(bitemskept)}`);
+    //logDebug(`bitems: ${JSON.stringify(bitemskept)}`);
 
     var prom = new Promise(function(resolve, reject) {
       process.send(bitemskept);
@@ -222,18 +218,18 @@ function checkBalanceUpdate() {
     return false;
   }
 
-  //process.send({type: 'debug', data: {uiMessage: 'checkBalanceUpdate()'} });
+  wsapi.getBalance().then((balance) => {
+     
+    let bal = "Balance: " + parseFloat(balance.availableBalance);
+    logDebug("getBalance got: "+bal);
 
-  wsapi.getBalance().then((balance)=> {
-    var bal = "Balance: " + parseFloat(balance.availableBalance);
-    //process.send({type: 'debug', data: {uiMessage: bal} });
     process.send({
       type: 'balanceUpdated',
       data: balance
     });
   }).catch((err) => {
     // just eat the message, there will be timeouts and that's normal
-    //log.warn(`checkTransactionsUpdate: getBalance FAILED, ${err.message}`);
+    //logDebug(`checkTransactionsUpdate: getBalance FAILED, ${err.message}`);
     //process.send({type: 'debug', data: {uiMessage: err.message} });
   });
 }
@@ -302,7 +298,7 @@ function checkTransactionsUpdate(){
       return false;
     }
 
-    //log.warn("checkTransactionsUpdate()");
+    logDebug("+++ checkTransactionsUpdate() start...");
 
     if (LAST_BLOCK_COUNT > 1) {
       logDebug('checkTransactionsUpdate: checking tx update');
@@ -352,25 +348,31 @@ function checkTransactionsUpdate(){
       //  which happens on a different thread...
       TX_LAST_INDEX = currentBlockCount;
 
+      logDebug("updateTransactionsList to be called");
+
       var promo = new Promise(function(resolve, reject) {
         if (!updateTransactionsList(startIndexWithMargin, requestNumBlocks)) {
           TX_LAST_INDEX = TX_LAST_INDEX - requestNumBlocks;
         }
         resolve(true);
-      }).catch(function (err) {});
+      }).catch(function (err) {logDebug("updateTransactionList: "+err);});
+
+      logDebug("updateTransactionsList returned");
 
       TX_CHECK_STARTED = true;
- 
+
       // detects if you are at the end of a multi-chunk request 
       if (requestNumBlocks > chunk) {
         TX_LAST_COUNT = TX_LAST_INDEX;
       } else { 
         TX_LAST_COUNT = TX_LAST_INDEX + requestNumBlocks;
         TX_LAST_INDEX += requestNumBlocks;
-        //log.warn("TX_LAST_INDEX: "+TX_LAST_INDEX);
-        //log.warn("TX_LAST_COUNT: "+TX_LAST_COUNT);
+        //logDebug("TX_LAST_INDEX: "+TX_LAST_INDEX);
+        //logDebug("TX_LAST_COUNT: "+TX_LAST_COUNT);
       }
     }
+
+  logDebug("+++check transactionsupdate completed");
 
   return true;
 }
@@ -378,17 +380,20 @@ function checkTransactionsUpdate(){
 function delayReleaseSaveState(){
     setTimeout(() => {
         STATE_SAVING = false;
-        //log.warn("saveWallet: reset");
+        //logDebug("saveWallet: reset");
     }, 3000);
 }
 
 function checkHeight() {
+      logDebug("ws_syncworker: checkHeight()");
+
       if(STATE_PAUSED || wsapi === null || !STATE_CONNECTED) return;
       wsapi.getHeight().then((result) => {
-        heightVal = parseInt(result.height, 10);
+        heightVal = result.height; //parseInt(result.height, 10);
+        logDebug("syncworker got daemon height: "+heightVal);
       }).catch((err) => {
         //just eat this... sometimes daemon takes a while to start...
-        //log.warn(`getHeight from Daemon: FAILED, ${err.message}`);
+        logDebug(`synchworker getHeight from Daemon: FAILED, ${err.message}`);
       });
 }
 
@@ -400,45 +405,51 @@ function saveWallet(){
         return false;
     }
     STATE_SAVING = true;
-    //log.warn(`saveWallet: trying to save wallet`);
+    //logDebug(`saveWallet: trying to save wallet`);
 
     var retVal = true;
     delayReleaseSaveState();
 
     wsapi.save().then(()=> {
-      //log.warn(`saveWallet: OK`);
+      //logDebug(`saveWallet: OK`);
       STATE_SAVING = false;
       retVal = true;
     }).catch((err)=>{
       STATE_SAVING = false;
       //just eat the message, they won't all succeed... expected behavior
-      //log.warn(`saveWallet: FAILED, ${err.message}`);
+      //logDebug(`saveWallet: FAILED, ${err.message}`);
       retVal = false;
     });
 
     return retVal;
 }
 
+logDebug("define heightTaskWorker");
 heightTaskWorker = setIntervalAsync(()=>{
   checkHeight();
 }, 900*2);
 
+logDebug("define balanceTaskWorker");
 balanceTaskWorker = setIntervalAsync(()=>{
   checkBalanceUpdate();
 }, 900);
 
+logDebug("define transactionTaskWorker");
 transactionTaskWorker = setIntervalAsync(()=>{
   checkTransactionsUpdate();
 }, 900*3.5);
 
+logDebug("define blockTaskWorker");
 blockTaskWorker = setIntervalAsync(()=>{
   checkBlockUpdate();
 }, 900*2);
 
+logDebug("define saveTaskWorker");
 saveTaskWorker = setIntervalAsync(()=>{
   saveWallet();
 }, 900*100);
 
+logDebug("define process message system..");
 // {type: 'blah', msg: 'any'}
 process.on('message', (msg) => {
     let cmd = msg || '';
@@ -450,7 +461,7 @@ process.on('message', (msg) => {
             STATE_PAUSED = false;
             SERVICE_CFG = cmd.data;
             wsapi = new WalletShellApi(SERVICE_CFG);
-            //log.warn("starting with localDaemonMode: "+!SERVICE_CFG.remote_daemon);
+            logDebug("got a start command: starting with localDaemonMode: "+!SERVICE_CFG.remote_daemon);
             var prm = new Promise(function(resolve, reject) {
               process.send({
                 type: 'daemonMode',
@@ -553,3 +564,6 @@ process.on('disconnect', () => function(){
     logDebug(`worker disconnected`);
     process.exit(1);
 });
+
+logDebug("Finished: all synchworker process messagment defined...");
+

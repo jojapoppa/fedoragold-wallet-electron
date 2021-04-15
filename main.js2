@@ -26,7 +26,6 @@ const https = require('https');
 const pidusage = require('pidusage-tree');
 
 const killer = require('tree-kill');
-const request = require('request-promise-native');
 const opsys = require('os');
 const platform = require('os').platform();
 const crypto = require('crypto');
@@ -1269,6 +1268,8 @@ const checkDaemonHeight = setIntervalAsync(() => {
   getHttpContent(aurl)
   .then((html) => app.heightVal = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
   .catch((err) => app.heightVal = 0);
+
+  log.warn("main.js: daemonHeight: "+app.heightVal);
 }, 15000);
 
 function splitLines(t) { return t.split(/\r\n|\r|\n/); }
@@ -1278,15 +1279,12 @@ const checkDaemonTimer = setIntervalAsync(() => {
       return;
     }
 
-<<<<<<< HEAD
-=======
     //let totalHeapSize = v8.getHeapStatistics().total_available_size;
     //let totalHeapSizeGB = (totalHeapSize / 1024 / 1024 / 1024).toFixed(2);
     //    if (app.daemonPid > 0) pidusage(app.daemonPid, function(err, stats) {
     //      log.warn("pidusage stats: "+util.inspect(stats, {depth: null}));
     //    });
 
->>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
     var cmd = `ps -ex`;
     switch (process.platform) {
         case 'win32' : cmd = `tasklist`; break;
@@ -1302,10 +1300,6 @@ const checkDaemonTimer = setIntervalAsync(() => {
         maxBuffer: 2000 * 1024,
         env: {x: 0}
     }, function(error, stdout, stderr) {
-<<<<<<< HEAD
-=======
-
->>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
         if (error) {
           log.warn("error testing for daemon: "+error.message.toString());
           return;
@@ -1318,7 +1312,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
         procStr = stdout.toString();
         procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\n\r\t]/g, "");
         procStr = procStr.toLowerCase();
-<<<<<<< HEAD
+
         var procAry = splitLines(procStr);
         procStr = "";
         var dloc = procAry.findIndex(element => element.includes('fedoragold_daem'))
@@ -1335,41 +1329,40 @@ const checkDaemonTimer = setIntervalAsync(() => {
 
           procStr2 = procStr.trim();
           procID = parseInt(procStr2.substr(0, procStr2.indexOf(' ')), 10);
-            //log.warn("TEST on Linux and Mac ... detected daemon PID is: "+procID);
+            log.warn("TEST on Linux and Mac ... detected daemon PID is: "+procID);
             //log.warn("  ...started with: "+procStr);
             //log.warn("  ...was parsing string: "+procStr2);
         }
          
         if (procID > 0) { 
-          app.localDaemonRunning = true;
-=======
-        let daemonAlreadyRunning = procStr.includes('fedoragold_daem');
+        //  app.localDaemonRunning = true;
+        //let daemonAlreadyRunning = procStr.includes('fedoragold_daem');
         //if (! daemonAlreadyRunning) log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr+"\n\n\n\n\n\n\n\n");
 
-        if (daemonAlreadyRunning) {
-          //log.warn("original procstr list: "+procStr);
-
-          var procAry = splitLines(procStr);
-          procStr = "";
-          var dloc = procAry.findIndex(element => element.includes('fedoragold_daem'))
-          //log.warn("dloc index is: "+dloc);
-          if (dloc >= 0) {
-            procStr = procAry[dloc];
-            let procStr2 = '';
-            dloc = procStr.indexOf('fedoragold_daem');
-
-            if (platform === 'win32')
-              procStr2 = procStr.substring(dloc+21);
-            else
-              procStr2 = procStr.substring(dloc+15);
-
-            procStr2 = procStr.trim();
-
-            procID = parseInt(procStr2.substr(0, procStr2.indexOf(' ')), 10);
-            //log.warn("TEST on Linux and Mac ... detected daemon PID is: "+procID);
-            //log.warn("  ...started with: "+procStr);
-            //log.warn("  ...was parsing string: "+procStr2);
-          }
+        //if (app.localDaemonRunning) {
+        //  //log.warn("original procstr list: "+procStr);
+        // 
+        //  var procAry = splitLines(procStr);
+        //  procStr = "";
+        //  var dloc = procAry.findIndex(element => element.includes('fedoragold_daem'))
+        //  //log.warn("dloc index is: "+dloc);
+        //  if (dloc >= 0) {
+        //    procStr = procAry[dloc];
+        //    let procStr2 = '';
+        //    dloc = procStr.indexOf('fedoragold_daem');
+        //
+        //    if (platform === 'win32')
+        //      procStr2 = procStr.substring(dloc+21);
+        //    else
+        //      procStr2 = procStr.substring(dloc+15);
+        //
+        //    procStr2 = procStr.trim();
+        // 
+        //    procID = parseInt(procStr2.substr(0, procStr2.indexOf(' ')), 10);
+        //    //log.warn("TEST on Linux and Mac ... detected daemon PID is: "+procID);
+        //    //log.warn("  ...started with: "+procStr);
+        //    //log.warn("  ...was parsing string: "+procStr2);
+        //  }
 
           if (app.daemonPid === null) {
             // this means the first time we are running the daemon...
@@ -1388,7 +1381,6 @@ const checkDaemonTimer = setIntervalAsync(() => {
             //log.warn("local daemon is running fine...");
             app.localDaemonRunning = true;
           }
->>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
         } else {
           app.localDaemonRunning = false;
           app.daemonProcess = null;
@@ -1410,7 +1402,7 @@ const checkSyncTimer = setIntervalAsync(() => {
             keepAlive: true,
             keepAliveMsecs: 8000
         });
-        let headers = {
+        let headerss = {
             Connection: 'Keep-Alive',
             Agent: myAgent
         };
@@ -1436,18 +1428,15 @@ const checkSyncTimer = setIntervalAsync(() => {
         }
 
         try {
-          request(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`, {
-            method: 'GET',
-            headers: headers,
-            body: {jsonrpc: '2.0'},
+          axios.get(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`,
+            {data: {jsonrpc: '2.0'},
             json: true,
-            timeout: 10000
-          }, (error, response, body) => {
-            if (!error && response.statusCode == 200) {
-              if (body.iscoreready) {
-                if (win!==null) win.webContents.send('daemoncoreready', 'true');
-                return;
-              }
+            timeout: 10000}
+          ).then(response => { //, (error, response, body) => {
+            //log.warn("response data: "+response.data.iscoreready);
+            if (response.data.iscoreready) {
+              if (win!==null) win.webContents.send('daemoncoreready', 'true');
+              return;
             }
             if (win!==null) win.webContents.send('daemoncoreready', 'false');
           }).catch(function(e){}); // Just eat the error as race condition expected anyway...
@@ -1597,7 +1586,6 @@ log.warn("task kill done...");
 
 });
 
-<<<<<<< HEAD
 function htmlEscape(str) {
     let strout = String(str)
             .replace(/&/g, '&amp;')
@@ -1613,8 +1601,6 @@ function htmlEscape(str) {
   return strout;
 }
 
-=======
->>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 function runDaemon() {
     // if there are insufficient resources, just run the daemon in thin mode 
     if (! checkMemoryAndStorage()) {
@@ -1649,7 +1635,6 @@ function runDaemon() {
     app.chunkBuf = "\n ********Running Daemon from main.js ***********\n";
     var newTimeStamp;
 
-<<<<<<< HEAD
     //log.warn("daemonPath is: "+daemonPath);
 
     try {
@@ -1657,25 +1642,14 @@ function runDaemon() {
           if (platform == 'darwin') {
             // on mac remember, appleR (recovery) on reboot, then terminal and then...
             //   csrutil disable followed by csrutil enable --without dtrace
-            //daemonPath = "echo la4386lamar | sudo -S /usr/bin/dtruss -b 100m -s " + daemonPath; 
+            //daemonPath = "echo passwd | sudo -S /usr/bin/dtruss -b 100m -s " + daemonPath; 
             //log.warn("mac daemonPath: "+daemonPath);
             app.daemonProcess = exec(daemonPath
               +' --rpc-bind-ip 0.0.0.0 --rpc-bind-port '+settings.get('daemon_port')
-              //for dtruss
+              //for dtruss:
               //,{detached: true, stdio: ['ignore','pipe',process.stderr], encoding: 'utf-8'});
-              
               ,{detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});  
-=======
-    try {
-        if (! app.integratedDaemon) { 
-          if (platform == 'darwin') {
-            //daemonPath = "/bin/cat /tmp/empty.txt | /usr/local/bin/gdb "+daemonPath;
-            //log.warn("mac daemonPath: "+daemonPath);
-            app.daemonProcess = exec(daemonPath
-              +' --rpc-bind-ip 0.0.0.0 --rpc-bind-port '+settings.get('daemon_port')
-              ,{detached: true, stdio: ['ignore','pipe',process.stderr], encoding: 'utf-8'});
-              //,{detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
->>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
+
           } else {
             let daemonArgs = [
               '--rpc-bind-ip', '0.0.0.0',
@@ -1695,15 +1669,12 @@ function runDaemon() {
 
             if ((win !== null) && ((newTimeStamp-app.timeStamp) > 2500)) {
               app.timeStamp = newTimeStamp;
-<<<<<<< HEAD
 
               let outt = htmlEscape(app.chunkBuf);
               win.webContents.send('console', outt);
               //log.warn(outt); 
                
-=======
               win.webContents.send('console', app.chunkBuf);
->>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
               app.chunkBuf = '';
             }
           } catch (e) {
@@ -1711,11 +1682,7 @@ function runDaemon() {
           }
         });
         app.daemonProcess.stderr.on('data', function(chnk) {
-<<<<<<< HEAD
-          log.warn("fedoragold_daemon output: "+chnk);
-=======
           log.warn("fedoragold_daemon error: "+chnk);
->>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
           if (win!==null) win.webContents.send('console',chnk);
         });
     } catch(e) {
@@ -1869,11 +1836,8 @@ process.on('uncaughtException', function (e) {
 });
 
 process.on('beforeExit', (code) => {
-<<<<<<< HEAD
     //log.debug(`beforeExit code: ${code}`);
-=======
     log.debug(`beforeExit code: ${code}`);
->>>>>>> 827dc41f2b495faade66d932fd9ceba1ceab4a8e
 });
 
 process.on('exit', (code) => {

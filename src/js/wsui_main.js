@@ -19,7 +19,7 @@ const autoComplete = require('./extras/auto-complete');
 const wsutil = require('./ws_utils');
 const WalletShellSession = require('./ws_session');
 const WalletShellManager = require('./ws_manager');
-const ansi2html = require('ansi2html');
+//const ansi2html = require('ansi2html');
 const config = require('./ws_config');
 const wsmanager = new WalletShellManager();
 const wsession = new WalletShellSession();
@@ -1878,7 +1878,9 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
     var buffer = "";
     if (el === null) return;
 
-    var buffin = el.innerHTML + ansi2html(sChunk.toString()); //.replace(/[^\x20-\x7E]/g, ''));
+    var buffin = el.innerHTML + sChunk.toString();
+    //ansi2html(sChunk.toString()); //.replace(/[^\x20-\x7E]/g, ''));
+     
     for (let i=0; i<buffin.length; i++) {
       let ch = buffin.charCodeAt(i);
       if (ch == 10) {
@@ -1932,7 +1934,9 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
     if (bDaemon) {
       var lc = firstline.search("INFO ");
       if (lc > -1) {
-        firstline = firstline.substring(lc+4);
+        firstline = firstline.substring(lc+7); // or +4?
+        //log.warn("rescan check: "+firstline);
+        //log.warn(" pos: "+firstline.search("Height "));
       }
 
       // Change the label to "Rescan"...

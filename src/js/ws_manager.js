@@ -1,6 +1,8 @@
 /* eslint no-empty: 0 */
 "use strict";
 
+let DEBUG=true;
+
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -110,7 +112,7 @@ WalletShellManager.prototype.killMiner = function(apid) {
   this.minerPid = 0;
 }
 
-const getHttpContent = function(host, path, cookie) {
+const getHtpContent = function(host, path, cookie) {
   // select http or https module, depending on reqested url
   const httplib = host.startsWith('https') ? require('https') : require('http');
 
@@ -182,14 +184,14 @@ WalletShellManager.prototype.init = function(password){
 
   if (remote.app.heightVal <=0) {
     this.serviceApi.getHeight().then((result) => {
-      daemonHeight = parseInt(result.height, 10);
+      daemonHeight = result.height; //parseInt(result.height, 10);
     }).catch((err) => {
       //just eat this... sometimes daemon takes a while to start...
       //log.warn(`getHeight from Daemon: FAILED, ${err.message}`);
     });
   }
 
-  //log.warn("daemonHeight initialized to: "+daemonHeight);
+  log.warn("daemonHeight initialized to: "+daemonHeight);
 };
 
 WalletShellManager.prototype._getSettings = function(){
@@ -406,11 +408,11 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
         // Possible future work on embedded status page...
         //= webBrowser1.Document.GetElementById("pool_yourStats push-up-20").OuterHtml;
         //let addr_cookie = "address="+walletAddress;
-        //let body_content = getHttpContent("https://fed.cryptonote.club", "/#worker_stats", addr_cookie);
+        //let body_content = getHtpContent("https://fed.cryptonote.club", "/#worker_stats", addr_cookie);
         //log.warn("cryptonote.club: "+body_content.length);
 
       this._spawnService(walletFile, password, onError, onSuccess, onDelay);
-    }, 2000, walletFile, password, onError, onSuccess, onDelay);
+    }, 4000, walletFile, password, onError, onSuccess, onDelay);
 }
 
 WalletShellManager.prototype.startService = function(walletFile, password, onError, onSuccess, onDelay) {
@@ -432,7 +434,8 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
   this.stdBuf = "";
   var wsm = this;
 
-  this.walletProcess = childProcess.exec(runBin, { timeout: 20000, maxBuffer: 4000 * 1024, env: {x: 0} }); // maxBuffer: 2000 * 1024
+  this.walletProcess = childProcess.exec(runBin,
+    { timeout: 20000, maxBuffer: 2000 * 1024, env: {x: 0} });
   this.walletProcess.on('close', () => {
       if ((wsm.stdBuf.length == 0) || (wsm.stdBuf.search("password is wrong") >= 0)) {
         onError("Password: "+ERROR_WALLET_PASSWORD+": "+wsm.stdBuf);
@@ -524,6 +527,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     //log.warn("secNode: "+secNode);
     //log.warn("daemon address: "+daemonAd);
     //log.warn("daemon port: "+daemonPt);
+    //log.warn("walletFile: "+walletFile);
 
     this.serviceApi.setPassword(password);
 
@@ -545,30 +549,46 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         '--local'
       ];
 
-//      log.warn("integrated daemon mode");
+      //log.warn("integrated daemon mode");
     }
     else {
-      serviceArgs = [
-        '--data-dir', remote.app.getPath('userData'),
-        '--container-file', walletFile,
-        '--container-password', password,
-        '--bind-address', '127.0.0.1',
-        '--bind-port', this.walletdPort,
-        '--rpc-user', 'fedadmin',
-        '--rpc-password', password,
-        '--log-level', 0,
-        '--daemon-address', daemonAd,
-        '--daemon-port', daemonPt
-      ];
+      if (DEBUG) {
+        serviceArgs = [
+          '--data-dir', remote.app.getPath('userData'),
+          '--container-file', walletFile,
+          '--container-password', password,
+          '--bind-address', '127.0.0.1',
+          '--bind-port', this.walletdPort,
+          '--rpc-user', 'fedadmin',
+          '--rpc-password', password,
+          '--daemon-address', daemonAd,
+          '--daemon-port', daemonPt,
+          '--log-level', 4, //0,
+          '--log-file', '/home/jojapoppa/Desktop/debug.log'
+        ];
+      } else {
+        serviceArgs = [
+          '--data-dir', remote.app.getPath('userData'),
+          '--container-file', walletFile,
+          '--container-password', password,
+          '--bind-address', '127.0.0.1',
+          '--bind-port', this.walletdPort,
+          '--rpc-user', 'fedadmin',
+          '--rpc-password', password,
+          '--daemon-address', daemonAd,
+          '--daemon-port', daemonPt,
+          '--log-level', 0
+        ];
+      }
     }
 
     let wsm = this;
-    //log.warn("serviceArgs: "+serviceArgs);
-    //log.warn("wallet.serviceBin path: "+wsm.serviceBin);
-    //confirm("args: "+serviceArgs);
+    log.warn("wallet.serviceBin path: "+wsm.serviceBin);
+    log.warn("serviceArgs: "+serviceArgs);
 
     try{
-        this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs);
+        this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs,
+          {detached: false, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
           //{detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
         this.servicePid = this.serviceProcess.pid;
     } catch(e) {
@@ -576,7 +596,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
         log.error(`${config.walletServiceBinaryFilename} is not running`);
         return false;
     }
-    
+
     this.serviceProcess.on('close', () => {
 
         wsm.serviceApi.stop();
@@ -601,6 +621,8 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
 
     wsession.set('connectedNode', `${settings.get('daemon_host')}:${settings.get('daemon_port')}`);
     this.serviceActiveArgs = serviceArgs;
+
+    log.warn("calling startSyncWorker...");
     this.startSyncWorker(password, daemonAd, daemonPt);
     let addr = wsession.get('loadedWalletAddress');
 
@@ -611,6 +633,7 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
       });
     }, 125, wsm, addr);
 
+    log.warn("calling onSuccess()...");
     onSuccess();
 };
 
@@ -685,7 +708,7 @@ WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daem
     }
 
     let wsm = this;
-    wsm.syncWorker = childProcess.fork(path.join(__dirname,'./ws_syncworker.js'));
+    wsm.syncWorker = childProcess.fork(path.join(__dirname,'ws_syncworker.js'));
 
     wsm.syncWorker.on('message', function(msg) {
       wsm.notifyUpdate(msg);
@@ -787,7 +810,10 @@ WalletShellManager.prototype.createWallet = function(walletFile, password){
     let walletLog = `.${walletFile}.log`;
     return new Promise((resolve, reject) => {
         let serviceArgs = wsm.serviceArgsDefault.concat(
-            ['--container-file', walletFile, '--container-password', password, '--log-level', SERVICE_LOG_LEVEL, '--generate-container']
+            ['--container-file', walletFile,
+             '--container-password', password,
+             '--log-level', SERVICE_LOG_LEVEL,
+             '--generate-container']
         );
 
         if(SERVICE_LOG_LEVEL > 0) {
@@ -819,7 +845,7 @@ WalletShellManager.prototype.createWallet = function(walletFile, password){
     });
 };
 
-WalletShellManager.prototype.importFromKeys = function(walletFile, password, viewKey, spendKey, scanHeight){
+WalletShellManager.prototype.importFromKeys = function(walletFile, password, viewKey, spendKey, scanHeight) {
     let wsm = this;
     return new Promise((resolve, reject) => {
         scanHeight = scanHeight || 0;

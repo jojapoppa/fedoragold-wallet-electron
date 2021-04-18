@@ -399,9 +399,9 @@ log.warn("The walletAddress: "+walletAddress);
 
 WalletShellManager.prototype.callSpawn = function(walletFile, password, onError, onSuccess, onDelay) {
 
-    // This is not so much about timing actually.  It's purpose is to make sure that the walletd
-    // does not run within the process space of the original spawn call used to verify
-    // the password and wallet address
+    // The purpose of this is to make sure that the walletd
+    // does not run within the process space of the original
+    // spawn call used to verify the password and wallet address
     setTimeout(() => {
         // Possible future work on embedded status page...
         //= webBrowser1.Document.GetElementById("pool_yourStats push-up-20").OuterHtml;
@@ -410,7 +410,7 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
         //log.warn("cryptonote.club: "+body_content.length);
 
       this._spawnService(walletFile, password, onError, onSuccess, onDelay);
-    }, 2000, walletFile, password, onError, onSuccess, onDelay);
+    }, 3000, walletFile, password, onError, onSuccess, onDelay);
 }
 
 WalletShellManager.prototype.startService = function(walletFile, password, onError, onSuccess, onDelay) {
@@ -432,7 +432,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
   this.stdBuf = "";
   var wsm = this;
 
-  this.walletProcess = childProcess.exec(runBin, { timeout: 20000, maxBuffer: 4000 * 1024, env: {x: 0} }); // maxBuffer: 2000 * 1024
+  this.walletProcess = childProcess.exec(runBin, { timeout: 25000, maxBuffer: 2000 * 1024, env: {x: 0} });
   this.walletProcess.on('close', () => {
       if ((wsm.stdBuf.length == 0) || (wsm.stdBuf.search("password is wrong") >= 0)) {
         onError("Password: "+ERROR_WALLET_PASSWORD+": "+wsm.stdBuf);

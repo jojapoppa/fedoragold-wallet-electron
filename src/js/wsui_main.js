@@ -1091,8 +1091,6 @@ function saveSettings() {
         let cjdnsSocks5PortValue =
           settingsCjdnsSocks5Port.value ? parseInt(settingsCjdnsSocks5Port.value.trim(),10) :
             parseInt(config.defaultCjdnsSocks5Port);
-
-        log.warn("got cjdns vals");
         */
 
         //if(!Number.isInteger(cjdnsadminPortValue)){
@@ -1166,19 +1164,13 @@ function triggerSave() {
 }
 
 function handleSettings() {
-
-  settingsInputDaemonPort.addEventListener('click', function() { triggerSave(); });
   settingsInputDaemonPort.addEventListener('input', function() { triggerSave(); });
-  settingsInputWalletdPort.addEventListener('click', function() { triggerSave(); });
   settingsInputWalletdPort.addEventListener('input', function() { triggerSave(); });
 
-  //settingsCjdnsAdminPort.addEventListener('click', function() { triggerSave(); });
+  //jojapoppa
   //settingsCjdnsAdminPort.addEventListener('input', function() { triggerSave(); });
-  //settingsCjdnsUDPPort.addEventListener('click', function() { triggerSave(); });
   //settingsCjdnsUDPPort.addEventListener('input', function() { triggerSave(); });
-  //settingsCjdnsBeaconPort.addEventListener('click', function() { triggerSave(); });
   //settingsCjdnsBeaconPort.addEventListener('input', function() { triggerSave(); });
-  //settingsCjdnsSocks5Port.addEventListener('click', function() { triggerSave(); });
   //settingsCjdnsSocks5Port.addEventListener('input', function() { triggerSave(); });
 }
 
@@ -1504,7 +1496,7 @@ function handleWalletOpen(){
 
         let settingVals = {
             service_bin: settings.get('service_bin'),
-            daemon_host: settings.get('daemon_host'), 
+            daemon_host: settings.get('daemon_host'),
             daemon_port: daemonPortValue,
             walletd_port: walletdPortValue,
             tray_minimize: settings.get('tray_minimize'),
@@ -1878,9 +1870,8 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
     var buffer = "";
     if (el === null) return;
 
-    var buffin = el.innerHTML + sChunk.toString();
-    //ansi2html(sChunk.toString()); //.replace(/[^\x20-\x7E]/g, ''));
-     
+    var buffin = el.innerHTML + sChunk.toString(); //.replace(/[^\x20-\x7E]/g, ''));
+
     for (let i=0; i<buffin.length; i++) {
       let ch = buffin.charCodeAt(i);
       if (ch == 10) {
@@ -1934,9 +1925,7 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
     if (bDaemon) {
       var lc = firstline.search("INFO ");
       if (lc > -1) {
-        firstline = firstline.substring(lc+7); // or +4?
-        //log.warn("rescan check: "+firstline);
-        //log.warn(" pos: "+firstline.search("Height "));
+        firstline = firstline.substring(lc+7);
       }
 
       // Change the label to "Rescan"...
@@ -2011,7 +2000,11 @@ function handleMiner(){
       let MINER_FILENAME =  (mplat === 'win32' ? `xmr-stak.exe` : `xmr-stak` );
       let MINER_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
       let minerBin = path.join(wsmanager.getResourcesPath(), 'bin', MINER_OSDIR, MINER_FILENAME);
-      let murl = '173.249.27.160:'+mport;
+
+      //let murl = '173.249.27.160:'+mport;
+      //let murl = '5.189.155.88:'+mport;
+      let murl = 'cryptonoteclub.fedoragold.com'+':'+mport;
+
       let mpass = 'fedoragold_wallet';
 
       let minerConfigFile = wsession.get('minerConfig');
@@ -2197,7 +2190,6 @@ function handleSendTransfer(){
 
             let mix = document.getElementById('checkbox-usemixin');
             let useMixin = mix.checked;
-            //log.warn("useMixin: "+useMixin);
 
             formMessageSet('send', 'warning', 'Sending transaction, please wait...<br><progress></progress>');
             wsmanager.sendTransaction(useMixin, tx).then((result) => {

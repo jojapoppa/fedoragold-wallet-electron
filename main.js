@@ -1275,6 +1275,15 @@ const checkDaemonHeight = setIntervalAsync(() => {
 function splitLines(t) { return t.split(/\r\n|\r|\n/); }
 const checkDaemonTimer = setIntervalAsync(() => {
 
+//    if (app.daemonPid > 0) pidusage(app.daemonPid, function(err, stats) {
+//      log.warn("pidusage stats: "+util.inspect(stats, {depth: null}));
+//    });
+
+    // reset doesn't work on mac osx, but seems stable there anyway, so just skip it...
+    if (app.localDaemonRunning && process.platform === 'darwin') {
+      return;
+    }
+
     if (app.terminateMode) {
       return;
     }
@@ -1410,6 +1419,7 @@ const checkSyncTimer = setIntervalAsync(() => {
         // NOTE: This method will not work on Darwin - don't check for inactivity on Mac...
         // when was the last time we had console output?
         var newTimeStamp = Math.floor(Date.now());
+/*
         if ((newTimeStamp - app.timeStamp > 300000) && (process.platform !== 'darwin')) {  // (about 4mins)
           // if no response for over x mins then reset daemon... 
           log.warn("restart the daemon due to inactivity..."); 
@@ -1417,7 +1427,7 @@ const checkSyncTimer = setIntervalAsync(() => {
 
           // if the normal 'exit' command didn't work, then just wipe it out...
           if (newTimeStamp - app.timeStamp > 400000) {  // (about 6mins)
-            /* eslint-disable-next-line no-empty */
+            // eslint-disable-next-line no-empty
             log.warn("calling killer to reset daemon");
             try{killer(app.daemonPid,'SIGKILL');}catch(err){log.warn("daemon reset...");}
             app.daemonProcess = null;
@@ -1426,10 +1436,11 @@ const checkSyncTimer = setIntervalAsync(() => {
 
           return;
         }
-
-        try {
-          axios.get(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`,
-            {data: {jsonrpc: '2.0'},
+*/
+        request(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`, {
+            method: 'GET',
+            headers: headers,
+            body: {jsonrpc: '2.0'},
             json: true,
             timeout: 10000}
           ).then(response => { //, (error, response, body) => {
@@ -1661,6 +1672,16 @@ function runDaemon() {
           app.daemonPid = app.daemonProcess.pid;
         }
 
+        //  if (platform == 'darwin') {
+        //    // on mac remember, appleR (recovery) on reboot, then terminal and then...
+        //    //   csrutil disable followed by csrutil enable --without dtrace
+        //    //daemonPath = "echo la4386lamar | sudo -S /usr/bin/dtruss -b 100m -s " + daemonPath;
+        //    //log.warn("mac daemonPath: "+daemonPath);
+        //    app.daemonProcess = exec(daemonPath
+        //      +' --rpc-bind-ip 0.0.0.0 --rpc-bind-port '+settings.get('daemon_port')
+        //      ,{detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+        //   ...
+
         app.daemonProcess.stdout.on('data', function(chnk) {
           try {
             // limit msgs to avoid overwhelming message bus
@@ -1672,9 +1693,7 @@ function runDaemon() {
 
               let outt = htmlEscape(app.chunkBuf);
               win.webContents.send('console', outt);
-              //log.warn(outt); 
-               
-              win.webContents.send('console', app.chunkBuf);
+
               app.chunkBuf = '';
             }
           } catch (e) {

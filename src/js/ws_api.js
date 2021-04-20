@@ -477,7 +477,7 @@ class WalletShellApi {
     }
     // send single transaction
     sendTransaction(useMixin, params) {
-        //log.warn("api sendTransaction, useMixin: "+useMixin);
+        //logDebug("api sendTransaction, useMixin: "+useMixin);
         let anonLevel = 22;
         if (!useMixin) {
           anonLevel = 0;

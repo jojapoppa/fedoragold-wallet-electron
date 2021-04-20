@@ -1437,21 +1437,21 @@ const checkSyncTimer = setIntervalAsync(() => {
           return;
         }
 */
+    try {
         request(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`, {
             method: 'GET',
             headers: headers,
             body: {jsonrpc: '2.0'},
             json: true,
             timeout: 10000}
-          ).then(response => { //, (error, response, body) => {
-            //log.warn("response data: "+response.data.iscoreready);
+          ).then(response => {
             if (response.data.iscoreready) {
               if (win!==null) win.webContents.send('daemoncoreready', 'true');
               return;
             }
             if (win!==null) win.webContents.send('daemoncoreready', 'false');
           }).catch(function(e){}); // Just eat the error as race condition expected anyway...
-        } catch(e) { /* do nothing */ }
+      } catch(e) { /* do nothing */ }
     }
 }, 4000);
 

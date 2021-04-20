@@ -1,8 +1,6 @@
 /* eslint no-empty: 0 */
 "use strict";
 
-let DEBUG=true;
-
 const path = require('path');
 const fs = require('fs');
 const os = require('os');

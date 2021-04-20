@@ -25,6 +25,9 @@ const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
 const pidusage = require('pidusage-tree');
 
+// DEPRECATED - TAKE OUT...
+const request = require('request-promise-native');
+
 const killer = require('tree-kill');
 const opsys = require('os');
 const platform = require('os').platform();
@@ -1411,7 +1414,7 @@ const checkSyncTimer = setIntervalAsync(() => {
             keepAlive: true,
             keepAliveMsecs: 8000
         });
-        let headerss = {
+        let headers = {
             Connection: 'Keep-Alive',
             Agent: myAgent
         };

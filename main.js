@@ -1437,24 +1437,24 @@ const checkSyncTimer = setIntervalAsync(() => {
           return;
         }
 */
-    try {
         request(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`, {
             method: 'GET',
             headers: headers,
             body: {jsonrpc: '2.0'},
             json: true,
-            timeout: 10000}
-          ).then(response => {
-            if (response.data.iscoreready) {
-              if (win!==null) win.webContents.send('daemoncoreready', 'true');
-              return;
+            timeout: 10000
+        }, (error, response, body) => {
+            if (!error && response.statusCode == 200) {
+              if (body.iscoreready) {
+                if (win!==null) win.webContents.send('daemoncoreready', 'true');
+                return;
+              }
             }
             if (win!==null) win.webContents.send('daemoncoreready', 'false');
-          }).catch(function(e){}); // Just eat the error as race condition expected anyway...
-      } catch(e) { /* do nothing */ }
+        }).catch(function(e){}); // Just eat the error as race condition expected anyway...
     }
 }, 4000);
-
+            
 function storeNodeList(pnodes){
     pnodes = pnodes || settings.get('pubnodes_data');
     let validNodes = [];

@@ -32,6 +32,8 @@ const INFO_FUSION_DONE = 'Wallet optimization completed, your balance may appear
 const INFO_FUSION_SKIPPED = 'Wallet optimized. No further optimization is needed.';
 const ERROR_FUSION_FAILED = 'Unable to optimize your wallet, please try again in a few seconds';
 
+let DEBUG=true;
+
 var bRemoteDaemon = true;
 this.stdBuf = '';
 this.chunkBufr = '';
@@ -406,7 +408,7 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
         // Possible future work on embedded status page...
         //= webBrowser1.Document.GetElementById("pool_yourStats push-up-20").OuterHtml;
         //let addr_cookie = "address="+walletAddress;
-        //let body_content = getHttpContent("https://fed.cryptonote.club", "/#worker_stats", addr_cookie);
+        //let body_content = getHttpContent("https://fedreserve.cryptonote.club", "/#worker_stats", addr_cookie);
         //log.warn("cryptonote.club: "+body_content.length);
 
       this._spawnService(walletFile, password, onError, onSuccess, onDelay);
@@ -432,7 +434,7 @@ WalletShellManager.prototype.startService = function(walletFile, password, onErr
   this.stdBuf = "";
   var wsm = this;
 
-  this.walletProcess = childProcess.exec(runBin, { timeout: 25000, maxBuffer: 2000 * 1024, env: {x: 0} });
+  this.walletProcess = childProcess.exec(runBin, { timeout: 30000, maxBuffer: 2000 * 1024, env: {x: 0} });
   this.walletProcess.on('close', () => {
       if ((wsm.stdBuf.length == 0) || (wsm.stdBuf.search("password is wrong") >= 0)) {
         onError("Password: "+ERROR_WALLET_PASSWORD+": "+wsm.stdBuf);
@@ -685,7 +687,7 @@ WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daem
     }
 
     let wsm = this;
-    wsm.syncWorker = childProcess.fork(path.join(__dirname,'./ws_syncworker.js'));
+    wsm.syncWorker = childProcess.fork(path.join(__dirname,'ws_syncworker.js'));
 
     wsm.syncWorker.on('message', function(msg) {
       wsm.notifyUpdate(msg);
@@ -909,10 +911,10 @@ WalletShellManager.prototype.getSecretKeys = function(address){
     });
 };
 
-WalletShellManager.prototype.sendTransaction = function(params){
+WalletShellManager.prototype.sendTransaction = function(useMixin, params){
     let wsm = this;
     return new Promise((resolve, reject) => {
-        wsm.serviceApi.sendTransaction(params).then((result) => {
+        wsm.serviceApi.sendTransaction(useMixin, params).then((result) => {
             return resolve(result);
         }).catch((err) => {
             //log.warn("walletshellmgr: "+err);

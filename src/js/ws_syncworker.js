@@ -42,7 +42,10 @@ function logDebug(msg){
 function checkBlockUpdate(){
     var retVal = true;
     if (STATE_SAVING || wsapi === null || STATE_PAUSED) {
-      //log.warn("checkBlockUpdate(): invalid state ... skipped");
+      logDebug("checkBlockUpdate(): invalid state ... skipped");
+      if (STATE_SAVING) logDebug(" ... reason: STATE_SAVING");
+      if (wsapi === null) logDebug(" ... reason: wsapi === null");
+      if (STATE_PAUSED) logDebug(" ... reason: STATE_PAUSED");
       return false;
     }
 

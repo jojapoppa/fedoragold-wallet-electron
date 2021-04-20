@@ -57,7 +57,7 @@ let cjdnsBin = null;
 let cjdnsCfg = null;
 
 // settings page
-let settingsInputDaemonAddress;
+//let settingsInputDaemonAddress;
 let settingsInputDaemonPort;
 let settingsInputWalletdPort;
 let settingsInputServiceBin;
@@ -159,7 +159,7 @@ function populateElementVars(){
     sectionButtons = document.querySelectorAll('[data-section]');
 
     // settings input & elements
-    settingsInputDaemonAddress = document.getElementById('input-settings-daemon-address');
+    //settingsInputDaemonAddress = document.getElementById('input-settings-daemon-address');
     settingsInputDaemonPort = document.getElementById('input-settings-daemon-port');
     settingsInputWalletdPort = document.getElementById('input-settings-walletd-port');
     settingsInputServiceBin = document.getElementById('input-settings-path');
@@ -601,9 +601,9 @@ function initNodeCompletion(){
             suggest(matches);
         },
         onSelect: function(e, term){
-            settingsInputDaemonAddress.value = term.split(':')[0];
+            //settingsInputDaemonAddress.value = term.split(':')[0];
             settingsInputDaemonPort.value = term.split(':')[1];
-            settingsInputDaemonAddress.dispatchEvent(new Event('blur'));
+            //settingsInputDaemonAddress.dispatchEvent(new Event('blur'));
             return settingsButtonSave.dispatchEvent(new Event('focus'));
         }
     });
@@ -615,7 +615,7 @@ function initSettingVal(values){
     if(values){
         // save new settings
         //settings.set('service_bin', values.service_bin);
-        settings.set('daemon_host', values.daemon_host);
+        //settings.set('daemon_host', values.daemon_host);
         settings.set('daemon_port', values.daemon_port);
         settings.set('walletd_port', values.walletd_port);
         //settings.set('tray_minimize', values.tray_minimize);
@@ -643,7 +643,7 @@ function initSettingVal(values){
     }
 
     //settingsInputServiceBin.value = settings.get('service_bin');
-    settingsInputDaemonAddress.value = settings.get('daemon_host');
+    //settingsInputDaemonAddress.value = settings.get('daemon_host');
     settingsInputDaemonPort.value = settings.get('daemon_port');
     settingsInputWalletdPort.value = settings.get('walletd_port');
     //settingsInputMinToTray.checked = settings.get('tray_minimize');
@@ -1077,6 +1077,7 @@ function saveSettings() {
             return false;
         }
 
+        /*
         let cjdnsadminPortValue =
           settingsCjdnsAdminPort.value ? parseInt(settingsCjdnsAdminPort.value.trim(),10) :
             parseInt(config.defaultCjdnsAdminPort);
@@ -1089,19 +1090,20 @@ function saveSettings() {
         let cjdnsSocks5PortValue =
           settingsCjdnsSocks5Port.value ? parseInt(settingsCjdnsSocks5Port.value.trim(),10) :
             parseInt(config.defaultCjdnsSocks5Port);
+        */
 
-        if(!Number.isInteger(cjdnsadminPortValue)){
-          cjdnsadminPortValue = parseInt(config.defaultCjdnsAdminPort);
-        }
-        if(!Number.isInteger(cjdnsUDPPortValue)){
-          cjdnsUDPPortValue = parseInt(config.defaultCjdnsUDPPort);
-        }
-        if(!Number.isInteger(cjdnsBeaconPortValue)){
-          cjdnsBeaconPortValue = parseInt(parseInt(config.defaultCjdnsBeaconPort));
-        }
-        if(!Number.isInteger(cjdnsSocks5PortValue)){
-          cjdnsSocks5PortValue = parseInt(parseInt(config.defaultCjdnsSocks5Port));
-        }
+        //if(!Number.isInteger(cjdnsadminPortValue)){
+          let cjdnsadminPortValue = parseInt(config.defaultCjdnsAdminPort);
+        //}
+        //if(!Number.isInteger(cjdnsUDPPortValue)){
+          let cjdnsUDPPortValue = parseInt(config.defaultCjdnsUDPPort);
+        //}
+        //if(!Number.isInteger(cjdnsBeaconPortValue)){
+          let cjdnsBeaconPortValue = parseInt(parseInt(config.defaultCjdnsBeaconPort));
+        //}
+        //if(!Number.isInteger(cjdnsSocks5PortValue)){
+          let cjdnsSocks5PortValue = parseInt(parseInt(config.defaultCjdnsSocks5Port));
+        //}
 
 //jojapoppa service_bin: serviceBinValue,
 //jojapoppa settings.get('daemon_port'),
@@ -1161,14 +1163,14 @@ function triggerSave() {
 }
 
 function handleSettings() {
-  settingsInputDaemonPort.addEventListener('click', function() { triggerSave(); });
-  settingsInputWalletdPort.addEventListener('click', function() { triggerSave(); });
+  settingsInputDaemonPort.addEventListener('input', function() { triggerSave(); });
+  settingsInputWalletdPort.addEventListener('input', function() { triggerSave(); });
 
   //jojapoppa
-  //settingsCjdnsAdminPort.addEventListener('click', function() { triggerSave(); });
-  //settingsCjdnsUDPPort.addEventListener('click', function() { triggerSave(); });
-  //settingsCjdnsBeaconPort.addEventListener('click', function() { triggerSave(); });
-  //settingsCjdnsSocks5Port.addEventListener('click', function() { triggerSave(); });
+  //settingsCjdnsAdminPort.addEventListener('input', function() { triggerSave(); });
+  //settingsCjdnsUDPPort.addEventListener('input', function() { triggerSave(); });
+  //settingsCjdnsBeaconPort.addEventListener('input', function() { triggerSave(); });
+  //settingsCjdnsSocks5Port.addEventListener('input', function() { triggerSave(); });
 }
 
 function handleAddressBook(){
@@ -1425,11 +1427,12 @@ function handleWalletOpen(){
         }
 
         // node settings thingy
-        let daemonHostValue = settingsInputDaemonAddress.value ? settingsInputDaemonAddress.value.trim() :'';
+        //let daemonHostValue = settingsInputDaemonAddress.value ? settingsInputDaemonAddress.value.trim() :'';
         let daemonPortValue = settingsInputDaemonPort.value ? parseInt(settingsInputDaemonPort.value.trim(),10) : '';
         let walletdPortValue = settingsInputWalletdPort.value ? parseInt(settingsInputWalletdPort.value.trim(),10) : '';
 
-        if(!daemonHostValue.length || !Number.isInteger(daemonPortValue)){
+        //if(!daemonHostValue.length || !Number.isInteger(daemonPortValue)){
+        if(!Number.isInteger(daemonPortValue)){ 
             formMessageSet('load','error',`Please input a valid daemon port`);
             return false;
         }
@@ -1469,6 +1472,7 @@ function handleWalletOpen(){
 
         */
 
+        /*
         let validHost = daemonHostValue === 'localhost' ? true : false;
         if(require('net').isIP(daemonHostValue)) validHost = true;
         if(!validHost){
@@ -1479,6 +1483,7 @@ function handleWalletOpen(){
             formMessageSet('load','error',`Invalid daemon/node address!`);
             return false;
         }
+        */
 
         if(daemonPortValue <=0){
             formMessageSet('load','error',`Invalid daemon/node port number!`);
@@ -1491,7 +1496,7 @@ function handleWalletOpen(){
 
         let settingVals = {
             service_bin: settings.get('service_bin'),
-            daemon_host: daemonHostValue,
+            daemon_host: settings.get('daemon_host'),
             daemon_port: daemonPortValue,
             walletd_port: walletdPortValue,
             tray_minimize: settings.get('tray_minimize'),
@@ -1510,7 +1515,7 @@ function handleWalletOpen(){
         if(!walletOpenInputPath.value){
             formMessageSet('load','error', "Invalid wallet file path");
             WALLET_OPEN_IN_PROGRESS = false;
-            setOpenButtonsState(0);
+            setOpenButtonsState(false);
             return;
         }
 
@@ -1518,7 +1523,7 @@ function handleWalletOpen(){
             formMessageReset();
             formMessageSet('load','error', err);
             WALLET_OPEN_IN_PROGRESS = false;
-            setOpenButtonsState(0);
+            setOpenButtonsState(false);
             return false;
         }
 
@@ -1529,7 +1534,7 @@ function handleWalletOpen(){
             WALLET_OPEN_IN_PROGRESS = false;
             changeSection('section-overview');
             setTimeout(()=>{
-                setOpenButtonsState(0);
+                setOpenButtonsState(false);
             },300);
         }
 
@@ -1546,12 +1551,12 @@ function handleWalletOpen(){
         fs.access(walletFile, fs.constants.R_OK, (err) => {
             if(err){
                 formMessageSet('load','error', "Invalid wallet file path");
-                setOpenButtonsState(0);
+                setOpenButtonsState(false);
                 WALLET_OPEN_IN_PROGRESS = false;
                 return false;
             }
 
-            setOpenButtonsState(1);
+            setOpenButtonsState(true);
             WALLET_OPEN_IN_PROGRESS = true;
             settings.set('recentWallet', walletFile);
             settings.set('recentWalletDir', path.dirname(walletFile));
@@ -1567,7 +1572,7 @@ function handleWalletOpen(){
                 console.log(err);
                 formMessageSet('load','error', "Unable to start service");
                 WALLET_OPEN_IN_PROGRESS = false;
-                setOpenButtonsState(0);
+                setOpenButtonsState(false);
                 return false;
             });
         });
@@ -1833,7 +1838,7 @@ function handleWalletExport(){
         });
     });
 
-    showkeyButtonExportKey.addEventListener('click', () => {
+    /*showkeyButtonExportKey.addEventListener('click', () => {
         formMessageReset();
         let filename = remote.dialog.showSaveDialog({
             title: "Export keys to file...",
@@ -1857,14 +1862,15 @@ function handleWalletExport(){
                 formMessageSet('secret','error', "Failed to get keys, please try again in a few seconds");
             });
         }
-    });
+    });*/
 }
 
 function consoleUI(el, sChunk, bDaemon, rigID) {
     var buffer = "";
     if (el === null) return;
 
-    var buffin = el.innerHTML + ansi2html(sChunk.toString()); //.replace(/[^\x20-\x7E]/g, ''));
+    var buffin = el.innerHTML + sChunk.toString(); //.replace(/[^\x20-\x7E]/g, ''));
+    
     for (let i=0; i<buffin.length; i++) {
       let ch = buffin.charCodeAt(i);
       if (ch == 10) {
@@ -1918,7 +1924,7 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
     if (bDaemon) {
       var lc = firstline.search("INFO ");
       if (lc > -1) {
-        firstline = firstline.substring(lc+4);
+        firstline = firstline.substring(lc+7);
       }
 
       // Change the label to "Rescan"...
@@ -1993,7 +1999,11 @@ function handleMiner(){
       let MINER_FILENAME =  (mplat === 'win32' ? `xmr-stak.exe` : `xmr-stak` );
       let MINER_OSDIR = (mplat === 'win32' ? 'win' : (mplat === 'darwin' ? 'mac' : 'linux'));
       let minerBin = path.join(wsmanager.getResourcesPath(), 'bin', MINER_OSDIR, MINER_FILENAME);
-      let murl = '173.249.27.160:'+mport;
+
+      //let murl = '173.249.27.160:'+mport;
+      //let murl = '5.189.155.88:'+mport;
+      let murl = 'cryptonoteclub.fedoragold.com'+':'+mport;
+
       let mpass = 'fedoragold_wallet';
 
       let minerConfigFile = wsession.get('minerConfig');
@@ -2176,8 +2186,12 @@ function handleSendTransfer(){
         sendBtn.addEventListener('click', (event) => {
             let md = document.querySelector(event.target.dataset.target);
             md.close();
+
+            let mix = document.getElementById('checkbox-usemixin');
+            let useMixin = mix.checked;
+
             formMessageSet('send', 'warning', 'Sending transaction, please wait...<br><progress></progress>');
-            wsmanager.sendTransaction(tx).then((result) => {
+            wsmanager.sendTransaction(useMixin, tx).then((result) => {
                 formMessageReset();
                 let href = config.blockExplorerUrl.replace('[[TX_HASH]]', result.transactionHash);
 
@@ -2410,7 +2424,7 @@ function handleTransactions(){
         mode = mode || 'all';
         let recentDir = settings.get('recentWalletDir', remote.app.getPath('home'));
         let filename = remote.dialog.showSaveDialog({
-            title: "Export transactions as scv...",
+            title: "Export transactions as csv...",
             defaultPath: recentDir,
             filters: [
                 { name: 'CSV files', extensions: ['csv'] }

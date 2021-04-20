@@ -255,7 +255,7 @@ function updateBalance(data){
         sendMaxAmount.classList.add('hidden');
         wsession.set('walletUnlockedBalance', 0);
         wsession.set('walletLockedBalance', 0);
-        if(availableBalance < 0) return;
+        return;
     }
 
     let bUnlocked = wsutil.amountForMortal(availableBalance);

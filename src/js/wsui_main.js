@@ -9,7 +9,7 @@ const net = require('net');
 const path = require('path');
 const fs = require('fs');
 const log = require('electron-log');
-const crypto = require('crypto');
+const randomBytes = require('randombytes');
 
 const {dialog, clipboard, remote, ipcRenderer, shell} = require('electron');
 const Store = require('electron-store');
@@ -141,6 +141,8 @@ let txButtonExplorer;
 let thtml;
 //let dmswitch;
 let kswitch;
+
+let daemonsynchronizedok = false;
 
 function populateElementVars(){
 
@@ -414,7 +416,7 @@ let keybindingTpl = `<div class="transaction-panel">
 function genPaymentId(ret){
     ret = ret || false;
     
-    let payId = require('crypto').randomBytes(32).toString('hex');
+    let payId = randomBytes(32).toString('hex');
     if(ret) return payId;
     
     let dialogTpl = `<div class="transaction-panel">
@@ -528,7 +530,7 @@ function changeSection(sectionId, isSettingRedir) {
         toastMsg = "Please create/open your wallet!";
     }else if(needServiceStopped.indexOf(targetSection) >=0 && isServiceReady){
         finalTarget = 'section-overview';
-    }else if(needSynced.indexOf(targetSection) >=0 && !isSynched){
+    }else if ( (needSynced.indexOf(targetSection) >=0) && !isSynched ) {
         // just return early
         showToast("Please wait until synch process completed!");
         return;
@@ -1421,8 +1423,8 @@ function handleWalletOpen(){
     walletOpenButtonOpen.addEventListener('click', () => {
 
         formMessageReset();
-        if (isRescan) {
-            showToast('Rescan is in progress, please wait.');
+        if (isRescan || !daemonsynchronizedok) {
+            showToast('Please wait for the wallet to synchronize...');
             return;
         }
 
@@ -1550,6 +1552,7 @@ function handleWalletOpen(){
         //log.warn("file system access: "+walletFile); 
 
         fs.access(walletFile, fs.constants.R_OK, (err) => {
+
             if(err){
                 formMessageSet('load','error', "Invalid wallet file path");
                 setOpenButtonsState(false);
@@ -1567,8 +1570,12 @@ function handleWalletOpen(){
                 formMessageSet('load','warning', "Starting wallet service...<br><progress></progress>");
                 setTimeout(() => {
                     formMessageSet('load','warning', "Opening wallet, please be patient...<br><progress></progress>");
-                    wsmanager.startService(walletFile, walletPass, onError, onSuccess, onDelay);
-                },800, walletFile, walletPass, onError, onSuccess, onDelay);
+
+                    //log.warn("calling startService...");
+
+                    wsmanager.startService(walletFile, walletPass, onError,
+                      onSuccess, onDelay, daemonsynchronizedok);
+                }, 800, walletFile, walletPass, onError, onSuccess, onDelay, daemonsynchronizedok);
             }).catch((err) => {
                 console.log(err);
                 formMessageSet('load','error', "Unable to start service");
@@ -1831,6 +1838,9 @@ function handleWalletExport(){
         formMessageReset();
         if(!overviewWalletAddress.value) return;
         wsmanager.getSecretKeys(overviewWalletAddress.value).then((keys) => {
+
+            log.warn("keys: "+JSON.stringify(keys)); 
+
             showkeyInputViewKey.value = keys.viewSecretKey;
             showkeyInputSpendKey.value = keys.spendSecretKey;
             //showkeyInputSeed.value = keys.mnemonicSeed;
@@ -1955,6 +1965,7 @@ function consoleUI(el, sChunk, bDaemon, rigID) {
             displayKnownBlockCount: -100,
             syncPercent: -100,
             knownBlockCount: -300,
+            daemonsynchronizedok: daemonsynchronizedok,
             uiMessage: firstline
           }
         };
@@ -1993,7 +2004,7 @@ function handleMiner(){
     let mport = miningPort.value;
 
     if (miningState) {
-      last8_rigID = settings.get('rigidval', 'FED'+crypto.randomBytes(8).toString('hex'));
+      last8_rigID = settings.get('rigidval', 'FED'+randomBytes(8).toString('hex'));
       settings.set('rigidval', last8_rigID);
 
       let mplat = wsmanager.getPlatform();
@@ -2194,10 +2205,11 @@ function handleSendTransfer(){
             formMessageSet('send', 'warning', 'Sending transaction, please wait...<br><progress></progress>');
             wsmanager.sendTransaction(useMixin, tx).then((result) => {
                 formMessageReset();
+
                 let href = config.blockExplorerUrl.replace('[[TX_HASH]]', result.transactionHash);
 
-                log.warn("sent transaction with proof: ", result.proof);
-                log.warn("... for address: ", tx.address);
+                //log.warn("sent transaction with proof: ", result.proof);
+                //log.warn("... for address: ", tx.address);
 
                 let txhashUrl = `<a class="external" id="explorer-link" title="view in block explorer" href="https://explorer.fedoragold.com/?proofTx=${result.transactionHash}&proofPayment=${result.proof}&proofAddress=${tx.address}#check_payment">${result.transactionHash}</a>`;
 
@@ -2822,10 +2834,12 @@ function initHandlers(){
             if(!target) return;
             if(target.type === "password"){
                 target.type = 'text';
-                e.currentTarget.firstChild.dataset.icon = 'eye-slash';
+                if (e.currentTarget.firstChild.dataset !== undefined)
+                  e.currentTarget.firstChild.dataset.icon = 'eye-slash';
             }else{
                 target.type = 'password';
-                e.currentTarget.firstChild.dataset.icon = 'eye';
+                if (e.currentTarget.firstChild.dataset !== undefined)
+                  e.currentTarget.firstChild.dataset.icon = 'eye';
             }
         });
     }
@@ -3004,6 +3018,13 @@ ipcRenderer.on('cjdnsstart', (event, sChunk) => {
 ipcRenderer.on('console', (event, sChunk) => {
     var el = document.getElementById("terminal");
     //log.warn("sChunk is: "+sChunk.toString());
+
+    // this means the daemon will properly work the wallet now...
+    if (sChunk.indexOf("SYNCHRONIZED OK") > -1) {
+      daemonsynchronizedok = true;
+      wsmanager.notifySyncWorker({ type: 'daemonsynchronizedok', data: {stat: true} });
+    }
+
     consoleUI(el, sChunk, true, "");
 });
 
@@ -3041,9 +3062,10 @@ ipcRenderer.on('promptexit', () => {
       return;
     }
 
-    let aurl = `http://127.0.0.1:${settings.get('daemon_port')}/stop_daemon`;
-    let libr = aurl.startsWith('https') ? require('https') : require('http');
-    try {libr.get(aurl);} catch (e) {/*do nothing*/}
+    // handle this in main.js 
+    //let aurl = `http://127.0.0.1:${settings.get('daemon_port')}/stop_daemon`;
+    //let libr = aurl.startsWith('https') ? require('https') : require('http');
+    //try {libr.get(aurl);} catch (e) {/*do nothing*/}
 
     setInterval(function() {
       remote.app.emit('exit');
@@ -3063,7 +3085,7 @@ ipcRenderer.on('promptexit', () => {
 
     let htmlStr = `<div class="div-save-main" style="text-align: center;padding:1rem;"><i class="fas fa-spinner fa-pulse"></i><span style="padding:0px 10px;">${htmlText}</span></div>`;
     dialog.innerHTML = htmlStr;
-    dialog.showModal();
+    try{dialog.showModal();}catch(e){/*do nothing*/}
 
     wsmanager.stopSyncWorker();
     wsmanager.stopService().then(() => {

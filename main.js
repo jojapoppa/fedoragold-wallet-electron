@@ -12,9 +12,12 @@ const transform = require('stream').Transform;
 const v8 = require('v8');
 const ip2int = require('ip2int');
 const associativeArray = require('associative-array');
+const alerts = require('alert');
 
-const minMemory = 2.5; // GB
+const minMemory = 4;   // GB
 const minStorage = 20; // GB
+
+var callStopDaemonInProcess = false;
 
 const path = require('path');
 const vm = require('vm');
@@ -25,13 +28,10 @@ const http = require('http'); //jojapoppa, do we need both http and https?
 const https = require('https');
 const pidusage = require('pidusage-tree');
 
-// DEPRECATED - TAKE OUT...
-const request = require('request-promise-native');
-
 const killer = require('tree-kill');
 const opsys = require('os');
 const platform = require('os').platform();
-const crypto = require('crypto');
+const randomBytes = require('randombytes');
 const Store = require('electron-store');
 const settings = new Store({name: 'Settings'});
 const splash = require('@trodi/electron-splashscreen');
@@ -84,7 +84,7 @@ const DEFAULT_SETTINGS = {
     daemon_bin: DEFAULT_DAEMON_BIN,
     walletd_host: '127.0.0.1',
     walletd_port: config.walletServiceRpcPort,
-    walletd_password: crypto.randomBytes(32).toString('hex'),
+    walletd_password: randomBytes(32).toString('hex'),
     daemon_host: config.remoteNodeDefaultHost,
     daemon_port: config.daemonDefaultRpcPort,
     pubnodes_date: null,
@@ -101,9 +101,9 @@ app.setAppUserModelId(config.appId);
 app.fsync = null;
 app.timeStamp = 0;
 app.chunkBuf = '';
-app.daemonPid = null;
+app.daemonPid = 0;
 app.daemonProcess = null;
-app.daemonLastPid = null;
+app.daemonLastPid = 0;
 app.localDaemonRunning = false;
 app.integratedDaemon = false;
 app.heightVal = 0;
@@ -111,6 +111,7 @@ app.adminPassword=null;
 app.socksv5server=null;
 app.socksv5Sessions=null;
 app.terminateMode=false;
+app.threeTriesToKill=0;
 
 app.HOST_ALGORITHMS = { serverHostKey: ['ssh-rsa'] };
 
@@ -225,9 +226,11 @@ function createWindow() {
       autoUpdater.allowPrerelease = false;
       autoUpdater.logger = log;
       autoUpdater.logger.transports.file.level = "info";
-      autoUpdater.checkForUpdatesAndNotify().catch(err => {
-        log.warn('Error on update (NAME_NOT_RESOLVED is old yml on github): ',err);
-      });
+
+// causes cert failure exception...
+//        autoUpdater.checkForUpdatesAndNotify().catch(err => {
+//          log.warn('Error on update (NAME_NOT_RESOLVED is old yml on github): ',err);
+//        });
 
       // NOTE: Look at Electron Forge & Squirel, for autoupdate support from git (this is not working any more)
       autoUpdater.on('update-downloaded', (versionInfo) => {
@@ -315,11 +318,10 @@ const getHttpContent = function(url) {
     // select http or https module, depending on reqested url
     const lib = url.startsWith('https') ? require('https') : require('http');
     try {
-
       const request = lib.get(url, (response) => {
         // handle http errors
         if (response.statusCode < 200 || response.statusCode > 299) {
-           reject(new Error('Failed to load page, status code: ' + response.statusCode));
+           return reject(new Error('Failed to load page, status code: ' + response.statusCode));
          }
         // temporary data holder
         const body = [];
@@ -332,7 +334,7 @@ const getHttpContent = function(url) {
       // handle connection errors of the request
       request.on('error', (err) => reject(err));
 
-    } catch (e) {/*do nothing*/ }
+    } catch(e){resolve('');}
   });
 };
 
@@ -351,6 +353,31 @@ function logDataStream(data) {
     }
   }
   //log.warn("sock: "+print);
+}
+
+function clobber(wall, daem, dPid) {
+
+  try {
+    switch(process.platform) {
+    case 'win32':
+      if (wall) exec('taskkill /F /IM ' + '"FedoraGoldWallet Helper (Renderer)'+ '.exe" /T');
+      if (wall) exec('taskkill -F /IM ' + '"fedoragold_walletd'+ '.exe" /T');
+      break;
+    case 'darwin':
+      if (wall) exec('pkill ' + 'FedoraGoldW*'); //allet\\ Helper');
+      if (wall) exec("kill -9 $(ps aux | grep fedoragold_walletd | grep -v grep | awk '{print $2}')");
+      if (wall) exec('pkill ' + 'fedoragold_w*');  // fedoragold_walletd
+      break;
+    default: //Linux+android
+      if (wall) exec('killall -9 ' + 'fedoragoldwallet.bin');
+      if (wall) exec('killall -9 ' + 'fedoragold_walletd');
+      break;
+    }
+
+    if (daem && (dPid >= 0)) {
+      try{killer(dPid,'SIGKILL');}catch(err){log.warn("daemon reset...");}
+    }
+  } catch (e) {/* do nothing */}
 }
 
 /*
@@ -498,7 +525,7 @@ async function genSocks5Request(proxy) {
 
   if (app.terminateMode) return;
 
-  let requestID = crypto.randomBytes(32);
+  let requestID = randomBytes(32);
   let info = {
     dstAddr : proxy.remote.remoteAddress,
     dstPort : proxy.remote.remotePort
@@ -1219,7 +1246,7 @@ function runSocks5Proxy() {
   }
 
   app.vpnPaymentID = 'rocks';
-  app.fakeUserID = 'FEDSSHCLIENT_'+crypto.randomBytes(8).toString('hex');
+  app.fakeUserID = 'FEDSSHCLIENT_'+randomBytes(8).toString('hex');
 
   let pair = keypair();
   let allowedPubKey = forge.pki.publicKeyFromPem(pair.public);
@@ -1272,31 +1299,16 @@ const checkDaemonHeight = setIntervalAsync(() => {
   .then((html) => app.heightVal = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
   .catch((err) => app.heightVal = 0);
 
-  log.warn("main.js: daemonHeight: "+app.heightVal);
+  //log.warn("testing daemonHeight: "+app.heightVal);
 }, 15000);
 
 function splitLines(t) { return t.split(/\r\n|\r|\n/); }
 const checkDaemonTimer = setIntervalAsync(() => {
 
-//    if (app.daemonPid > 0) pidusage(app.daemonPid, function(err, stats) {
-//      log.warn("pidusage stats: "+util.inspect(stats, {depth: null}));
-//    });
-
-    // reset doesn't work on mac osx, but seems stable there anyway, so just skip it...
-    if (app.localDaemonRunning && process.platform === 'darwin') {
-      return;
-    }
-
     if (app.terminateMode) {
       return;
-    }
-
-    //let totalHeapSize = v8.getHeapStatistics().total_available_size;
-    //let totalHeapSizeGB = (totalHeapSize / 1024 / 1024 / 1024).toFixed(2);
-    //    if (app.daemonPid > 0) pidusage(app.daemonPid, function(err, stats) {
-    //      log.warn("pidusage stats: "+util.inspect(stats, {depth: null}));
-    //    });
-
+    } 
+        
     var cmd = `ps -ex`;
     switch (process.platform) {
         case 'win32' : cmd = `tasklist`; break;
@@ -1313,10 +1325,10 @@ const checkDaemonTimer = setIntervalAsync(() => {
         env: {x: 0}
     }, function(error, stdout, stderr) {
         if (error) {
-          log.warn("error testing for daemon: "+error.message.toString());
+          //log.warn("error testing for daemon: "+error.message.toString());
           return;
         } else if (stderr.length > 0) {
-          log.warn("err testing for daemon: "+stderr+" \n");
+          //log.warn("err testing for daemon: "+stderr+" \n");
           return;
         }
 
@@ -1333,61 +1345,53 @@ const checkDaemonTimer = setIntervalAsync(() => {
           procStr = procAry[dloc];
           let procStr2 = '';
           dloc = procStr.indexOf('fedoragold_daem');
+          //log.warn("dloc: "+dloc);
+          //log.warn("raw: "+procStr);
 
-          if (platform === 'win32')
+          if (platform === 'win32') {
             procStr2 = procStr.substring(dloc+21);
-          else
-            procStr2 = procStr.substring(dloc+15);
+          } else if (platform === 'darwin') {
+            procStr2 = procStr.substring(0, 6);
+          } else {
+            procStr2 = procStr.substring(0, 6);
+          }
 
-          procStr2 = procStr.trim();
-          procID = parseInt(procStr2.substr(0, procStr2.indexOf(' ')), 10);
-            log.warn("TEST on Linux and Mac ... detected daemon PID is: "+procID);
-            //log.warn("  ...started with: "+procStr);
-            //log.warn("  ...was parsing string: "+procStr2);
+          procStr2 = procStr2.trim();
+          //log.warn("process string2: "+procStr2);
+
+          if (platform === 'win32') {
+            procID = parseInt(procStr2.substr(0, procStr2.indexOf(' ')), 10);
+          } else {
+            procID = parseInt(procStr2, 10);
+          }
+
+          //log.warn("TEST on Linux and Mac ... detected daemon PID is: "+procID);
         }
-         
+    
         if (procID > 0) { 
-        //  app.localDaemonRunning = true;
-        //let daemonAlreadyRunning = procStr.includes('fedoragold_daem');
-        //if (! daemonAlreadyRunning) log.warn("\n\n\n\n\n\n\n\n\n\n\n"+procStr+"\n\n\n\n\n\n\n\n");
+          //log.warn("daemon found on procID: "+procID);
 
-        //if (app.localDaemonRunning) {
-        //  //log.warn("original procstr list: "+procStr);
-        // 
-        //  var procAry = splitLines(procStr);
-        //  procStr = "";
-        //  var dloc = procAry.findIndex(element => element.includes('fedoragold_daem'))
-        //  //log.warn("dloc index is: "+dloc);
-        //  if (dloc >= 0) {
-        //    procStr = procAry[dloc];
-        //    let procStr2 = '';
-        //    dloc = procStr.indexOf('fedoragold_daem');
-        //
-        //    if (platform === 'win32')
-        //      procStr2 = procStr.substring(dloc+21);
-        //    else
-        //      procStr2 = procStr.substring(dloc+15);
-        //
-        //    procStr2 = procStr.trim();
-        // 
-        //    procID = parseInt(procStr2.substr(0, procStr2.indexOf(' ')), 10);
-        //    //log.warn("TEST on Linux and Mac ... detected daemon PID is: "+procID);
-        //    //log.warn("  ...started with: "+procStr);
-        //    //log.warn("  ...was parsing string: "+procStr2);
-        //  }
+          // If this is the first time you are checking, and there is a leftover daemon
+          // from a previous process then shut it down gracefully to restart...
+          if (app.daemonProcess === null) {
+            log.warn("Previous daemon was detected... restarting it...");
 
-          if (app.daemonPid === null) {
-            // this means the first time we are running the daemon...
-            if (procID > 0) app.daemonPid = procID;
-            var errmsg = "fedoragold_daemon process already running at process ID: "+app.daemonPid;
-            log.warn(errmsg);
+            if (app.threeTriesToKill > 2) {
+              log.warn("clobber old daemon... soft terminate failed...");
+              clobber(false, true, procID);
+              app.threeTriesToKill = 0;
+            } else {
+              terminateDaemon(false);
+              app.threeTriesToKill++;
+            }
+          }
+
+          if (app.daemonPid === 0) {
+            // this means the first time we are running the daemon... already running
+            app.daemonPid = procID;
             app.localDaemonRunning = true;
-            if (win!==undefined&&win!==null) win.webContents.send('console', errmsg);
-
-            log.warn("killing the daemon!!");
-
-            /* eslint-disable-next-line no-empty */
-            try{killer(app.daemonPid,'SIGKILL');}catch(err){} 
+            //let errmsg = "fedoragold_daemon process already running at process ID: "+app.daemonPid;
+            //if (win!==undefined&&win!==null) win.webContents.send('console', errmsg);
             return;
           } else {
             //log.warn("local daemon is running fine...");
@@ -1396,65 +1400,57 @@ const checkDaemonTimer = setIntervalAsync(() => {
         } else {
           app.localDaemonRunning = false;
           app.daemonProcess = null;
-          app.daemonPid = null;
+          app.daemonPid = 0;
+          callStopDaemonInProcess = false;
 
           //log.warn(procStr);
-          log.warn("daemon process no longer detected: runDaemon()...");
+          //log.warn("daemon process no longer detected: runDaemon()...");
           runDaemon();
         }
     });
-}, 15000);
+}, 7500);
 
 const checkSyncTimer = setIntervalAsync(() => {
 
     if (app.terminateMode) return;
 
-    if (app.localDaemonRunning && (app.daemonPid !== null)) {
-        var myAgent = new http.Agent({
-            keepAlive: true,
-            keepAliveMsecs: 8000
-        });
-        let headers = {
-            Connection: 'Keep-Alive',
-            Agent: myAgent
-        };
+    if (app.localDaemonRunning && (app.daemonPid !== 0)) {
 
-        // NOTE: This method will not work on Darwin - don't check for inactivity on Mac...
-        // when was the last time we had console output?
         var newTimeStamp = Math.floor(Date.now());
-/*
-        if ((newTimeStamp - app.timeStamp > 300000) && (process.platform !== 'darwin')) {  // (about 4mins)
-          // if no response for over x mins then reset daemon... 
-          log.warn("restart the daemon due to inactivity..."); 
-          terminateDaemon();
 
-          // if the normal 'exit' command didn't work, then just wipe it out...
-          if (newTimeStamp - app.timeStamp > 400000) {  // (about 6mins)
-            // eslint-disable-next-line no-empty
-            log.warn("calling killer to reset daemon");
-            try{killer(app.daemonPid,'SIGKILL');}catch(err){log.warn("daemon reset...");}
-            app.daemonProcess = null;
-            app.daemonPid = null;
-          }
-
-          return;
-        }
-*/
-        request(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`, {
-            method: 'GET',
-            headers: headers,
-            body: {jsonrpc: '2.0'},
-            json: true,
-            timeout: 10000
-        }, (error, response, body) => {
-            if (!error && response.statusCode == 200) {
-              if (body.iscoreready) {
-                if (win!==null) win.webContents.send('daemoncoreready', 'true');
-                return;
-              }
+        getHttpContent(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`)
+          .then((html) => {
+            let isready = JSON.parse(html).iscoreready;
+            if (isready) {
+              //log.warn("coreready: true");
+              if (win!==null) win.webContents.send('daemoncoreready', 'true');
+            } else {
+              //log.warn("coreready: false");
+              if (win!==null) win.webContents.send('daemoncoreready', 'false');
             }
-            if (win!==null) win.webContents.send('daemoncoreready', 'false');
-        }).catch(function(e){}); // Just eat the error as race condition expected anyway...
+          })
+          .catch((err) => {if (win!==null) win.webContents.send('daemoncoreready', 'false')});
+
+        let inactivityTime = 240000; // blocktime is 25 secs, so this must be comforatbly greater
+        let killerTime = 300000; //ms until we just clobber it
+        let delay = newTimeStamp - app.timeStamp;
+        if ((delay > inactivityTime) && (delay <= killerTime)) {
+          // if no response for over x mins then reset daemon... 
+          if (! callStopDaemonInProcess) {
+            // just does it once... 
+            log.warn("restart the daemon due to inactivity...");
+            terminateDaemon(false);
+            callStopDaemonInProcess = true;
+          }
+        } else if (delay > killerTime) {
+          log.warn("calling killer to reset daemon with pid: "+app.daemonPid);
+          // eslint-disable-next-line no-empty
+          try{killer(app.daemonPid,'SIGKILL');}catch(err){log.warn("daemon reset...");}
+          app.daemonProcess = null;
+          app.daemonPid = 0;
+        }
+
+        return;
     }
 }, 4000);
             
@@ -1553,51 +1549,25 @@ electron.dialog.showErrorBox = (title, content) => {
 };
 
 process.on('unhandledRejection', function(err) {});
-function terminateDaemon() {
 
-log.warn("terminateDaemon...");
+function terminateDaemon(setTerminateMode) {
 
     // hit the stop_daemon rest interface...
     let aurl = `http://127.0.0.1:${settings.get('daemon_port')}/stop_daemon`;
     let libr = aurl.startsWith('https') ? require('https') : require('http');
-    try {libr.get(aurl);} catch (e) {/*do nothing*/}
+    try {libr.get(aurl);} catch (e) {/*do nothing*/log.warn("term err: "+e);}
 
-    //log.warn("terminateDaemon() called...");
-    app.terminateMode = true;
+    //log.warn("terminateDaemon() called... "+aurl);
+    if (setTerminateMode) app.terminateMode = true;
 
     app.daemonLastPid = app.daemonPid;
-    try{
-      if (app.daemonProcess !== null) {
-        // this offers clean exit on all platforms
-        //log.warn("exit command sent to fedoragold_daemon"); 
-        app.daemonProcess.stdin.write("exit\n");
-        app.daemonProcess.stdin.end();
-      }
-    } catch(e) {/*eat any errors, no reporting nor recovery needed...*/}
-
-log.warn("terminate done...");
 }
 
 app.on('window-all-closed', app.quit);
 app.on('before-quit', () => {
-  terminateDaemon();
-
-log.warn("task kill...");
-
-  switch(process.platform) {
-  case 'win32':
-    exec('taskkill /F /IM ' + '"FedoraGoldWallet Helper (Renderer)'+ '.exe" /T');
-    break;
-  case 'darwin':
-    exec('pkill ' + 'FedoraGoldWallet\\ Helper');
-    break;
-  default: //Linux+android
-    exec('killall -9 ' + 'fedoragoldwallet.bin');
-    break;
-  }
-
-log.warn("task kill done...");
-
+  //log.warn("call terminateDaemon from before-quit");
+  clobber(true, false, 0); 
+  terminateDaemon(true);
 });
 
 function htmlEscape(str) {
@@ -1617,10 +1587,12 @@ function htmlEscape(str) {
 
 function runDaemon() {
     // if there are insufficient resources, just run the daemon in thin mode 
-    if (! checkMemoryAndStorage()) {
-      //log.warn("insufficient resources to run local daemon, will use remote instead");
-      return;
-    }
+    //if (! checkMemoryAndStorage()) {
+    //  //log.warn("insufficient resources to run local daemon, will use remote instead");
+    //  return;
+    //}
+
+    //log.warn("in runDaemon()");
 
     var daemonPath;
     if (process.platform === 'darwin') {
@@ -1642,11 +1614,10 @@ function runDaemon() {
     //log.warn(v8.getHeapStatistics());
     let totalHeapSize = v8.getHeapStatistics().total_available_size;
     let totalHeapSizeGB = (totalHeapSize / 1024 / 1024 / 1024).toFixed(2);
-    log.warn("Running daemon with total heap: "+totalHeapSizeGB+"GB");
 
     // unable to get this mode working yet, but seems to work for Meroex!
     app.integratedDaemon = false;
-    app.chunkBuf = "\n ********Running Daemon from main.js ***********\n";
+    app.chunkBuf = "total Heap Size: "+totalHeapSizeGB+"gb ";
     var newTimeStamp;
 
     //log.warn("daemonPath is: "+daemonPath);
@@ -1654,36 +1625,31 @@ function runDaemon() {
     try {
         if (! app.integratedDaemon) { 
           if (platform == 'darwin') {
-            // on mac remember, appleR (recovery) on reboot, then terminal and then...
-            //   csrutil disable followed by csrutil enable --without dtrace
-            //daemonPath = "echo passwd | sudo -S /usr/bin/dtruss -b 100m -s " + daemonPath; 
-            //log.warn("mac daemonPath: "+daemonPath);
-            app.daemonProcess = exec(daemonPath
-              +' --rpc-bind-ip 0.0.0.0 --rpc-bind-port '+settings.get('daemon_port')
-              //for dtruss:
-              //,{detached: true, stdio: ['ignore','pipe',process.stderr], encoding: 'utf-8'});
-              ,{detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});  
+             
+            let execPath = daemonPath;
+            let execArgs = " --log-level 2 " + "--rpc-bind-ip 0.0.0.0 " +
+              "--rpc-bind-port "+settings.get('daemon_port');
+            //log.warn("running with args: "+execArgs);
+
+            app.daemonProcess = exec(execPath+execArgs, 
+              {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});  
 
           } else {
             let daemonArgs = [
+              '--log-level', 2,
               '--rpc-bind-ip', '0.0.0.0',
               '--rpc-bind-port', settings.get('daemon_port'),
             ];
             app.daemonProcess = spawn(daemonPath, daemonArgs,
               {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
           }
-          app.daemonPid = app.daemonProcess.pid;
         }
 
-        //  if (platform == 'darwin') {
-        //    // on mac remember, appleR (recovery) on reboot, then terminal and then...
-        //    //   csrutil disable followed by csrutil enable --without dtrace
-        //    //daemonPath = "echo la4386lamar | sudo -S /usr/bin/dtruss -b 100m -s " + daemonPath;
-        //    //log.warn("mac daemonPath: "+daemonPath);
-        //    app.daemonProcess = exec(daemonPath
-        //      +' --rpc-bind-ip 0.0.0.0 --rpc-bind-port '+settings.get('daemon_port')
-        //      ,{detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
-        //   ...
+        app.daemonPid = app.daemonProcess.pid;
+
+        //log.warn("Just type your password right after this... invisible, it goes into trace file!");
+        //log.warn("  (you can also do tail -f dtrusstrace.txt in another window...)");
+        //log.warn("sudo -S dtruss -b 100m -p "+app.daemonPid+" 2> dtrusstrace.txt");
 
         app.daemonProcess.stdout.on('data', function(chnk) {
           try {
@@ -1695,7 +1661,9 @@ function runDaemon() {
               app.timeStamp = newTimeStamp;
 
               let outt = htmlEscape(app.chunkBuf);
-              win.webContents.send('console', outt);
+
+              // undefined is different than null...
+              if (win !== undefined) win.webContents.send('console', outt);
 
               app.chunkBuf = '';
             }
@@ -1765,8 +1733,10 @@ function checkMemoryAndStorage() {
 
   let gbMemoryAvailable = (opsys.totalmem() / (1024 * 1024 * 1024)).toFixed(1);
   if ((gbMemoryAvailable < minMemory) || (gbStorageAvailable < minStorage)) {
+    //alerts("Recommented minimum:   memory: "+minMemory+"gb   storage: "+minStorage+"gb");
     sendConsoleThinMsg(gbMemoryAvailable, gbStorageAvailable);
-    return false;
+    //return false;
+    return true; 
   }
 
   return true;
@@ -1799,6 +1769,7 @@ app.on('second-instance', () => {
 if (!silock) app.quit;
 
 app.on('ready', () => {
+
     initSettings();
 
     if(IS_DEV || IS_DEBUG) log.warn(`Running in ${IS_DEV ? 'dev' : 'debug'} mode`);
@@ -1826,9 +1797,13 @@ app.on('ready', () => {
     let ty = Math.ceil((bounds.height - (DEFAULT_SIZE.height))/2);
     if(tx > 0 && ty > 0) win.setPosition(parseInt(tx, 10), parseInt(ty,10));
 
-    //log.warn('set timeout to run daemon...');
-    // run in directly the 1st time so that it boots up quickly - not too fast on OSX
-    setTimeout(function(){ runDaemon(); }, 1000);
+    // run in directly the 1st time so that it boots up quickly
+    // this needs to run fast... otherwise the other daemon timer
+    // could fire at the same time resulting in a rece condition 
+    new Promise((resolve, reject) => { 
+      checkDaemonTimer(); 
+      resolve("done");
+    });
 });
 
 // Quit when all windows are closed.
@@ -1855,6 +1830,7 @@ app.on('activate', () => {
 
 process.on('uncaughtException', function (e) {
     log.error(`Uncaught exception: ${e.message}`);
+    app.quit;
 });
 
 process.on('beforeExit', (code) => {
@@ -1863,9 +1839,6 @@ process.on('beforeExit', (code) => {
 });
 
 process.on('exit', (code) => {
-    //log.warn("exit called");
-    terminateDaemon();
-
     setTimeout((function() {
       //return process.exit(0);
       app.quit; 

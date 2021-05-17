@@ -26,7 +26,7 @@ const SYNC_STATUS_RESCAN = -300;
 
 const WFCLEAR_INTERVAL = 5;
 let WFCLEAR_TICK = 0;
-var bLocalDaemonMode = false;
+var bLocalDaemonMode = true;
 
 function setWinTitle(title){
     let defaultTitle = wsession.get('defaultTitle');
@@ -51,15 +51,27 @@ function showRescan(data, bDbg) {
     return;
   }
 
-  if (!bDbg && wsession.get('serviceReady')) {
-    //syncDiv.className = 'syncing';
-    connInfoDiv.innerHTML = statusText;
-  } else {
+//  if (!bDbg && wsession.get('serviceReady')) {
+//    //syncDiv.className = 'syncing';
+//    connInfoDiv.innerHTML = statusText;
+//  } else {
     syncDiv.className = '';
     const iconSync = document.getElementById('navbar-icon-sync');
     iconSync.setAttribute('data-icon', 'check');
+
+    if (statusText.indexOf("Block:") > -1) {
+      if (data.daemonsynchronizedok)
+        statusText = statusText + " (daemon synchronized)";
+    }
+
+    if (statusText.trim().length == 0) {
+      statusText = "Synchronizing...";
+    }
+
     syncInfoBar.textContent = statusText;
-  }
+//  }
+
+  //log.warn("STATUS TEXT: "+statusText);
 
   if(WFCLEAR_TICK === 0 || WFCLEAR_TICK === WFCLEAR_INTERVAL){
     webFrame.clearCache();
@@ -98,6 +110,8 @@ function updateSyncProgress(data){
     if(data.knownBlockCount === SYNC_STATUS_NET_CONNECTED){
         // sync status text
         statusText = 'RESUMING WALLET SYNC...';
+        log.warn(statusText);
+
         syncInfoBar.innerHTML = statusText;
         // sync info bar class
         syncDiv.className = 'syncing';
@@ -244,8 +258,10 @@ function updateBalance(data){
     let inputSendAmountField = document.getElementById('input-send-amount');
 
     if(!data) return;
-    let availableBalance = parseFloat(data.availableBalance) || 0;
-    log.warn("Balance info is: "+JSON.stringify(data));
+    let availableBalance = 0;
+    if (data.result !== undefined)
+      availableBalance = parseFloat(data.result.availableBalance) || 0;
+    //log.warn("Balance info is: "+availableBalance);
 
     if (availableBalance <= 0) {
         inputSendAmountField.value = 0;
@@ -261,7 +277,7 @@ function updateBalance(data){
     }
 
     let bUnlocked = wsutil.amountForMortal(availableBalance);
-    let bLocked = wsutil.amountForMortal(data.lockedAmount);
+    let bLocked = wsutil.amountForMortal(data.result.lockedAmount);
     balanceAvailableField.innerHTML = bUnlocked;
     balanceLockedField.innerHTML = bLocked;
     wsession.set('walletUnlockedBalance', bUnlocked);
@@ -279,11 +295,9 @@ function updateBalance(data){
         sendMaxAmount.dataset.maxsend = maxSend;
         sendMaxAmount.classList.remove('hidden');
     }
-
-    log.warn("balanceUpdate done");
 }
 
-let txlistExisting = [];
+var txlistExisting = [];
 function updateTransactions(blockItems){
 
     //log.warn("updateTransactions result items received: "+blockItems.length);
@@ -486,6 +500,7 @@ function updateUiState(msg){
             txlistExisting = [];
             break;
         case 'blockUpdated':
+            //log.warn("updateSyncProgress...");
             updateSyncProgress(msg.data);
             break;
         case 'balanceUpdated':

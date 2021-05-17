@@ -1,7 +1,6 @@
 "use strict";
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 const blake2s = require('blake2s');
 const {nativeImage} = require('electron');
 const log = require('electron-log');

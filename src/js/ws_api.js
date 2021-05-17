@@ -1,159 +1,186 @@
 "use strict";
-const config = require('./ws_config.js');
-const log = require('electron-log');
-const http = require('http');
-const crypto = require('crypto');
-const bottleneck = require('bottleneck');
-
-const limiter = new bottleneck({
-  maxConcurrent: 5,
-  minTime: 1000 
-});
-
-// Algo to make sure clock skew doesn't send too many of the same requests out too fast
-var timeStamp_Balance = Math.floor(Date.now());
-var timeStamp_Height = Math.floor(Date.now());
-var timeStamp_Status = Math.floor(Date.now());
-var timeStamp_Info = Math.floor(Date.now());
-
-const webTimeout = 45000;
-function logDebug(msg) {
-  //if(!DEBUG) return;
-  console.log(`[api] ${msg}`);
-}
-
-var connectionReferenceCount=0;
-
-const getHttpContent = function(pathh, toDaemon, portt, methodd, paramss,
-  timeoutt, authoriz, headerss) {
-
-  // return new pending promise
-  return new Promise((resolve, reject) => {
-    // select http or https module, depending on reqested url
-    const lib = require('http'); //url.startsWith('https') ? require('https') : require('http');
-    var aurl;
-    if (toDaemon) aurl = "http://127.0.0.1:"+portt+"/"+pathh;
-    else aurl = "http://127.0.0.1:"+portt+"/json_rpc";
-
-    try {
-
-      // needed to support certain systems that have very poor network latency
-      var myAgent = new http.Agent({
-        keepAlive: true,
-        scheduling: 'fifo',
-        timeout: webTimeout
-      });
-
-      let optionpath = "/" + pathh;
-      if (toDaemon) optionpath = "/" + pathh;
-      else optionpath = "/json_rpc";
-
-      let options = {};
-      if (authoriz.length > 0) {
-        options = {
-          jsonrpc: "2.0",
-          hostname: '127.0.0.1',
-          port: portt,
-          path: optionpath,
-          method: methodd,
-          agent: myAgent,
-          timeout: timeoutt,
-          headers: headerss,
-          authorization: authoriz
-        };
-      } else {
-        options = {
-          jsonrpc: "2.0",
-          hostname: '127.0.0.1',
-          port: portt,
-          path: optionpath,
-          method: methodd,
-          agent: myAgent,
-          timeout: timeoutt
-        };
-      }
-
-      logDebug("aurl: "+aurl);
-      logDebug("sending request with options: "+JSON.stringify(options));
-      logDebug("and params: "+JSON.stringify(paramss));
-
-      const request = lib.request(aurl, options, (response) => {
-        logDebug("response: "+response.statusCode);
-
-        // handle http errors
-        if (response.statusCode < 200 || response.statusCode > 299) {
-           reject(new Error('Failed to load page, status code: ' + response.statusCode));
-         }
-        // temporary data holder
-        const body = [];
-        // on every content chunk, push it to the data array
-        response.on('data', (chnk) => body.push(chnk));
-        // we are done, resolve promise with those joined chunks
-        response.on('end', () => resolve(body.join('')));
-      });
-
-      // handle connection errors of the request
-      request.on('error', (err) => reject(err));
-
-      if (methodd == "POST") request.write(JSON.stringify(paramss));
-      request.end();
-    } catch (e) {logDebug("getHttpContent error: "+e);/*do nothing*/ }
-  });
-};
-
-var curAddr = '';
-//var request = require('request-promise-native');
-//import { RetryPromiseNative } from 'request-promise-native-retry';
-
-//const axios = require('axios');
-//axios.defaults.adapter = require('axios/lib/adapters/http');
 
 class WalletShellApi {
+
     constructor(args) {
         args = args || {};
         if (!(this instanceof WalletShellApi)) return new WalletShellApi(args);
+
+        this.config = require('./ws_config.js');
+        this.log = require('electron-log');
+        this.http = require('http');
+        this.randomBytes = require('randombytes');
+        this.bottleneck = require('bottleneck');
+
         this.daemon_host = args.daemon_host || '127.0.0.1';
         this.daemon_port = args.daemon_port;
         this.walletd_host = args.walletd_host || '127.0.0.1';
-        this.walletd_port = args.walletd_port || config.walletServiceRpcPort;
+        this.walletd_port = args.walletd_port || this.config.walletServiceRpcPort;
         this.walletd_password = args.walletd_password;
         this.minimum_fee = (args.minimum_fee !== undefined) ? args.minimum_fee : 
-          (config.minimumFee*config.decimalDivisor);
-        this.anonimity = config.defaultMixin;
+          (this.config.minimumFee*this.config.decimalDivisor);
+        this.anonimity = this.config.defaultMixin;
         this.daemonCoreReady = args.daemonCoreReady || false;
-        curAddr = args.address || '';
+        this.curAddr = args.address || '';
+
+        this.limiter = new this.bottleneck({
+          maxConcurrent: 4,
+          minTime: 333
+        });
+
+        // Algo to make sure clock skew doesn't send too many of the same requests out too fast
+        this.timeStamp_Balance = Math.floor(Date.now());
+        this.timeStamp_Height = Math.floor(Date.now());
+        this.timeStamp_Status = Math.floor(Date.now());
+        this.timeStamp_Info = Math.floor(Date.now());
+
+        this.webTimeout = 45000;
+        this.connectionReferenceCount=0;
+        this.walletdRunning = false;
+        this.daemonIsRunning = false;
+    }
+
+    logDebugMsg(msg) {
+      //if(!DEBUG) return;
+      console.log(`[api] ${msg}`);
+    }
+
+    getHttpContent(pathh, toDaemon, portt, methodd, paramss,
+      timeoutt, needAuthoriz, authoriz, headerss) {
+
+      // return new pending promise
+      return new Promise((resolve, reject) => {
+
+        if (!this.walletdRunning) return reject(new Error("walletd not yet started"));
+        //this.logDebugMsg("getHttpContent: "+pathh);
+
+        // select http or https module, depending on reqested url
+        const lib = require('http');
+        var aurl;
+        if (toDaemon) aurl = "http://127.0.0.1:"+portt+"/"+pathh;
+        else aurl = "http://127.0.0.1:"+portt+"/json_rpc";
+ 
+        try {
+          let optionpath = "/" + pathh;
+          if (!toDaemon) optionpath = "/json_rpc";
+
+          //this.logDebugMsg("optionpath is: "+optionpath);
+
+          // needed to support certain systems that have very poor network latency
+          var myAgent = new this.http.Agent({
+            keepAlive: true,
+            scheduling: 'fifo',
+            path: optionpath,
+            timeout: this.webTimeout,
+          });
+
+          let options = {};
+          if (needAuthoriz) {
+            options = {
+              jsonrpc: '2.0',
+              host: '127.0.0.1',
+              port: portt,
+              path: optionpath,
+              method: methodd,
+              timeout: timeoutt,
+              headers: headerss
+              //agent: myAgent
+            };
+          } else {
+            options = {
+              url: aurl,
+              jsonrpc: '2.0',
+              port: portt,
+              path: optionpath,
+              method: methodd,
+              agent: myAgent,
+              timeout: timeoutt
+            };
+          }
+ 
+          //this.logDebugMsg("START**********************");
+          //this.logDebugMsg("aurl: "+aurl);
+          //this.logDebugMsg("options: "+JSON.stringify(options));
+          //this.logDebugMsg("**");
+
+          try {
+            const request = lib.request(options, (response) => {
+
+              //this.logDebugMsg("got a http.request response...");
+
+              // handle http errors
+              if (response.statusCode < 200 || response.statusCode > 299) {
+                return reject(new Error('Failed to load page, status code: ' + response.statusCode));
+              }
+              // temporary data holder
+              const body = [];
+              // on every content chunk, push it to the data array
+              response.on('data', (chnk) => body.push(chnk));
+              // we are done, resolve promise with those joined chunks
+              response.on('end', () => {return resolve(body.join(''));});
+            });
+ 
+            // handle connection errors of the request
+            request.on('error', (err) => {request.destroy();return reject(new Error("http err: "+err));});
+ 
+            if (methodd == "POST") {
+              //this.logDebugMsg("POST paramss/datum: "+JSON.stringify(paramss));
+              //this.logDebugMsg("END************************");
+              request.write(JSON.stringify(paramss));
+            }
+
+            request.end();
+          } catch(e){return reject(new Error("Http2 connect error: "+e));}
+        } catch (e) {return reject(new Error("getHttpContent error: "+e));}
+      });
     }
 
     setPassword(password) {
         this.walletd_password = password;
     }
 
-    _sendRequest(pathh, todaemon, paramsIn, timeoutIn, needsAuth) {
-
-        logDebug("***** starting _sendRequest: "+pathh);
+    _sendRequest(pathh, pri, todaemon, paramsIn, timeoutIn, needsAuth) {
 
         return new Promise((resolve, reject) => {
+
+            if (!this.walletdRunning) return reject(new Error("walletd not yet started"));
+            //this.logDebugMsg("***** starting _sendRequest: "+pathh);
+
             if (pathh.length === 0) return reject(new Error('Invalid Path'));
-            var paramss = paramsIn || {};
-            var timeout = timeoutIn || webTimeout;
+
+            var timeout = timeoutIn || this.webTimeout;
             var authoriz = "Basic " + Buffer.from("fedadmin:"+this.walletd_password).toString('base64');
 
-            let requestID = 'FED'+crypto.randomBytes(8).toString('hex'); 
+            //this.logDebugMsg("basic auth: "+authoriz);
+
+            let requestID = 'FED'+this.randomBytes(8).toString('hex'); 
             let datum = {
-                params: paramss,
+                params: paramsIn,
                 jsonrpc: '2.0',
                 id: requestID,
                 method: pathh
             };
 
+            // don't send params if it's empty...
+            if (Object.keys(paramsIn).length === 0) {
+              datum = {
+                jsonrpc: '2.0',
+                id: requestID,
+                method: pathh
+              };
+            }
+
+            //this.logDebugMsg("_sendRequest datum: "+JSON.stringify(datum));
+            let contentLen = Buffer.byteLength(JSON.stringify(datum));
+
             // needed to support certain systems that have very poor network latency
-            var myAgent = new http.Agent({
+            var myAgent = new this.http.Agent({
                 keepAlive: true,
                 scheduling: 'fifo',
-                timeout: webTimeout 
+                timeout: this.webTimeout,
+                path: pathh
             });
 
-            let contentLen = Buffer.byteLength(JSON.stringify(datum));
             let headerss = {
                 'Connection':'Keep-Alive',
                 'Agent':myAgent,
@@ -163,7 +190,6 @@ class WalletShellApi {
             if (needsAuth) {
               headerss = {
                 'Connection': 'Keep-Alive',
-                'Agent': myAgent,
                 'Content-Type': 'application/json',
                 'Content-Length': contentLen,
                 'authorization': authoriz,
@@ -171,83 +197,42 @@ class WalletShellApi {
               };
             }
 
+            //this.logDebugMsg("contentLen: "+contentLen);
+            //this.logDebugMsg("authoriz: "+authoriz);
+
             let s_type = 'POST'; 
             let theport = this.walletd_port;
-            if (todaemon) theport = this.daemon_port;
-            if (todaemon) s_type = 'GET';
+            if (todaemon) {
+              theport = this.daemon_port;
+              s_type = 'GET';
+            }
 
-            if (todaemon) logDebug("to daemon"); else logDebug("to walletd");
-            logDebug('***** sending request: '+pathh);
+            //if (todaemon) this.logDebugMsg("to daemon"); else this.logDebugMsg("to walletd");
+            //this.logDebugMsg('***** sending request: '+pathh);
 
-            connectionReferenceCount++;
-            logDebug("****************** Into queue ref cnt: "+connectionReferenceCount);
+            this.connectionReferenceCount++;
+            //this.logDebugMsg("****************** Into queue ref cnt: "+this.connectionReferenceCount);
 
-         limiter.schedule(() => 
-           getHttpContent(pathh, todaemon, theport, s_type, datum, timeout, authoriz, headerss))
-           .then((html) => {
-             connectionReferenceCount--;
-             let hVal = JSON.parse(html);
-             logDebug("_sendRequest data returned: "+JSON.stringify(hVal));
-             return resolve(hVal.result);
-           }).catch((err) => {
-             connectionReferenceCount--;
-             logDebug("error in _sendRequest: "+err);
-             return reject(err);
-           });
+           var job = {
+             priority: pri,
+             weight: 1,
+             expiration: 30000,
+             id: requestID
+           };
 
-
-/*
-            axios(config
-                //    {url: s_uri, 
-                //method: s_type,
-                //headers: {'authorization': authoriz},
-                //data: JSON.stringify(datum), 
-                //json: true //,
-                    //
-                //pool: {maxSockets: 1280},
-                //timeout: timeout,
-                //time: true
-  //          }).on('socket', function(socket) {
-  //              socket.setTimeout(webTimeout);
- //               socket.on('timeout', function() {
- //                 logDebug("the Socket TIMEDOUT!!!!!!!!!!!!!!!");
-  //              });
-  //          }).on('timeout', function(e) {
-  //              logDebug("TIMEOUT!!!!!!!!!: "+e);
-  //          }).on('close', function() {
-  //              logDebug("SERVER CONNECTION CLOSED!!!!!!");
-  //          }).on('error', function(e) {
-  //              // just eat the error, don't throw or stop
-  //              let errm = e.toString();
-  //              logDebug('error on socket: '+errm);
-  //              return reject(errm);
-            ).then((res) => {
-                //note, this log makes a LOT of chatter when turned on...
-                logDebug(`request-respose: ${JSON.stringify(datum)} result: ${JSON.stringify(res)}`);
-
-                if (!res) return resolve(true);
-                if (!res.error) {
-                    if (res.result) {
-                      //logDebug('resolve 1');
-                      return resolve(res.result);
-                    }
-                    //logDebug('resolve 2');
-                    return resolve(res);
-                } else {
-                    // this is not actually an error...
-                    if (res.error.message == "Empty object list") {
-                      logDebug('empty object list...');
-                      return resolve(res);
-                    }
-
-                    logDebug("request err msg is: "+res.error.message);
-                    return reject(res.error.message);
-                }
-            }).catch((err) => {
-                logDebug(`!!!! sendRequest has FAILED, ${err.message}`);
-                return reject(err);
-            });
-*/
+           this.limiter.schedule(() => {job,
+             this.getHttpContent(pathh, todaemon, theport, s_type, datum, timeout, needsAuth,
+               authoriz, headerss)
+             .then((html) => {
+               this.connectionReferenceCount--;
+               let hVal = JSON.parse(html);
+               //this.logDebugMsg("_sendRequest data returned: "+JSON.stringify(hVal));
+               return resolve(hVal);
+             }).catch((err) => {
+               this.connectionReferenceCount--;
+               return reject(new Error("error in _sendRequest: "+err));
+             });
+           }).catch((err) => {return reject(new Error("limiter err: "+err))});
         });
     }
 
@@ -259,71 +244,68 @@ class WalletShellApi {
                     daemonIP: daemonIP,
                     daemonPort: daemonPort
                 };
-                this._sendRequest('bindDaemon', false, req_params, 5000, true).then((result) => {
+                this._sendRequest('bindDaemon', 9, false, req_params, 5000, true).then((result) => {
                     return resolve(result);
                 }).catch((err) => {
-                    return reject(err);
+                    return reject(new Error("bind err: "+err));
                 });
             }
-        });
-    }
-    stopDaemon() {
-        return new Promise((resolve, reject) => {
-            this._sendRequest('stop_daemon', true, {}, 20000, false).then((result) => {
-                return resolve(result);
-            }).catch((err) => {
-                return reject(err);
-            });
         });
     }
 
     // only get a single address, no multi address support for this wallet, yet
     getAddress() {
         return new Promise((resolve, reject) => {
-            this._sendRequest('getAddresses', false, {}, 15000, true).then((result) => {
-                //log.warn("addresses: "+result);
-                log.warn("addresses: "+result);
-                return resolve(result.addresses[0]);
+            this._sendRequest('getAddresses', 7, false, {}, 15000, true).then((rslt) => {
+                if (rslt.result !== undefined)
+                  return resolve(rslt.result.addresses[0]);
+                else
+                  return reject(new Error("no address result"));
             }).catch((err) => {
-                return reject(err);
+                return reject(new Error("addr err: "+err));
             });
         });
     }
     getFeeInfo() {
         return new Promise((resolve, reject) => {
-            this._sendRequest('getFeeInfo', false, {}, 10000, true).then((result) => {
-                return resolve(result);
+            this._sendRequest('getFeeInfo', 6, false, {}, 10000, true).then((rslt) => {
+              if (rslt.result !== undefined)
+                return resolve(rslt.result);
+              else
+                return reject(new Error("no fee result"));
             }).catch((err) => {
-                return reject(err);
+                return reject(new Error("feeinfo err: "+err));
             });
         });
     }
     getBalance(params) {
-        let newTimeStamp = Math.floor(Date.now());
-        if ((newTimeStamp-timeStamp_Balance) < 1000) return;
-        timeStamp_Balance = newTimeStamp;
-
-        //logDebug("in api:getBalance: "+JSON.stringify(params));
-
         return new Promise((resolve, reject) => {
+
+            let newTimeStamp = Math.floor(Date.now());
+            if ((newTimeStamp-this.timeStamp_Balance) < 1000) reject(new Error("insuffient elapsed time"));
+            this.timeStamp_Balance = newTimeStamp;
+
             params = params || {};
-            params.address = params.address || curAddr;
+            params.address = params.address || this.curAddr;
             let req_params = {
                 address: params.address
             };
-            this._sendRequest('getBalance', false, req_params, 25000, true).then((result) => {
+
+            //this.logDebugMsg("getBalance addr: "+JSON.stringify(params));
+
+            this._sendRequest('getBalance', 5, false, req_params, 25000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
-                return reject(err);
+                return reject(new Error("balance err: "+err));
             });
         });
     }
     save() {
         return new Promise((resolve, reject) => {
-            this._sendRequest('save', false, {}, 20000, true).then(() => {
+            this._sendRequest('save', 9, false, {}, 20000, true).then(() => {
                 return resolve();
             }).catch((err) => {
-                return reject(err);
+                return reject(new Error("save err: "+err));
            });
         });
     }
@@ -340,66 +322,121 @@ class WalletShellApi {
 
             params.viewSecretKey = params.viewSecretKey || false;
             if (params.viewSecretKey) {
-              //log.warn("reset: secret key supplied... creating new wallet from secret key");
+              //logDebugMsg("reset: secret key supplied... creating new wallet from secret key");
               req_params.viewSecretKey = params.viewSecretKey;
             }
 
-            //log.warn("sending reset to walletd api.");
-            this._sendRequest('reset', false, req_params, 10000, true).then(() => {
-              //log.warn("sent api reset to walletd...");
+            //logDebugMsg("sending reset to walletd api.");
+            this._sendRequest('reset', 9, false, req_params, 10000, true).then(() => {
+              //logDebugMsg("sent api reset to walletd...");
               return resolve(true);
             }).catch((err) => {
-              return reject(err);
+              return reject(new Error("reset err: "+err));
             });
         }).catch((err) => { /* just eat it... connection timeouts are common here */ });
     }
-    resume() {
+    stop() { 
         return new Promise((resolve, reject) => {
-           this._sendRequest('resume', false, {}, 10000, true).then((result) => {
+           this._sendRequest('stop', 2, false, {}, 10000, true).then((result) => {
                return resolve(result);
            }).catch((err) => {
                resolve("stopped"); // not fatal... the process may have just ended anyway
            });
         });
     }
+    resume() {
+        return new Promise((resolve, reject) => {
+           this._sendRequest('resume', 2, false, {}, 10000, true).then((result) => {
+               return resolve(result);
+           }).catch((err) => {
+               resolve("stopped"); // not fatal... the process may have just ended anyway
+           });
+        });
+    }
+    // note: getStatus (against walletd) only works if daemon confirmed as running first.
     getStatus() {
-        let newTimeStamp = Math.floor(Date.now());
-        if ((newTimeStamp-timeStamp_Status) < 1000) return;
-        timeStamp_Status = newTimeStamp;
+
+        //this.logDebugMsg("in api getStatus()...");
 
         return new Promise((resolve, reject) => {
-            let req_params = {};
-            this._sendRequest('getStatus', false, req_params, 25000, true).then((result) => {
-                logDebug("getStatus() got a result");
-                return resolve(result);
-            }).catch((err) => {
-                log.warn("getStatus() got an error! "+err);
-                return reject(err);
-            });
+
+            if (! this.daemonIsRunning) {
+
+              //this.logDebugMsg("getinfo used as a test for daemon...");
+
+              // use getInfo to test if the daemon is working first
+              this._sendRequest('getinfo', 2, true, {}, 20000, false).then((result) => {
+
+                //this.logDebugMsg("getinfo test results ... : "+JSON.stringify(result));
+                // set this.daemonIsRunning based on return value
+
+                if (result.last_known_block_index > 0)
+                {
+                  this.daemonIsRunning = true;
+                  this.timeStamp_Status = Math.floor(Date.now());
+                }
+
+                // don't resolve .. return resolve(result); 
+              }).catch((e) => {return reject(new Error("getinfo err: "+e));});
+
+              //this.logDebugMsg("getinfo not ready yet..");
+
+              return reject(new Error("daemon not ready, so walletd also not ready"));
+            } else {
+              let newTimeStamp = Math.floor(Date.now());
+              if ((newTimeStamp-this.timeStamp_Status) < 3000)
+                return reject(new Error("insufficient time elapsed"));
+              this.timeStamp_Status = newTimeStamp;
+
+              //this.logDebugMsg("NEW getStatus sendRequest...");
+
+              let requestID = 'FED'+this.randomBytes(8).toString('hex'); 
+              let req_params = {
+                jsonrpc: '2.0',
+                id: requestID,
+                method: "getStatus" 
+              };
+              let contentLen = Buffer.byteLength(JSON.stringify(req_params));
+              var authoriz = "Basic " + Buffer.from("fedadmin:"+this.walletd_password).toString('base64');
+              let headerss = {
+                'Connection': 'Keep-Alive',
+                'Content-Type': 'application/json',
+                'Content-Length': contentLen,
+                'authorization': authoriz,
+                'request-id': requestID
+              };
+              this.getHttpContent('getStatus', false, this.walletd_port, 'POST', req_params,
+                10000, true, authoriz, headerss).then((html) => {
+                let jsonVals = JSON.parse(html);
+                //this.logDebugMsg("api getStatus: "+JSON.stringify(jsonVals));
+                return resolve(jsonVals);
+              }).catch((err) => {return reject(new Error("getstat err: "+err));});
+            }
         });
     }
     getInfo() {
-        logDebug("GETINFO!!!!!");
-        let newTimeStamp = Math.floor(Date.now());
-        if ((newTimeStamp-timeStamp_Info) < 1000) return;
-        timeStamp_Info = newTimeStamp;
-
         return new Promise((resolve, reject) => {
-            this._sendRequest('getinfo', true, {}, 10000, false).then((result) => {
-                logDebug("GETINFO RETURNED!!!!");
-                return resolve(result);
+
+            //this.logDebugMsg("GETINFO!!!!!");
+            let newTimeStamp = Math.floor(Date.now());
+            if ((newTimeStamp-this.timeStamp_Info) < 1000)
+              return reject(new Error("insufficient time elapsed"));
+            this.timeStamp_Info = newTimeStamp;
+
+            this._sendRequest('getinfo', 6, true, {}, 10000, false).then((result) => {
+              this.logDebugMsg("GETINFO RETURNED: "+JSON.stringify(result));
+              return resolve(result);
             }).catch((err) => {
-                // Just eat any errors...
-                //return reject(err);
+              return reject(new Error("getInfo err: "+err));
             });
         });
     }
     getViewKey() {
         return new Promise((resolve, reject) => {
-            this._sendRequest('getViewKey', false, {}, 10000, true).then((result) => {
+            this._sendRequest('getViewKey', 7, false, {}, 10000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
-                return reject(err);
+                return reject(new Error("viewkey err: "+err));
             });
         });
     }
@@ -412,10 +449,10 @@ class WalletShellApi {
             var req_params = {
                 address: params.address
             };
-            this._sendRequest('getSpendKeys', false, req_params, 10000, true).then((result) => {
+            this._sendRequest('getSpendKeys', 7, false, req_params, 10000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
-                return reject(err);
+                return reject(new Error("spendkey err: "+err));
             });
         });
     }
@@ -428,10 +465,10 @@ class WalletShellApi {
             var req_params = {
                 address: params.address
             };
-            this._sendRequest('getMnemonicSeed', false, req_params, 10000, true).then((result) => {
+            this._sendRequest('getMnemonicSeed', 7, false, req_params, 10000, true).then((result) => {
                 return resolve(result);
             }).catch((err) => {
-                return reject(err);
+                return reject(new Error("mneumonic err: "+err));
             });
         });
     }
@@ -445,19 +482,22 @@ class WalletShellApi {
                 address: params.address
             };
 
+            //this.logDebugMsg("getBackupKeys: address: "+params.address);
+
             this.getViewKey().then((vkres) => {
-                backupKeys.viewSecretKey = vkres.viewSecretKey;
-                return vkres;
-            }).then((vsres) => {
-                return this.getSpendKeys(req_params).then((vsres) => {
-                  backupKeys.spendSecretKey = vsres.spendSecretKey;
-                  return vsres;
-                }).catch((err) => { return reject(err); }); 
+                //this.logDebugMsg("getViewKey result: "+JSON.stringify(vkres));
+                backupKeys.viewSecretKey = vkres.result.viewSecretKey;
             }).then(() => {
-                //confirm(`viewSecretKey: ${backupKeys.viewSecretKey}`);
-                //confirm(`spendSecretKey: ${backupKeys.spendSecretKey}`);
-                return resolve(backupKeys);
-            }).catch((err) => { return reject(err); });
+                //this.logDebugMsg("now get spendkeys"); 
+                this.getSpendKeys(req_params).then((vsres) => {
+                  //this.logDebugMsg("spendkeys result: "+JSON.stringify(vsres));
+                  backupKeys.spendSecretKey = vsres.result.spendSecretKey;
+                  //this.logDebugMsg("backupKeys"+JSON.stringify(backupKeys));
+                  //this.logDebugMsg(`viewSecretKey: ${backupKeys.viewSecretKey}`);
+                  //this.logDebugMsg(`spendSecretKey: ${backupKeys.spendSecretKey}`);
+                  return resolve(backupKeys);  
+                }).catch((err) => { return reject(new Error("backup err: "+err)); }); 
+            }).catch((err) => { return reject(new Error("back err: "+err)); });
         
             // this.getMnemonicSeed(req_params).then((mres) => {
             // backupKeys.mnemonicSeed = mres.mnemonicSeed;
@@ -468,16 +508,19 @@ class WalletShellApi {
             params = params || {};
             params.firstBlockIndex = params.firstBlockIndex || 1;
             params.blockCount = params.blockCount || 100;
-            this._sendRequest('getTransactions', false, params, 20000, true).then((result) => {
-                return resolve(result);
+            this._sendRequest('getTransactions', 7, false, params, 20000, true).then((rslt) => {
+              if (rslt.result !== undefined)
+                return resolve(rslt.result);
+              else
+                return reject(new Error("get transactions no result"));
             }).catch((err) => {
-                return reject(err);
+                return reject(new Error("getTs err: "+err));
             });
         });
     }
     // send single transaction
     sendTransaction(useMixin, params) {
-        //logDebug("api sendTransaction, useMixin: "+useMixin);
+        //this.logDebugMsg("api sendTransaction, useMixin: "+useMixin);
         let anonLevel = 22;
         if (!useMixin) {
           anonLevel = 0;
@@ -513,13 +556,16 @@ class WalletShellApi {
               };
             }
 
-            //log.warn("sendTransaction: "+JSON.stringify(req_params));
+            //logDebugMsg("sendTransaction: "+JSON.stringify(req_params));
             // give extra long timeout
-            this._sendRequest('sendTransaction', false, req_params, 45000, true).then((result) => {
-                return resolve(result);
+            this._sendRequest('sendTransaction', 4, false, req_params, 45000, true).then((rslt) => {
+              if (rslt.result !== undefined)
+                return resolve(rslt.result);
+              else
+                return reject(new Error("send transaction no result"));
             }).catch((err) => {
-                //log.warn("sendTransaction has FAILED: "+err);
-                return reject(err);
+                //logDebugMsg("sendTransaction has FAILED: "+err);
+                return reject(new Error("sendT err" + err));
             });
         });
     }
@@ -527,14 +573,17 @@ class WalletShellApi {
         return new Promise((resolve, reject) => {
             params = params || {};
 
-            //log.warn(`estimateFusion params: ${JSON.stringify(params)}`);
+            //logDebugMsg(`estimateFusion params: ${JSON.stringify(params)}`);
 
             if (!params.threshold) return reject(new Error('Missing threshold parameter'));
-            this._sendRequest('estimateFusion', false, params, 30000, true).then((result) => {
-                return resolve(result);
+            this._sendRequest('estimateFusion', 4, false, params, 30000, true).then((rslt) => {
+              if (rslt.result !== undefined)
+                return resolve(rslt.result);
+              else
+                return reject(new Error("estimate fusion no result"));
             }).catch((err) => {
-                //log.warn("estimate fusion has FAILED: "+err); 
-                return reject(err);
+                //logDebugMsg("estimate fusion has FAILED: "+err); 
+                return reject(new Error("est fusion err"+err));
             });
         });
     }
@@ -543,11 +592,14 @@ class WalletShellApi {
             params = params || {};
             if (!params.threshold) return reject(new Error('Missing threshold parameter'));
             if (!params.anonimity) params.anonimity = 0;
-            this._sendRequest('sendFusionTransaction', false, params, 10000, true).then((result) => {
-                return resolve(result);
+            this._sendRequest('sendFusionTransaction', 4, false, params, 10000, true).then((rslt) => {
+              if (rslt.result !== undefined)
+                return resolve(rslt.result);
+              else
+                return resolve("fusion ended");
             }).catch((err) => {
-                //log.warn("send fusion has FAILED: "+err);
-                return reject(err);
+                //logDebugMsg("send fusion has FAILED: "+err);
+                return reject(new Error("send fusion err: "+err));
             });
         });
     }
@@ -558,34 +610,39 @@ class WalletShellApi {
                 return reject(new Error('Address and Payment Id parameters are required'));
             }
             
-            this._sendRequest('createIntegratedAddress', false, params, 10000, true).then((result) => {
-                return resolve(result);
+            this._sendRequest('createIntegratedAddress', 6, false, params, 10000, true).then((rslt) => {
+              if (rslt.result !== undefined)
+                return resolve(rslt.result);
+              else
+                return reject(new Error("integrated addr no result"));
             }).catch((err) => {
-                return reject(err);
+                return reject(new Error("integrated addr err: "+err));
             });
         });
     }
     getHeight() {
-
-      let newTimeStamp = Math.floor(Date.now());
-      if ((newTimeStamp-timeStamp_Height) < 1000) return;
-      timeStamp_Height= newTimeStamp;
-
       return new Promise((resolve, reject) => {
+
+        let newTimeStamp = Math.floor(Date.now());
+        if ((newTimeStamp-this.timeStamp_Height) < 1000)
+          return reject(new Error("insufficient time elapsed"));
+        this.timeStamp_Height= newTimeStamp;
+
         let hVal = {}; 
         let params = {};
-        getHttpContent('getheight', true, this.daemon_port, 'GET', params,
-           10000, "", {}) 
+        this.getHttpContent('getheight', true, this.daemon_port, 'GET', params,
+           10000, false, '', {}) 
         .then((html) => {
-          logDebug("html: "+html);
+          //this.logDebugMsg("html: "+html);
           hVal = JSON.parse(html);
           //let datum = html.match(/(?<=:\s*).*?(?=\s*,)/gs);
           //hVal = JSON.parse(datum);
-          logDebug("getHeight called in api: "+JSON.stringify(hVal));
+          //this.logDebugMsg("getHeight called in api: "+JSON.stringify(hVal));
           return resolve(hVal);
-        }).catch((err) => {logDebug("err in getHeight: "+err);return reject(err)});
+        }).catch((err) => {return reject(new Error("getH err: "+err));});
       });
     }
 }
 
 module.exports = WalletShellApi;
+

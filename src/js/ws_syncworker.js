@@ -23,7 +23,7 @@ var TX_LAST_INDEX = 1;
 var TX_LAST_COUNT = 0;
 var TX_CHECK_STARTED = false;
 var TX_SKIPPED_COUNT = 0;
-var STATE_CONNECTED = true;
+var STATE_CONNECTED = false;
 var STATE_SAVING = false;
 var STATE_PAUSED = false;
 
@@ -33,52 +33,79 @@ var heightTaskWorker = null;
 var saveTaskWorker = null;
 var blockTaskWorker = null;
 var transactionTaskWorker = null;
+var daemonsynchronizedok = false;
 
 function logDebug(msg){
     //if(!DEBUG) return;
     console.log(`[syncworker] ${msg}`);
 }
 
-logDebug("define checkBlockUpdate()");
+function peerMsg(peerCount) {
+  // Activates the "pause" symbol in the UI - show that network is disconnected
+  var peerMsg = " Peers: "+peerCount+" (1 minimum required)";
+  let fakeStatus = {
+    blockCount: -50,
+    displayBlockCount: -50,
+    displayKnownBlockCount: -50,
+    syncPercent: -50,
+    knownBlockCount: -50,
+    uiMessage: peerMsg
+  };
+
+  process.send({ type: 'blockUpdated', data: fakeStatus });
+
+  STATE_CONNECTED = false;
+}
+
+//logDebug("define checkBlockUpdate()");
 function checkBlockUpdate(){
     var retVal = true;
     if (STATE_SAVING || wsapi === null || STATE_PAUSED) {
-      logDebug("checkBlockUpdate(): invalid state ... skipped");
-      if (STATE_SAVING) logDebug(" ... reason: STATE_SAVING");
-      if (wsapi === null) logDebug(" ... reason: wsapi === null");
-      if (STATE_PAUSED) logDebug(" ... reason: STATE_PAUSED");
+      //logDebug("checkBlockUpdate(): invalid state ... skipped");
+      //if (STATE_SAVING) logDebug(" ... reason: STATE_SAVING");
+      //if (wsapi === null) logDebug(" ... reason: wsapi === null");
+      //if (STATE_PAUSED) logDebug(" ... reason: STATE_PAUSED");
       return false;
     }
 
-    logDebug("checkBlockUpdate() ... waiting for blockstatus");
-    STATE_CONNECTED = true;
-    wsapi.getStatus().then((blockStatus) => {
+    // only start work once daemon is ready to work with walletd
+    if (! daemonsynchronizedok) {
+      return false;
+    }
 
-        logDebug("getStatus() returned...");
+    //logDebug("checkBlockUpdate()...");
 
-        let kbcReturn = parseInt(blockStatus.knownBlockCount, 10) - 1;
+    wsapi.getStatus().then((bStatus) => {
 
-        logDebug(`synchworker: blockstatus: ${JSON.stringify(blockStatus)}`);
+        //logDebug(`blockStatus: ${JSON.stringify(bStatus)}`);
+        if (bStatus.id.length <= 0) return false;
+        if (bStatus.result === undefined) return false;
+        let blockStatus = bStatus.result;
+
+        STATE_CONNECTED = true;
+        let kbcReturn = 0;
+        if (blockStatus.knownBlockCount !== undefined)
+          kbcReturn = blockStatus.knownBlockCount-1;
 
         // jojapoppa, later show a "signal" like what you see on a cell phone with the bars...
-        let peerCount = parseInt(blockStatus.peerCount, 10);
-        if ((peerCount < 1) || (kbcReturn < 100)) {
+        let peerCount = 0;
+        if (blockStatus.peerCount !== undefined)
+          peerCount = blockStatus.peerCount;
 
-          // Activates the "pause" symbol in the UI - show that network is disconnected
-          var peerMsg = " Peers: "+peerCount+" (1 minimum required)";
-          let fakeStatus = {
-            blockCount: -50,
-            displayBlockCount: -50,
-            displayKnownBlockCount: -50,
-            syncPercent: -50,
-            knownBlockCount: -50,
-            uiMessage: peerMsg
-          }; process.send({ type: 'blockUpdated', data: fakeStatus }); STATE_CONNECTED = false; retVal = false; } else { 
+        if ((peerCount < 1) || (kbcReturn < 100)) {
+          //logDebug("bad network connection...");
+          peerMsg(peerCount);
+          retVal = false;
+        } else { 
           //logDebug(`blockstatus: ${JSON.stringify(blockStatus)}`);
           knownBlockCount = kbcReturn;
-      } if (retVal) {
+        }
+            
+        if (retVal) {
           //logDebug("good network connection..."); // we have good connection
-          let blockCount = parseInt(blockStatus.blockCount, 10)-1;
+          let blockCount = 0;
+          if (blockStatus.blockCount !== undefined)
+            blockCount = blockStatus.blockCount-1;
 
           //logDebug("blockCount reported: "+blockCount);
           //logDebug("knownBlockCount reported: "+knownBlockCount);
@@ -120,9 +147,8 @@ function checkBlockUpdate(){
           });
         }
     }).catch((err) => {
-        // just eat this as the connection with Daemon can be intermittent
-        //logDebug(`checkBlockUpdate: FAILED, ${err.message}`);
-        retVal = false;
+      // just eat this as the connection with Daemon can be intermittent
+      retVal = false;
     });
 
     return retVal;
@@ -215,23 +241,30 @@ function sendTransactionsRequest(s_trx_args) {
 function checkBalanceUpdate() {
 
   if (!STATE_CONNECTED || wsapi === null || STATE_PAUSED || STATE_SAVING) {
+    //logDebug("checkBalanceUpdate(): invalid state ... skipped");
+    //if (STATE_SAVING) logDebug(" ... reason: STATE_SAVING");
+    //if (wsapi === null) logDebug(" ... reason: wsapi === null");
+    //if (STATE_PAUSED) logDebug(" ... reason: STATE_PAUSED");
     return false;
   }
 
-  wsapi.getBalance().then((balance) => {
-     
-    let bal = "Balance: " + parseFloat(balance.availableBalance);
-    logDebug("getBalance got: "+bal);
+  //logDebug("getBalance...");
+  try {
+    wsapi.getBalance().then((balance) => {
+    
+      //let bal = "Balance: " + parseFloat(balance.availableBalance);
+      //logDebug("getBalance got: "+bal);
 
-    process.send({
-      type: 'balanceUpdated',
-      data: balance
-    });
-  }).catch((err) => {
-    // just eat the message, there will be timeouts and that's normal
-    //logDebug(`checkTransactionsUpdate: getBalance FAILED, ${err.message}`);
+      process.send({
+        type: 'balanceUpdated',
+        data: balance
+      });
+    }).catch((err) => {
+      // just eat the message, there will be timeouts and that's normal
+      //logDebug(`checkBalanceUpdate: getBalance FAILED, ${err.message}`);
     //process.send({type: 'debug', data: {uiMessage: err.message} });
-  });
+    });
+  } catch(e) { /* do nothing... server connecting */ }
 }
 
 let chunk=4000; // chunks of 10k are too much for the local daemon (remote is okay)
@@ -298,10 +331,10 @@ function checkTransactionsUpdate(){
       return false;
     }
 
-    logDebug("+++ checkTransactionsUpdate() start...");
+    //logDebug("+++ checkTransactionsUpdate() start...");
 
     if (LAST_BLOCK_COUNT > 1) {
-      logDebug('checkTransactionsUpdate: checking tx update');
+      //logDebug('checkTransactionsUpdate: checking tx update');
       let currentBlockCount = LAST_BLOCK_COUNT-1;
       let startIndex = (!TX_CHECK_STARTED ? 1 : TX_LAST_INDEX);
       let searchCount = currentBlockCount;
@@ -348,8 +381,7 @@ function checkTransactionsUpdate(){
       //  which happens on a different thread...
       TX_LAST_INDEX = currentBlockCount;
 
-      logDebug("updateTransactionsList to be called");
-
+      //logDebug("updateTransactionsList to be called");
       var promo = new Promise(function(resolve, reject) {
         if (!updateTransactionsList(startIndexWithMargin, requestNumBlocks)) {
           TX_LAST_INDEX = TX_LAST_INDEX - requestNumBlocks;
@@ -357,7 +389,7 @@ function checkTransactionsUpdate(){
         resolve(true);
       }).catch(function (err) {logDebug("updateTransactionList: "+err);});
 
-      logDebug("updateTransactionsList returned");
+      //logDebug("updateTransactionsList returned");
 
       TX_CHECK_STARTED = true;
 
@@ -372,8 +404,7 @@ function checkTransactionsUpdate(){
       }
     }
 
-  logDebug("+++check transactionsupdate completed");
-
+  //logDebug("+++check transactionsupdate completed");
   return true;
 }
 
@@ -385,15 +416,14 @@ function delayReleaseSaveState(){
 }
 
 function checkHeight() {
-      logDebug("ws_syncworker: checkHeight()");
-
       if(STATE_PAUSED || wsapi === null || !STATE_CONNECTED) return;
-      wsapi.getHeight().then((result) => {
-        heightVal = result.height; //parseInt(result.height, 10);
-        logDebug("syncworker got daemon height: "+heightVal);
+      //logDebug("syncworker: checkHeight");
+      wsapi.getHeight().then((htval) => {
+        heightVal = htval.height; //parseInt(result.height, 10);
+        //logDebug("syncworker checkHeight: "+heightVal);
       }).catch((err) => {
         //just eat this... sometimes daemon takes a while to start...
-        logDebug(`synchworker getHeight from Daemon: FAILED, ${err.message}`);
+        //logDebug(`synchworker getHeight from Daemon: FAILED, ${err.message}`);
       });
 }
 
@@ -401,7 +431,7 @@ function saveWallet(){
 
     if(wsapi === null || STATE_PAUSED || !STATE_CONNECTED || !bSynchedMode) return false;
     if(STATE_SAVING){
-        logDebug('saveWallet: skipped, last save operation still pending');
+        //logDebug('saveWallet: skipped, last save operation still pending');
         return false;
     }
     STATE_SAVING = true;
@@ -424,32 +454,26 @@ function saveWallet(){
     return retVal;
 }
 
-logDebug("define heightTaskWorker");
 heightTaskWorker = setIntervalAsync(()=>{
   checkHeight();
-}, 900*2);
+}, 900*2.5);
 
-logDebug("define balanceTaskWorker");
 balanceTaskWorker = setIntervalAsync(()=>{
   checkBalanceUpdate();
-}, 900);
+}, 900*2);
 
-logDebug("define transactionTaskWorker");
 transactionTaskWorker = setIntervalAsync(()=>{
   checkTransactionsUpdate();
 }, 900*3.5);
 
-logDebug("define blockTaskWorker");
 blockTaskWorker = setIntervalAsync(()=>{
   checkBlockUpdate();
-}, 900*2);
+}, 900*2.75);
 
-logDebug("define saveTaskWorker");
 saveTaskWorker = setIntervalAsync(()=>{
   saveWallet();
 }, 900*100);
 
-logDebug("define process message system..");
 // {type: 'blah', msg: 'any'}
 process.on('message', (msg) => {
     let cmd = msg || '';
@@ -460,22 +484,35 @@ process.on('message', (msg) => {
         case 'start':
             STATE_PAUSED = false;
             SERVICE_CFG = cmd.data;
-            wsapi = new WalletShellApi(SERVICE_CFG);
-            logDebug("got a start command: starting with localDaemonMode: "+!SERVICE_CFG.remote_daemon);
+
+            //logDebug("syncworker: in wallet start");
+
+            var prmapi = new Promise(function(resolve, reject) {
+              wsapi = new WalletShellApi(SERVICE_CFG);
+              wsapi.walletdRunning = true;
+              //logDebug("CREATED WSAPI in SyncWorker");
+              resolve(true); 
+            }).catch(function(err){});
+            //logDebug("got a start command: starting with localDaemonMode: "+!SERVICE_CFG.remote_daemon);
             var prm = new Promise(function(resolve, reject) {
-              process.send({
-                type: 'daemonMode',
-                data: !SERVICE_CFG.remote_daemon
-              });
+              //process.send({
+              //  type: 'daemonMode',
+              //  data: !SERVICE_CFG.remote_daemon
+              //});
+              //logDebug("sent daemon mode");
               process.send({
                 type: 'walletReset',
                 data: '' 
               });
+              //logDebug("start resolved");
               resolve(true);
             }).catch(function(err){});
             break;
         case 'checkHeight':
             checkHeight();
+            break;
+        case 'daemonsynchronizedok':
+            daemonsynchronizedok = true;
             break;
         case 'checkBalanceUpdate':
             checkBalanceUpdate();
@@ -512,6 +549,7 @@ process.on('message', (msg) => {
             logDebug('Got resume command');
             TX_SKIPPED_COUNT = 5;
             wsapi = new WalletShellApi(SERVICE_CFG);
+            wsapi.walletdRunning = true;
             setTimeout(() => {
                 wsapi.getBalance().then(() => {
                     logDebug(`Warming up: getBalance OK`);
@@ -534,21 +572,22 @@ process.on('message', (msg) => {
             });
             break;
         case 'stop':
-            logDebug('Got stop command, halting all tasks and exit...');
+            //logDebug('Got stop command, halting all tasks and exit...');
             TX_SKIPPED_COUNT = 0;
-            wsapi = null;
-            if (balanceTaskWorker === undefined || balanceTaskWorker === null){
+            //wsapi = null;
+            //if (balanceTaskWorker === undefined || balanceTaskWorker === null){
                 try{
                     clearInterval(balanceTaskWorker);
                     clearInterval(heightTaskWorker);
                     clearInterval(saveTaskWorker);
                     clearInterval(blockTaskWorker);
                     clearInterval(transactionTaskWorker);
+                    wsapi = null;
                     process.exit(0);
                 }catch(e){
                     logDebug(`FAILED, ${e.message}`);
                 }
-            }
+            //}
             break;
         default:
             break;
@@ -556,8 +595,8 @@ process.on('message', (msg) => {
 });
 
 process.on('uncaughtException', function (err) {
+    // do nothing
     logDebug(`worker uncaughtException: ${err.message}`);
-    process.exit(1);
 });
 
 process.on('disconnect', () => function(){
@@ -565,5 +604,5 @@ process.on('disconnect', () => function(){
     process.exit(1);
 });
 
-logDebug("Finished: all synchworker process messagment defined...");
+//logDebug("Finished: all synchworker process messagment defined...");
 

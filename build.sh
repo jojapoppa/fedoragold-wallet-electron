@@ -23,14 +23,26 @@ cp ./src/assets/icon.* ./build/
 #
 # Precompiled SSL binaries can be found here: https://wiki.openssl.org/index.php/Binaries
 
-set DEBUG=electron-builder
+#set DEBUG=electron-builder
 
 #linux build
+cp /home/jojapoppa/fedoragold-release/latest_linux_build/ubuntu18_04/fedoragold_daemon bin_linux/linux
+cp /home/jojapoppa/fedoragold-release/latest_linux_build/ubuntu18_04/fedoragold_walletd bin_linux/linux
+
 rm -r bin
 cp -r bin_linux bin
 npm run dist-lin --no-bin-link --rollback=false
 chmod o+rx dist/FedoraGoldWallet-v*AppImage
-cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv
+cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv/FedoraGoldWallet-v*Ubuntu18-04.AppImage
+
+cp /home/jojapoppa/fedoragold-release/latest_linux_build/ubuntu20_1/fedoragold_daemon bin_linux/linux
+cp /home/jojapoppa/fedoragold-release/latest_linux_build/ubuntu20_1/fedoragold_walletd bin_linux/linux
+
+rm -r bin
+cp -r bin_linux bin
+npm run dist-lin --no-bin-link --rollback=false
+chmod o+rx dist/FedoraGoldWallet-v*AppImage
+cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv/FedoraGoldWallet-v*Ubuntu20-10.AppImage
 
 #cd ../..
 #exit

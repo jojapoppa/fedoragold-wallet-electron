@@ -1620,7 +1620,7 @@ function runDaemon() {
     app.chunkBuf = "total Heap Size: "+totalHeapSizeGB+"gb ";
     var newTimeStamp;
 
-    //log.warn("daemonPath is: "+daemonPath);
+    //log.warn("run daemon at: "+daemonPath);
 
     try {
         if (! app.integratedDaemon) { 
@@ -1676,7 +1676,7 @@ function runDaemon() {
           if (win!==null) win.webContents.send('console',chnk);
         });
     } catch(e) {
-      log.warn("runDaemon error: "+e.message);
+      //log.warn("runDaemon error: "+e.message);
     }
 }
 

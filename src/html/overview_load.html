@@ -13,17 +13,17 @@
                         id="input-load-path" tabindex="1" 
                         placeholder="Full path to the wallet file to be opened..."
                         />
-                    <button data-selection="openFile" data-targetinput="input-load-path" type="button" class="button-green path-input-button notabindex" id="button-load-browse" tabindex="2"><i class="fas fa-folder-open"></i></button>
+                    <button data-selection="openFile" data-targetinput="input-load-path" type="button" class="button-green path-input-button notabindex" id="button-load-browse"><i class="fas fa-folder-open"></i></button>
                 </div>
 
                 <div class="input-wrap">
                     <h4 class="text-spaced input-required">Wallet password</h4>
                     <!-- autofocus="true" -->
-                    <input required="required" tabindex="3" type="password"
+                    <input required="required" tabindex="2" type="password"
                         class="text-block" id="input-load-password" 
                         placeholder="Password to open this wallet..."
                         />
-                    <button tabindex="4" class="togpass notabindex" data-pf="input-load-password">
+                    <button class="togpass notabindex" data-pf="input-load-password">
                       <i class="fas fa-eye"></i>
                     </button>
                 </div>
@@ -35,8 +35,8 @@
                 </div>
             </div>
             <div class="action-buttons" id="walletOpenButtons">
-                <button tabindex="7" type="button" class="form-bt button-green" id="button-load-load">Open</button>
-                <button tabindex="8" type="button" class="form-bt button-red" data-section="section-welcome" id="button-load-cancel">Back</button>
+                <button tabindex="3" type="button" class="form-bt button-green" id="button-load-load">Open</button>
+                <button tabindex="4" type="button" class="form-bt button-red" data-section="section-welcome" id="button-load-cancel">Back</button>
             </div>
         </div>
     </section>

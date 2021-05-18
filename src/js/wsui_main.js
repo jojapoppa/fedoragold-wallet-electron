@@ -2213,7 +2213,7 @@ function handleSendTransfer(){
 
                 let txhashUrl = `<a class="external" id="explorer-link" title="view in block explorer" href="https://explorer.fedoragold.com/?proofTx=${result.transactionHash}&proofPayment=${result.proof}&proofAddress=${tx.address}#check_payment">${result.transactionHash}</a>`;
 
-                let okMsg = `<blink>THIS IS YOUR PAYMENT PROOF.   KEEP THIS LINK IF NEEDED!</blink><br>Sent with Tx. hash: ${txhashUrl}.<br>Your balance may appear incorrect while transaction not fully confirmed.`;
+                let okMsg = `<blink>PAYMENT PROOF. KEEP THIS LINK IF NEEDED:</blink>${txhashUrl}.<br>Your balance may appear incorrect while transaction not fully confirmed.`;
                 formMessageSet('send', 'success', okMsg);
                 // check if it's new address, if so save it
                 let newId = wsutil.b2sSum(recipientAddress + paymentId);

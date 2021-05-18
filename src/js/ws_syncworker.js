@@ -472,7 +472,7 @@ blockTaskWorker = setIntervalAsync(()=>{
 
 saveTaskWorker = setIntervalAsync(()=>{
   saveWallet();
-}, 900*100);
+}, 900*200);
 
 // {type: 'blah', msg: 'any'}
 process.on('message', (msg) => {

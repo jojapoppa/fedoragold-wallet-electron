@@ -1043,26 +1043,26 @@ WalletShellManager.prototype._fusionGetMinThreshold = function(threshold, minThr
     return new Promise((resolve, reject) => {
         counter = counter || 0;
         let unlockedbal = wsession.get('walletUnlockedBalance');
-        log.warn("unlocked balance: "+unlockedbal);
+        //log.warn("unlocked balance: "+unlockedbal);
 
         threshold = threshold || (parseInt(unlockedbal,10)*100000000)+1;
         minThreshold = minThreshold || threshold;
         maxFusionReadyCount = maxFusionReadyCount || 0;
        
-        log.warn("Fusion params...");
-        log.warn("counter: "+counter);
-        log.warn("threshold: "+threshold);
-        log.warn("minThreshold: "+minThreshold);
-        log.warn("maxFusionReadyCount: "+maxFusionReadyCount);
+        //log.warn("Fusion params...");
+        //log.warn("counter: "+counter);
+        //log.warn("threshold: "+threshold);
+        //log.warn("minThreshold: "+minThreshold);
+        //log.warn("maxFusionReadyCount: "+maxFusionReadyCount);
  
         let maxThreshCheckIter = 20;
         let walletAddress = wsession.get('loadedWalletAddress');
 
         wsm.serviceApi.estimateFusion({threshold: threshold, addresses: [walletAddress]}).then((res)=>{
 
-            log.warn("return from api.estimateFusion...");
-            log.warn("res.fusionReadyCount: "+res.fusionReadyCount);
-            log.warn("maxFusionReadyCount: "+maxFusionReadyCount);
+            //log.warn("return from api.estimateFusion...");
+            //log.warn("res.fusionReadyCount: "+res.fusionReadyCount);
+            //log.warn("maxFusionReadyCount: "+maxFusionReadyCount);
 
             // nothing to optimize
             if( counter === 0 && res.fusionReadyCount === 0) return resolve(0); 
@@ -1167,7 +1167,7 @@ WalletShellManager.prototype.optimizeWallet = function(){
                  return resolve(INFO_FUSION_SKIPPED);
              }
 
-            log.warn(`performing fusion tx, threshold: ${res}`);
+            //log.warn(`performing fusion tx, threshold: ${res}`);
             return resolve(
                 wsm._fusionSendTx(res, 0).then(() => {
                     wsm.notifyUpdate({

@@ -55,21 +55,20 @@ function showRescan(data, bDbg) {
 //    //syncDiv.className = 'syncing';
 //    connInfoDiv.innerHTML = statusText;
 //  } else {
+ 
     syncDiv.className = '';
     const iconSync = document.getElementById('navbar-icon-sync');
     iconSync.setAttribute('data-icon', 'check');
 
+    if (statusText.trim().length == 0 && !data.daemonsynchronizedok) {
+      statusText = "Synchronizing...";
+    }
     if (statusText.indexOf("Block:") > -1) {
       if (data.daemonsynchronizedok)
         statusText = statusText + " (daemon synchronized)";
     }
 
-    if (statusText.trim().length == 0) {
-      statusText = "Synchronizing...";
-    }
-
     syncInfoBar.textContent = statusText;
-//  }
 
   //log.warn("STATUS TEXT: "+statusText);
 
@@ -199,7 +198,7 @@ function updateSyncProgress(data){
 
         percent = percent.toFixed(2);
 
-        if (bLocalDaemonMode) syMsg = "SYNCING* "; else syMsg = "SYNCING ";
+        if (bLocalDaemonMode) syMsg = "WALLET SYNC* "; else syMsg = "WALLET SYNC ";
         if ((knownBlockCount - blockCount) < 10) {
           if (bLocalDaemonMode) syMsg = "SYNCED* "; else syMsg = "SYNCED ";
           syncDiv.className = 'synced';

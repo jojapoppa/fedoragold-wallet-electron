@@ -32,7 +32,7 @@ cp /home/jojapoppa/fedoragold-release/latest_linux_build/ubuntu18_04/fedoragold_
 rm -r bin
 cp -r bin_linux bin
 npm run dist-lin --no-bin-link --rollback=false
-chmod o+rx dist/FedoraGoldWallet-v*AppImage
+chmod ou+rx dist/FedoraGoldWallet-v*AppImage
 cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv/FedoraGoldWallet-v*Ubuntu18-04.AppImage
 
 cp /home/jojapoppa/fedoragold-release/latest_linux_build/ubuntu20_1/fedoragold_daemon bin_linux/linux
@@ -41,7 +41,7 @@ cp /home/jojapoppa/fedoragold-release/latest_linux_build/ubuntu20_1/fedoragold_w
 rm -r bin
 cp -r bin_linux bin
 npm run dist-lin --no-bin-link --rollback=false
-chmod o+rx dist/FedoraGoldWallet-v*AppImage
+chmod ou+rx dist/FedoraGoldWallet-v*AppImage
 cp dist/FedoraGoldWallet-v*AppImage /media/sf_sharedv/FedoraGoldWallet-v*Ubuntu20-10.AppImage
 
 #cd ../..

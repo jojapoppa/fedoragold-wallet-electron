@@ -1353,7 +1353,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
           } else if (platform === 'darwin') {
             procStr2 = procStr.substring(0, 6);
           } else {
-            procStr2 = procStr.substring(0, 6);
+            procStr2 = procStr.substring(0, 8);
           }
 
           procStr2 = procStr2.trim();

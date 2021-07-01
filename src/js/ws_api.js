@@ -83,8 +83,8 @@ class WalletShellApi {
               path: optionpath,
               method: methodd,
               timeout: timeoutt,
-              headers: headerss
-              //agent: myAgent
+              headers: headerss,
+              agent: false //myAgent
             };
           } else {
             options = {
@@ -93,7 +93,7 @@ class WalletShellApi {
               port: portt,
               path: optionpath,
               method: methodd,
-              agent: myAgent,
+              agent: false, //myAgent,
               timeout: timeoutt
             };
           }
@@ -124,6 +124,7 @@ class WalletShellApi {
             request.on('error', (err) => {request.destroy();return reject(new Error("http err: "+err));});
  
             if (methodd == "POST") {
+              //this.logDebugMsg("POST options: "+JSON.stringify(options));
               //this.logDebugMsg("POST paramss/datum: "+JSON.stringify(paramss));
               //this.logDebugMsg("END************************");
               request.write(JSON.stringify(paramss));
@@ -336,6 +337,9 @@ class WalletShellApi {
         }).catch((err) => { /* just eat it... connection timeouts are common here */ });
     }
     stop() { 
+
+        this.logDebugMsg("in api::stop()...");
+
         return new Promise((resolve, reject) => {
            this._sendRequest('stop', 2, false, {}, 10000, true).then((result) => {
                return resolve(result);
@@ -405,10 +409,11 @@ class WalletShellApi {
                 'authorization': authoriz,
                 'request-id': requestID
               };
+              //this.logDebugMsg("getStatus: calling getHttpContent...");
               this.getHttpContent('getStatus', false, this.walletd_port, 'POST', req_params,
                 10000, true, authoriz, headerss).then((html) => {
                 let jsonVals = JSON.parse(html);
-                //this.logDebugMsg("api getStatus: "+JSON.stringify(jsonVals));
+                //this.logDebugMsg("api return getStatus: "+JSON.stringify(jsonVals));
                 return resolve(jsonVals);
               }).catch((err) => {return reject(new Error("getstat err: "+err));});
             }
@@ -562,7 +567,7 @@ class WalletShellApi {
               if (rslt.result !== undefined)
                 return resolve(rslt.result);
               else
-                return reject(new Error("send transaction no result"));
+                return reject(new Error("send transaction no result, please OPTIMIZE wallet"));
             }).catch((err) => {
                 //logDebugMsg("sendTransaction has FAILED: "+err);
                 return reject(new Error("sendT err" + err));

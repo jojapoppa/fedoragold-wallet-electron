@@ -4,6 +4,10 @@
 const log = require('electron-log');
 const WalletShellApi = require('./ws_api');
 const { setIntervalAsync } = require('set-interval-async/fixed');
+const exec = require('child_process').exec;
+const execSync = require('child_process').execSync;
+const killer = require('tree-kill');
+const platform = require('os').platform();
 
 let DEBUG=false;
 //log.transports.file.maxSize = 5 * 1024 * 1024;
@@ -26,6 +30,9 @@ var TX_SKIPPED_COUNT = 0;
 var STATE_CONNECTED = false;
 var STATE_SAVING = false;
 var STATE_PAUSED = false;
+
+//global.syncNowTime = Math.floor(Date.now());
+//global.syncPrevTimeStamp = Math.floor(Date.now());
 
 var wsapi = null;
 var balanceTaskWorker = null;
@@ -57,8 +64,77 @@ function peerMsg(peerCount) {
   STATE_CONNECTED = false;
 }
 
-//logDebug("define checkBlockUpdate()");
-function checkBlockUpdate(){
+function splitLines(t) { return t.split(/\r\n|\r|\n/); }
+function checkWalletdStatus(heightVal, knownBlockCount) {
+  var cmd = `ps -ex`;
+  switch (process.platform) {
+      case 'win32' : cmd = `tasklist`; break;
+      case 'darwin' : cmd = `ps -ax`; break;
+      case 'linux' : cmd = `ps -A`; break;
+      default: break;
+  }
+
+  // the x: 0 is a workaround for the ENOMEM bug in nodejs: https://github.com/nodejs/node/issues/29008
+  var procStr = '';
+  var status = false;
+  let stdout = execSync(cmd, {
+      maxBuffer: 2000 * 1024,
+      env: {x: 0}
+  }); //, function(error, stdout, stderr) {
+    //if (error) { return; } else if (stderr.length > 0) { return; }
+
+    var procID = 0;
+    procStr = stdout.toString();
+    procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\n\r\t]/g, "");
+    procStr = procStr.toLowerCase();
+
+    var procAry = splitLines(procStr);
+    procStr = "";
+    var dloc = procAry.findIndex(element => element.includes('fedoragold_wall'))
+    if (dloc >= 0) {
+      procStr = procAry[dloc];
+      let procStr2 = '';
+      dloc = procStr.indexOf('fedoragold_wall');
+      //logDebug("procStr: "+procStr);
+      //logDebug("dloc: "+dloc);
+      if (platform === 'win32') {
+        procStr2 = procStr.substring(dloc+27);
+      } else if (platform === 'darwin') {
+        procStr2 = procStr.substring(0, 6);
+      } else {
+        procStr2 = procStr.substring(0, 8);
+      }
+
+      procStr2 = procStr2.trim();
+      //logDebug("procStr2: "+procStr2);
+      if (platform === 'win32') {
+        procID = parseInt(procStr2.substr(0, procStr2.indexOf(' ')), 10);
+      } else {
+        procID = parseInt(procStr2, 10);
+      }
+    }
+
+//    global.syncNowTime = Math.floor(Date.now());
+//    let diffTime = global.syncNowTime-global.syncPrevTimeStamp;
+//    if (diffTime > 180000) {
+//      global.syncPrevTimeStamp = Math.floor(Date.now());
+//      logDebug("walletd restarting...");
+//      try{killer(procID,'SIGKILL');}catch(err){/*do nothing*/}
+//    }
+
+    let dif = heightVal-knownBlockCount;
+    //logDebug("test heights at walletd PID: "+procID);
+    //logDebug(" diff is: "+dif);
+    if (dif > 10 && (dif % 10 == 0)) {
+      logDebug("restart walletd at procID: "+procID);
+      if (procID > 0) try{killer(procID,'SIGKILL');}catch(err){/*do nothing*/}
+      logDebug("walletd restarting because no blocks synched, will restart and retry...");
+    } 
+//  });
+}
+
+function checkBlockUpdate() {
+
     var retVal = true;
     if (STATE_SAVING || wsapi === null || STATE_PAUSED) {
       //logDebug("checkBlockUpdate(): invalid state ... skipped");
@@ -69,15 +145,16 @@ function checkBlockUpdate(){
     }
 
     // only start work once daemon is ready to work with walletd
-    if (! daemonsynchronizedok) {
-      return false;
-    }
-
-    //logDebug("checkBlockUpdate()...");
+    //if (! daemonsynchronizedok) {
+    //  logDebug("checkBlockUpdate() ... not synched");
+    //  return false;
+    //}
 
     wsapi.getStatus().then((bStatus) => {
 
         //logDebug(`blockStatus: ${JSON.stringify(bStatus)}`);
+        //global.syncPrevTimeStamp = Math.floor(Date.now());
+
         if (bStatus.id.length <= 0) return false;
         if (bStatus.result === undefined) return false;
         let blockStatus = bStatus.result;
@@ -167,6 +244,8 @@ function reset() {
     type: 'walletReset',
     data: ''
   });
+
+  logDebug("wallet reset...");
 }
 
 var queue = [];
@@ -416,15 +495,18 @@ function delayReleaseSaveState(){
 }
 
 function checkHeight() {
-      if(STATE_PAUSED || wsapi === null || !STATE_CONNECTED) return;
-      //logDebug("syncworker: checkHeight");
-      wsapi.getHeight().then((htval) => {
-        heightVal = htval.height; //parseInt(result.height, 10);
-        //logDebug("syncworker checkHeight: "+heightVal);
-      }).catch((err) => {
-        //just eat this... sometimes daemon takes a while to start...
-        //logDebug(`synchworker getHeight from Daemon: FAILED, ${err.message}`);
-      });
+  checkWalletdStatus(heightVal, knownBlockCount);
+
+  if(STATE_PAUSED || wsapi === null || !STATE_CONNECTED) return;
+  //logDebug("syncworker: checkHeight");
+
+  wsapi.getHeight().then((htval) => {
+    heightVal = htval.height; //parseInt(result.height, 10);
+    //logDebug("syncworker checkHeight: "+heightVal);
+  }).catch((err) => {
+    //just eat this... sometimes daemon takes a while to start...
+    //logDebug(`synchworker getHeight from Daemon: FAILED, ${err.message}`);
+  });
 }
 
 function saveWallet(){
@@ -456,7 +538,7 @@ function saveWallet(){
 
 heightTaskWorker = setIntervalAsync(()=>{
   checkHeight();
-}, 900*2.5);
+}, 900*2.75);
 
 balanceTaskWorker = setIntervalAsync(()=>{
   checkBalanceUpdate();
@@ -512,6 +594,7 @@ process.on('message', (msg) => {
             checkHeight();
             break;
         case 'daemonsynchronizedok':
+            //logDebug("synchronized ok set");
             daemonsynchronizedok = true;
             break;
         case 'checkBalanceUpdate':

@@ -369,8 +369,8 @@ function clobber(wall, daem, dPid) {
       if (wall) exec('pkill ' + 'fedoragold_w*');  // fedoragold_walletd
       break;
     default: //Linux+android
-      if (wall) exec('killall -9 ' + 'fedoragoldwallet.bin');
-      if (wall) exec('killall -9 ' + 'fedoragold_walletd');
+      if (wall) exec('killall -I ' + 'fedoragoldwallet.bin');
+      if (wall) exec('killall -I ' + 'fedoragold_walletd');
       break;
     }
 
@@ -1284,9 +1284,11 @@ const checkSeedTimer = setIntervalAsync(() => {
 
   var aurl = "http://"+app.primarySeedAddr+":30159/getheight";
   // grab whateveris between the : and the ,
-  getHttpContent(aurl)
-  .then((html) => app.primarySeedHeight = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
-  .catch((err) => app.primarySeedHeight = 0);
+  try { 
+    getHttpContent(aurl)
+    .then((html) => app.primarySeedHeight = html.match(/(?<=:\s*).*?(?=\s*,)/gs))
+    .catch((err) => app.primarySeedHeight = 0);
+  } catch(e) {app.primarySeedHeight = 0;}
 }, 2500);
 
 const checkDaemonHeight = setIntervalAsync(() => {
@@ -1405,7 +1407,7 @@ const checkDaemonTimer = setIntervalAsync(() => {
 
           //log.warn(procStr);
           //log.warn("daemon process no longer detected: runDaemon()...");
-          runDaemon();
+          if (!runDaemon()) clearInterval(checkDaemonTimer);
         }
     });
 }, 7500);
@@ -1418,7 +1420,8 @@ const checkSyncTimer = setIntervalAsync(() => {
 
         var newTimeStamp = Math.floor(Date.now());
 
-        getHttpContent(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`)
+        try {
+          getHttpContent(`http://${settings.get('daemon_host')}:${settings.get('daemon_port')}/iscoreready`)
           .then((html) => {
             let isready = JSON.parse(html).iscoreready;
             if (isready) {
@@ -1430,9 +1433,10 @@ const checkSyncTimer = setIntervalAsync(() => {
             }
           })
           .catch((err) => {if (win!==null) win.webContents.send('daemoncoreready', 'false')});
+        } catch(e) {if (win!==null) win.webContents.send('daemoncoreready', 'false')}
 
         let inactivityTime = 240000; // blocktime is 25 secs, so this must be comforatbly greater
-        let killerTime = 300000; //ms until we just clobber it
+        let killerTime = 600000; //ms until we just clobber it
         let delay = newTimeStamp - app.timeStamp;
         if ((delay > inactivityTime) && (delay <= killerTime)) {
           // if no response for over x mins then reset daemon... 
@@ -1551,13 +1555,12 @@ electron.dialog.showErrorBox = (title, content) => {
 process.on('unhandledRejection', function(err) {});
 
 function terminateDaemon(setTerminateMode) {
-
     // hit the stop_daemon rest interface...
     let aurl = `http://127.0.0.1:${settings.get('daemon_port')}/stop_daemon`;
     let libr = aurl.startsWith('https') ? require('https') : require('http');
     try {libr.get(aurl);} catch (e) {/*do nothing*/log.warn("term err: "+e);}
 
-    //log.warn("terminateDaemon() called... "+aurl);
+    log.warn("terminateDaemon() called... "+aurl);
     if (setTerminateMode) app.terminateMode = true;
 
     app.daemonLastPid = app.daemonPid;
@@ -1566,7 +1569,7 @@ function terminateDaemon(setTerminateMode) {
 app.on('window-all-closed', app.quit);
 app.on('before-quit', () => {
   //log.warn("call terminateDaemon from before-quit");
-  clobber(true, false, 0); 
+  //clobber(true, false, 0); 
   terminateDaemon(true);
 });
 
@@ -1587,10 +1590,10 @@ function htmlEscape(str) {
 
 function runDaemon() {
     // if there are insufficient resources, just run the daemon in thin mode 
-    //if (! checkMemoryAndStorage()) {
-    //  //log.warn("insufficient resources to run local daemon, will use remote instead");
-    //  return;
-    //}
+    if (! checkMemoryAndStorage()) {
+      alert("Insufficient resources to run local daemon (4gb memory, 20gb disk required");
+      return false;
+    }
 
     //log.warn("in runDaemon()");
 
@@ -1604,7 +1607,7 @@ function runDaemon() {
 
     // Don't allow binding on port 0 
     if (settings.get('daemon_port') === 0) {
-        return;
+        return false;
     }
 
       //'--add-priority-node', '202.182.106.252:30158', //'95.179.224.170:30158', 
@@ -1624,25 +1627,25 @@ function runDaemon() {
 
     try {
         if (! app.integratedDaemon) { 
-          if (platform == 'darwin') {
+    //      if (platform == 'darwin') {
              
             let execPath = daemonPath;
             let execArgs = " --log-level 2 " + "--rpc-bind-ip 0.0.0.0 " +
               "--rpc-bind-port "+settings.get('daemon_port');
-            //log.warn("running with args: "+execArgs);
+            //log.warn("running daemon with args: "+execArgs);
 
             app.daemonProcess = exec(execPath+execArgs, 
               {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});  
 
-          } else {
-            let daemonArgs = [
-              '--log-level', 2,
-              '--rpc-bind-ip', '0.0.0.0',
-              '--rpc-bind-port', settings.get('daemon_port'),
-            ];
-            app.daemonProcess = spawn(daemonPath, daemonArgs,
-              {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
-          }
+    //      } else {
+    //        let daemonArgs = [
+    //          '--log-level', 2,
+    //          '--rpc-bind-ip', '0.0.0.0',
+    //          '--rpc-bind-port', settings.get('daemon_port'),
+    //        ];
+    //        app.daemonProcess = spawn(daemonPath, daemonArgs,
+    //          {detached: true, stdio: ['pipe','pipe','pipe'], encoding: 'utf-8'});
+    //      }
         }
 
         app.daemonPid = app.daemonProcess.pid;
@@ -1678,6 +1681,8 @@ function runDaemon() {
     } catch(e) {
       //log.warn("runDaemon error: "+e.message);
     }
+
+  return true;
 }
 
 /*

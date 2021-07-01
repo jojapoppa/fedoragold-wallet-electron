@@ -15,6 +15,7 @@ const uiupdater = require('./wsui_updater');
 const wsutil = require('./ws_utils');
 const config = require('./ws_config');
 const remote = require('electron').remote;
+const platform = require('os').platform();
 
 const killer = require('tree-kill');
 const { setIntervalAsync } = require('set-interval-async/fixed');
@@ -35,7 +36,12 @@ const INFO_FUSION_DONE = 'Wallet optimization completed, your balance may appear
 const INFO_FUSION_SKIPPED = 'Wallet optimized. No further optimization is needed.';
 const ERROR_FUSION_FAILED = 'Unable to optimize your wallet, please try again in a few seconds';
 
+global.terminateServiceMode = false;
+
 let DEBUG=true;
+var rrunBin="";
+var aargu="";
+var servicePid = 0;
 
 var bRemoteDaemon = true;
 this.stdBuf = '';
@@ -72,7 +78,9 @@ var WalletShellManager = function(){
 
     this.daemonHost = settings.get('daemon_host');
     this.daemonPort = settings.get('daemon_port');
-    this.serviceProcess = null;
+
+    global.serviceProcess = null;
+
     this.serviceBin = SVC_BIN;
     this.walletdPassword = settings.get('walletd_password');
     this.walletdHost = settings.get('walletd_host');
@@ -84,7 +92,6 @@ var WalletShellManager = function(){
 
     this.serviceArgsDefault = [];
     this.walletConfigDefault = {'rpc-password': settings.get('walletd_password')};
-    this.servicePid = null;
     this.serviceLastPid = null;
     this.serviceActiveArgs = [];
     this.serviceApi = null;
@@ -97,7 +104,7 @@ WalletShellManager.prototype.killMiner = function(apid) {
     apid = this.minerPid;
   }
 
-  //log.warn("killMiner()... at pid: "+apid);
+  log.warn("killMiner()... at pid: "+apid);
   if (this.minerPid == 0) {
     return;
   }
@@ -204,6 +211,7 @@ WalletShellManager.prototype._getSettings = function(){
 };
 
 WalletShellManager.prototype._reinitSession = function(){
+    //log.warn("INSIDE _reinitSession");
     wsession.reset();
     // remove wallet config
     let configFile = wsession.get('walletConfig');
@@ -215,9 +223,9 @@ WalletShellManager.prototype._reinitSession = function(){
     });
 };
 
-WalletShellManager.prototype.serviceStatus = function(){
-  return  (undefined !== this.serviceProcess && null !== this.serviceProcess);
-};
+//WalletShellManager.prototype.serviceStatus = function(){
+//  return  (undefined !== this.serviceProcess && null !== this.serviceProcess);
+//};
 
 function splitLines(t) { return t.split(/\r\n|\r|\n/); }
 WalletShellManager.prototype.getMinerPID = function () {
@@ -433,7 +441,7 @@ WalletShellManager.prototype.callSpawn = function(walletFile, password, onError,
       //log.warn("spawnService next...");
 
       this._spawnService(walletFile, password, onError, onSuccess, onDelay, daemonsynchronizedok);
-    }, 4000, walletFile, password, onError, onSuccess, onDelay, daemonsynchronizedok);
+    }, 3000, walletFile, password, onError, onSuccess, onDelay, daemonsynchronizedok);
 }
 
 /*
@@ -458,7 +466,6 @@ WalletShellManager.prototype.startService = function(walletFile, password,
   onError, onSuccess, onDelay, daemonsynchronizedok) {
 
   //log.warn("top of startService");
-
   if (this.syncWorker) this.stopSyncWorker();
   if (null !== this.serviceLastPid) {
     // try to kill last process, in case it was stalled
@@ -468,55 +475,40 @@ WalletShellManager.prototype.startService = function(walletFile, password,
     }catch(e){/* do nothing */}
   }
 
+  global.terminateServiceMode = false;
+
   // Note: the path Must be quoted in order to work properly on all platforms...
-  let runBin = this.serviceBin.split(' ').join("\\ ");
-  runBin = runBin+' --container-file "'+walletFile+'" --container-password "'+password+
+  let rBin = this.serviceBin.split(' ').join("\\ ");
+  rBin = rBin+' --container-file "'+walletFile+'" --container-password "'+password+
     '" --log-level 0 --address';
 
   this.stdBuf = "";
   var wsm = this;
+  //log.warn("calling exec...: "+rBin);
 
-  //log.warn("calling exec...: "+runBin);
+  this.stdBuf = childProcess.execSync(rBin).toString();
+  //log.warn("aAddr: "+this.stdBuf);
 
-  this.walletProcess = childProcess.exec(runBin, { timeout: 30000, maxBuffer: 2000 * 1024, env: {x: 0} });
-  var thepid = this.walletProcess.pid;
+  if ((wsm.stdBuf.length == 0) || (wsm.stdBuf.search("password is wrong") >= 0)) {
+    onError("Password: "+ERROR_WALLET_PASSWORD+": "+wsm.stdBuf);
+  } else {
+    this.init(password);
+    //log.warn("raw address: "+wsm.stdBuf);
+    let walletAddress = cleanAddress(wsm.stdBuf);
+    //log.warn("done with cleanAddress: "+walletAddress);
 
-  this.walletProcess.on('close', () => {
+  if (walletAddress.length <= 0) {
+    log.warn("could not get walletAddress...");
+    onError("Getting address: "+ERROR_WALLET_PASSWORD);
+    return;
+  } else {
+    //log.warn("Wallet ADDRESS is (should not include label): "+walletAddress);
+    wsession.set('loadedWalletAddress', walletAddress);
 
-      //log.warn("in close callback...");
-
-      if ((wsm.stdBuf.length == 0) || (wsm.stdBuf.search("password is wrong") >= 0)) {
-        onError("Password: "+ERROR_WALLET_PASSWORD+": "+wsm.stdBuf);
-      } else {
-        this.init(password);
-        //log.warn("raw address: "+wsm.stdBuf);
-        let walletAddress = cleanAddress(wsm.stdBuf);
-        //log.warn("done with cleanAddress");
-
-        if (walletAddress.length <= 0) {
-          log.warn("could not get walletAddress...");
-          onError("Getting address: "+ERROR_WALLET_PASSWORD);
-          return;
-        } else {
-          //log.warn("Wallet ADDRESS is (should not include label): "+walletAddress);
-          wsession.set('loadedWalletAddress', walletAddress);
-
-          //log.warn("callSpawn now...");
-          this.callSpawn(walletFile, password, onError, onSuccess, onDelay, daemonsynchronizedok);
-        }
-      }
-  });
-  this.walletProcess.stdout.on('data', function(chunky) {
-    wsm.stdBuf += chunky.toString();
-
-    // set up kill - what is max time it could take to return the address - use that
-    setIntervalAsync(() => {
-      try{killer(thepid,'SIGKILL');}catch(err){/* do nothing*/} 
-    }, 2000, thepid); 
-  });
-  this.walletProcess.on('error', (err) => {
-    onError("Error: "+ERROR_WALLET_PASSWORD);
-  });
+    //log.warn("callSpawn now...");
+    this.callSpawn(walletFile, password, onError, onSuccess, onDelay, daemonsynchronizedok); 
+    }
+  }
 }
 
 WalletShellManager.prototype._argsToIni = function(args) {
@@ -534,10 +526,48 @@ function logFile(walletFile) {
     return path.join( path.dirname(walletFile), `${file.split(' ').join('').split('.')[0]}.log`);
 }
 
+//WalletShellManager.prototype.runWalletdProc = 
+//function runWalletdProc(inst, runBin, argu) {
+//
+//  log.warn("in runWalletdProc: "+runBin+" : "+argu);
+//  let wsm=inst;
+//
+//  try {
+//    inst.serviceProcess = childProcess.exec(runBin+argu,
+//      {detached: true, stdio: ['pipe','pipe','pipe']});
+//    servicePid = inst.serviceProcess.pid;
+//
+//    // now, tell the API object that the walletd should be working...
+//    this.serviceApi.walletdRunning = true;
+//
+//    //log.warn("walletd running at pid: "+this.serviceProcess.pid);
+//  } catch(e) {
+//   //log.error(`${config.walletServiceBinaryFilename} is not running`);
+//   return false;
+//  }
+//
+//  inst.serviceProcess.on('error', (err) => {
+//    //log.warn(`${config.walletServiceBinaryFilename} error: ${err.message}`);
+//    wsm.terminateService(true);
+//    wsm.syncWorker.stopSyncWorker();
+//  });
+
+  //log.warn("******");
+  //log.warn("Walletd: type your passwd after this... invisible, it goes into trace file!");
+  //log.warn("  (you can also do tail -f dtrusstrace.txt in another window...)");
+  //log.warn("sudo -S dtruss -b 100m -p "+this.serviceProcess.pid+" 2> dtrusstrace.txt");
+
+//  inst.serviceProcess.on('close', () => {
+//    //log.debug(`${config.walletServiceBinaryFilename} closed`);
+//  });
+//
+//  return true;
+//}
+
 WalletShellManager.prototype._spawnService = function(walletFile, password, onError,
   onSuccess, onDelay, daemonsynchronizedok) {
 
-    if (this.serviceProcess != null) {
+    if (global.serviceProcess != null) {
       // don't allow it to be spawned twice...
       return;
     }
@@ -615,32 +645,32 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
       if (DEBUG) {
         // Note: log level must be at least 1
         serviceArgs = [
-          '--data-dir', dataDir,
-          '--container-file', walletFile,
-          '--container-password', password,
-          '--bind-address', '127.0.0.1',
-          '--bind-port', this.walletdPort,
-          '--rpc-user', 'fedadmin',
-          '--rpc-password', password,
-          '--daemon-address', daemonAd,
-          '--daemon-port', daemonPt,
-          '--log-level', 0,
-          '--log-file', path.join(dataDir, 'walletddebug.log')
+          ' --data-dir', dataDir,
+          ' --container-file', walletFile,
+          ' --container-password', password,
+          ' --bind-address', '127.0.0.1',
+          ' --bind-port', this.walletdPort,
+          ' --rpc-user', 'fedadmin',
+          ' --rpc-password', password,
+          ' --daemon-address', daemonAd,
+          ' --daemon-port', daemonPt,
+          ' --log-level', 1,
+          ' --log-file', path.join(dataDir, 'walletddebug.log')
         ];
       } else {
         // Note: log level must be at least 1
         serviceArgs = [
-          '--data-dir', dataDir,
-          '--container-file', walletFile,
-          '--container-password', password,
-          '--bind-address', '127.0.0.1',
-          '--bind-port', this.walletdPort,
-          '--rpc-user', 'fedadmin',
-          '--rpc-password', password,
-          '--daemon-address', daemonAd,
-          '--daemon-port', daemonPt,
-          '--log-level', 0,
-          '--log-file', path.join(dataDir, 'walletddebug.log')
+          ' --data-dir', dataDir,
+          ' --container-file', walletFile,
+          ' --container-password', password,
+          ' --bind-address', '127.0.0.1',
+          ' --bind-port', this.walletdPort,
+          ' --rpc-user', 'fedadmin',
+          ' --rpc-password', password,
+          ' --daemon-address', daemonAd,
+          ' --daemon-port', daemonPt,
+          ' --log-level', 1,
+          ' --log-file', path.join(dataDir, 'walletddebug.log')
         ];
       }
     }
@@ -649,41 +679,23 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
     //log.warn("walletd serviceBin path: "+wsm.serviceBin);
     //log.warn("serviceArgs: "+serviceArgs);
 
-    try{
-        this.serviceProcess = childProcess.spawn(wsm.serviceBin, serviceArgs,
-          {detached: false, stdio: ['ignore','pipe','pipe'], encoding: 'utf-8'});
-        this.servicePid = this.serviceProcess.pid;
-    } catch(e) {
-        if (onError) onError(ERROR_WALLET_EXEC);
-        log.error(`${config.walletServiceBinaryFilename} is not running`);
-        return false;
-    }
+    rrunBin = this.serviceBin.split(' ').join("\\ ");
+    //log.warn("runBin walletd: "+global.runBin);
 
-    //log.warn("******");
-    //log.warn("Walletd: type your passwd after this... invisible, it goes into trace file!");
-    //log.warn("  (you can also do tail -f dtrusstrace.txt in another window...)");
-    //log.warn("sudo -S dtruss -b 100m -p "+this.serviceProcess.pid+" 2> dtrusstrace.txt");
+    aargu = "";
+    for (let i of serviceArgs) { aargu += i+' '; }
+    //log.warn("run walletd with args: "+aargu);
 
-    this.serviceProcess.on('close', () => {
-        setTimeout(() => {
-          //log.warn("in close... call terminateService");
-          //wsm.terminateService(true); happens in stopService
-        }, 3000);
-
-        log.debug(`${config.walletServiceBinaryFilename} closed`);
-    });
-
-    this.serviceProcess.on('error', (err) => {
-        wsm.terminateService(true);
-        wsm.syncWorker.stopSyncWorker();
-        log.warn(`${config.walletServiceBinaryFilename} error: ${err.message}`);
-    });
-
-    if(!this.serviceStatus()){
-        if(onError) onError(ERROR_WALLET_EXEC);
-        log.error(`${config.walletServiceBinaryFilename} is not running`);
-        return false;
-    }
+//    if (!this.runWalletdProc(this, rrunBin, aargu)) {
+//      if (onError) onError(ERROR_WALLET_EXEC);
+//      return false;
+//    }
+//
+//    if(!this.serviceStatus()){
+//        if(onError) onError(ERROR_WALLET_EXEC);
+//        log.error(`${config.walletServiceBinaryFilename} is not running`);
+//        return false;
+//    }
 
     wsession.set('connectedNode', `${settings.get('daemon_host')}:${settings.get('daemon_port')}`);
     this.serviceActiveArgs = serviceArgs;
@@ -700,80 +712,172 @@ WalletShellManager.prototype._spawnService = function(walletFile, password, onEr
       });
     }, 125, wsm, addr);
 
-    //log.warn("calling onSuccess()...");
-    onSuccess();
-
     // now, tell the API object that the walletd should be working...
     this.serviceApi.walletdRunning = true;
 
-    // has the daemon said "SYCHRONIZED OK" yet?
-    if (daemonsynchronizedok) {
-      if (this.syncWorker != null) {
-        this.syncWorker.send({ type: 'daemonsynchronizedok', data: {stat: true} });
-      }
+    //log.warn("calling onSuccess()... walletd is running");
+    onSuccess();
+};
+
+function checkWalletdTimer(inst) {
+
+  //log.warn("checkWalletdTimer...");
+
+  var cmd = `ps -ex`;
+  switch (process.platform) {
+      case 'win32' : cmd = `tasklist`; break;
+      case 'darwin' : cmd = `ps -ax`; break;
+      case 'linux' : cmd = `ps -A`; break;
+      default: break;
+  }
+
+  // the x: 0 is a workaround for the ENOMEM bug in nodejs: https://github.com/nodejs/node/issues/29008
+  var procStr = '';
+  var status = false;
+  let stdout = childProcess.execSync(cmd, {
+      maxBuffer: 2000 * 1024,
+      env: {x: 0}
+  });
+ 
+  var procID = 0;
+  procStr = stdout.toString();
+  procStr = procStr.replace(/[^a-zA-Z0-9_ .:;,?\n\r\t]/g, "");
+  procStr = procStr.toLowerCase();
+
+  var procAry = splitLines(procStr);
+  procStr = "";
+  var dloc = procAry.findIndex(element => element.includes('fedoragold_wall'))
+  //log.warn("dloc index is: "+dloc);
+  if (dloc >= 0) {
+    procStr = procAry[dloc];
+    let procStr2 = '';
+    dloc = procStr.indexOf('fedoragold_wall');
+    //log.warn("dloc: "+dloc);
+    //log.warn("raw: "+procStr);
+    if (platform === 'win32') {
+      procStr2 = procStr.substring(dloc+27);
+    } else if (platform === 'darwin') {
+      procStr2 = procStr.substring(0, 6);
+    } else {
+      procStr2 = procStr.substring(0, 8);
     }
-};
 
-WalletShellManager.prototype.stopService = function(){
+    procStr2 = procStr2.trim();
+    //log.warn("process string2: "+procStr2);
 
-    this.killMiner(this.minerPid);
+    if (platform === 'win32') {
+      procID = parseInt(procStr2.substr(0, procStr2.indexOf(' ')), 10);
+    } else {
+      procID = parseInt(procStr2, 10);
+    }
 
-    let wsm = this;
-    return new Promise(function (resolve){
-        if (wsm.serviceStatus()){
-            wsm.serviceLastPid = wsm.serviceProcess.pid;
-            wsm.stopSyncWorker();
-            //setTimeout(() => {
-              wsm.terminateService(true); // force kill in 5 seconds
-            //}, 5000);
+    servicePid = procID;
+    //log.warn("ws_manager detected walletd PID is: "+servicePid);
+  }
 
-            //log.warn("save the wallet..."); //this happens in syncworker anyway...
-            //try {
-            //  wsm.serviceApi.save().then(() =>{
-            //    try{
-            //        wsm._reinitSession();
-            //        resolve(true);
-            //        return;
-            //    } catch(err){
-            //      log.warn(`SIGTERM failed: ${err.message}`);
-            //    }
-            //  }).catch((err) => {
-            //    log.warn(`Failed to save wallet: ${err.message}`);
-            //  });
-            //} catch (e) {
-            //  log.warn("save failed: "+e);
-            //}
-        }
+  if (procID == 0) {
+    //log.warn(procStr);
+    //log.warn("walletd process no longer detected: runWalletdProc()...");
+    if ((aargu.length > 0) && !global.terminateServiceMode) {
+      //log.warn("  runWalletdProc runBin: "+rrunBin+" argu: "+aargu);
 
-        wsm._reinitSession();
-        resolve(false);
-    });
-};
+      try {
+        global.serviceProcess = childProcess.exec(rrunBin+aargu,
+          {detached: true, stdio: ['pipe','pipe','pipe']});
+
+        //log.warn("serviceProcess: "+global.serviceProcess);
+        //log.warn("setup pids: "+global.serviceProcess.pid);
+        servicePid = global.serviceProcess.pid;
+
+        //log.warn("walletd running...");
+      } catch(e) {
+        //log.error(`${config.walletServiceBinaryFilename} is not running`);
+        return;
+      }
+
+      //log.warn("******");
+      //log.warn("Walletd: type your passwd after this... invisible, it goes into trace file!");
+      //log.warn("  (you can also do tail -f dtrusstrace.txt in another window...)");
+      //log.warn("sudo -S dtruss -b 100m -p "+this.serviceProcess.pid+" 2> dtrusstrace.txt");
+
+      global.serviceProcess.on('error', (err) => {
+        log.warn(`${config.walletServiceBinaryFilename} error: ${err.message}`);
+        this.terminateService(true);
+        this.syncWorker.stopSyncWorker();
+      });  
+    }
+  }
+} 
 
 WalletShellManager.prototype.terminateService = function(force) {
-    if(!this.serviceStatus()) return;
 
-    //log.warn("inside terminateService now...");
+    log.warn("terminateService attempt...");
+    log.warn("serviceProcess: "+global.serviceProcess);
+
+    if (! (undefined !== global.serviceProcess && null !== global.serviceProcess)) return;
+
+    log.warn("inside terminateService now...");
+    global.terminateServiceMode = true;
 
     force = force || false;
     let signal = force ? 'SIGKILL' : 'SIGTERM';
-    //log.debug(`terminating with ${signal}`);
-    this.serviceLastPid = this.servicePid;
+    log.warn(`terminating with ${signal}`);
+    log.warn("  using pid: "+servicePid); 
+    this.serviceLastPid = servicePid;
     try{
-        this.serviceProcess.kill(signal);
-        if(this.servicePid) process.kill(this.servicePid, signal);
-    }catch(e){
-        if(!force && this.serviceProcess) {
-            log.debug(`SIGKILLing ${config.walletServiceBinaryFilename}`);
-            try{this.serviceProcess.kill('SIGKILL');}catch(err){}
-            if(this.servicePid){
-                try{process.kill(this.servicePid, 'SIGKILL');}catch(err){}
+        global.serviceProcess.kill(signal);
+        if(servicePid) process.kill(servicePid, signal);
+    } catch(e) {
+        if(!force && global.serviceProcess) {
+            log.warn(`SIGKILLing ${config.walletServiceBinaryFilename}`);
+            try{global.serviceProcess.kill('SIGKILL');}catch(err){}
+            if(servicePid){
+                try{process.kill(servicePid, 'SIGKILL');}catch(err){}
             }
         }
     }
-    
-    this.serviceProcess = null;
-    this.servicePid = null;
+   
+    global.runBin = "";
+    global.serviceProcess = null;
+    servicePid = null;
+};
+
+setInterval(checkWalletdTimer, 7500, this)
+
+WalletShellManager.prototype.stopService = function() {
+
+    //log.warn("stopService...");
+
+    let wsm = this;
+    let minerPid = wsm.minerPid;
+
+    //log.warn("serviceProcess above Promise: "+global.serviceProcess);
+
+    return new Promise(function (resolve){
+        //log.warn("in promise...");
+
+        if (global.serviceProcess == null) {
+          //log.warn("null serviceProcess...");
+          wsm._reinitSession();
+          resolve(true); // not fatal, could be during startup
+        }
+
+        //log.warn("minerPid: "+minerPid);
+        if (minerPid !== undefined && minerPid > 0) wsm.killMiner(minerPid);
+
+        //log.warn("serviceProcess: "+global.serviceProcess);
+        if (undefined !== global.serviceProcess && null !== global.serviceProcess) {
+            log.warn("stop sync worker");
+            wsm.serviceLastPid = global.serviceProcess.pid;
+            wsm.stopSyncWorker();
+            log.warn("set terminateService timeout...");
+            //setTimeout(wsm.terminateService, 5000, false);
+            wsm.terminateService(false); 
+        }
+
+        wsm._reinitSession();
+        resolve(true);
+    });
 };
 
 WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daemonPt) {
@@ -825,6 +929,14 @@ WalletShellManager.prototype.startSyncWorker = function(password, daemonAd, daem
     wsm.syncWorker.send(cfgData);
     wsession.set('serviceReady', true);
     wsession.set('syncStarted', true);
+
+    // DOESN'T matter? ... we don't open wallet until synced...
+    // has the daemon said "SYCHRONIZED OK" yet?
+    //if (daemonsynchronizedok) {
+    //  if (wsm.syncWorker != null) {
+    //    wsm.syncWorker.send({ type: 'daemonsynchronizedok', data: {stat: true} });
+    //  }
+    //}
 };
 
 WalletShellManager.prototype.stopSyncWorker = function(){
@@ -836,18 +948,26 @@ WalletShellManager.prototype.stopSyncWorker = function(){
 
     if(null === this.syncWorker) return;
 
+    log.warn("sending stop signal to syncworker...");
+
     try{
         this.syncWorker.send({type: 'stop', data: {}});
 
-        setTimeout(function () {
-            if (this.syncWorker != undefined) {
-              this.syncWorker.kill('SIGTERM');
-              this.syncWorker  = null;
-            }
-        }, 500);
+        log.warn("syncWorker stopped");
+
+        //setTimeout(function () {
+        //    if (this.syncWorker != undefined && this.syncWorker != null) {
+        //      log.warn("kill syncWorker");
+        //      this.syncWorker.kill('SIGTERM');
+        //      this.syncWorker = null;
+        //      log.warn("it should be dead...");
+        //    }
+        //}, 500);
     }catch(e){
         log.debug(`syncworker already stopped`);
     }
+
+    log.warn("done with stopSyncWorker");
 };
 
 WalletShellManager.prototype.getNodeFee = function(){
@@ -1097,8 +1217,11 @@ WalletShellManager.prototype._fusionSendTx = function(threshold, counter){
     //log.warn("_fusionSendTx threshold: "+threshold+" counter: "+counter);
     return new Promise((resolve, reject) => {
         counter = counter || 0;
-        let maxIter = 256;
-        if(counter >= maxIter) return resolve(wsm.fusionTxHash); // stop at max iter
+
+        // not too high, they can always run it twice...
+        let maxIter = 20; // don't make this too high!  it's too slow otherwise...
+
+        if (counter >= maxIter) return resolve(wsm.fusionTxHash); // stop at max iter
       
         // just stop if balance gets locked 
         //const lockedBalance = wsession.get('walletLockedBalance');
@@ -1112,7 +1235,7 @@ WalletShellManager.prototype._fusionSendTx = function(threshold, counter){
         wtime(4000).then(() => {
 
           // keep sending fusion tx till it hit IOOR or reaching max iter
-          let fusionStat = "send fusion tx, iteration: "+(counter+1);
+          let fusionStat = "send fusion tx, iteration: "+(counter+1)+ " of 20";
           //log.warn(fusionStat);
           wsm.notifyUpdate({
             type: 'fusionStatus',
@@ -1201,44 +1324,43 @@ WalletShellManager.prototype.optimizeWallet = function(){
 
 //jojapoppa: this can be repurposed to allow the dynamic assignment of daemon's.  that way
 // if a remote daemon goes down it can retarget, or switch from remote to local on the fly etc...
-//
-//WalletShellManager.prototype.networkStateUpdate = function(state){
-//  if(!this.syncWorker) return;    
-//  log.warn('networkStateUpdate ServiceProcess PID: ' + this.servicePid);
-//
-//  if(state === 0){
-//    // pause the syncworker, but leave service running
-//    this.syncWorker.send({
-//      type: 'pause',
-//      data: null
-//    });
-//  }else{
-//      // looks like fedoragold_walletd always stalled after disconnected, just kill & relaunch it
-//      let pid = null;
-//      if (this.serviceProcess != null) {
-//        pid = this.serviceProcess.pid || null;
-//      }
-//
-//      this.terminateService();
-//
-//      // wait a bit
-//      setImmediate(() => {
-//        if (pid){
-//          try{process.kill(pid, 'SIGKILL');}catch(e){}
-//        }
-//          setTimeout(()=>{
-//          log.warn(`respawning ${config.walletServiceBinaryFilename} after network outage...`);
-//          this.serviceProcess = childProcess.spawn(this.serviceBin, this.serviceActiveArgs);
-//          // store new pid
-//          this.servicePid = this.serviceProcess.pid;
-//          this.syncWorker.send({
-//            type: 'resume',
-//            data: null
-//          });
-//        },15000);
-//      },2500);        
-//  }
-//};
+WalletShellManager.prototype.networkStateUpdate = function(state){
+  if(!this.syncWorker) return;    
+  log.warn('networkStateUpdate ServiceProcess PID: ' + this.servicePid);
+
+  if(state === 0){
+    // pause the syncworker, but leave service running
+    this.syncWorker.send({
+      type: 'pause',
+      data: null
+    });
+  }else{
+      // looks like fedoragold_walletd always stalled after disconnected, just kill & relaunch it
+      let pid = null;
+      if (this.serviceProcess != null) {
+        pid = this.serviceProcess.pid || null;
+      }
+
+      this.terminateService();
+
+      // wait a bit
+      setImmediate(() => {
+        if (pid){
+          try{process.kill(pid, 'SIGKILL');}catch(e){}
+        }
+          setTimeout(()=>{
+          log.warn(`respawning ${config.walletServiceBinaryFilename} after network outage...`);
+          this.serviceProcess = childProcess.spawn(this.serviceBin, this.serviceActiveArgs);
+          // store new pid
+          this.servicePid = this.serviceProcess.pid;
+          this.syncWorker.send({
+            type: 'resume',
+            data: null
+          });
+        },15000);
+      },2500);        
+  }
+};
 
 WalletShellManager.prototype.notifyUpdate = function(msg){
 //    log.warn(`in notifyUpdate ... calling updateUiState: ${msg.type}`);

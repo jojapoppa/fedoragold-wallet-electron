@@ -1839,7 +1839,7 @@ function handleWalletExport(){
         if(!overviewWalletAddress.value) return;
         wsmanager.getSecretKeys(overviewWalletAddress.value).then((keys) => {
 
-            log.warn("keys: "+JSON.stringify(keys)); 
+            //log.warn("keys: "+JSON.stringify(keys)); 
 
             showkeyInputViewKey.value = keys.viewSecretKey;
             showkeyInputSpendKey.value = keys.spendSecretKey;
@@ -3090,8 +3090,8 @@ ipcRenderer.on('promptexit', () => {
     wsmanager.stopSyncWorker();
     wsmanager.stopService().then(() => {
         setTimeout(function() {
-            dialog.innerHTML = 'Good bye!';
-            wsmanager.terminateService(true);
+            //dialog.innerHTML = 'Good bye!';
+            //wsmanager.terminateService(true);
             if (win != null) win.close();
         }, 8200);
     }).catch((err) => {
